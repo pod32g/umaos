@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Install UmaOS
+Comment=Start the UmaOS installer
+Exec=/usr/local/bin/umao-install
+Icon=calamares
+Terminal=false
+Categories=System;Settings;
+StartupNotify=true

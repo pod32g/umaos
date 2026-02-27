@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=UmaOS Installer Autostart
+Comment=Launch the UmaOS installer once per live session
+Exec=/usr/local/bin/umao-installer-autostart
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2
+OnlyShowIn=KDE;

@@ -1,0 +1,5 @@
+out/
+work/
+build/
+*.iso
+*.img

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=UmaOS Installer
+Comment=Install UmaOS with Calamares (GUI) or archinstall fallback
+Exec=/usr/local/bin/umao-install
+Icon=calamares
+Terminal=false
+Categories=System;Settings;
+Keywords=installer;calamares;archinstall;umaos;
+StartupNotify=true

@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "Usage: umao-apply-theme [--once]"
+}
+
+once=0
+if (($# > 0)); then
+  case "$1" in
+    --once)
+      once=1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+fi
+
+if [[ -z "${HOME:-}" ]]; then
+  echo "HOME is not set." >&2
+  exit 1
+fi
+
+state_dir="$HOME/.config/umaos"
+state_file="$state_dir/theme-applied"
+mkdir -p "$state_dir"
+
+if (($once == 1)) && [[ -f "$state_file" ]]; then
+  exit 0
+fi
+
+wallpaper="/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg"
+
+if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+  plasma-apply-colorscheme UmaSkyPink >/dev/null 2>&1 || true
+fi
+
+if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 && [[ -f "$wallpaper" ]]; then
+  plasma-apply-wallpaperimage "$wallpaper" >/dev/null 2>&1 || true
+fi
+
+kwriteconfig_cmd=""
+if command -v kwriteconfig6 >/dev/null 2>&1; then
+  kwriteconfig_cmd="kwriteconfig6"
+elif command -v kwriteconfig5 >/dev/null 2>&1; then
+  kwriteconfig_cmd="kwriteconfig5"
+fi
+
+if [[ -n "$kwriteconfig_cmd" ]]; then
+  "$kwriteconfig_cmd" --file kdeglobals --group General --key ColorScheme UmaSkyPink
+  "$kwriteconfig_cmd" --file kdeglobals --group Icons --key Theme UmaOS-Papirus
+  "$kwriteconfig_cmd" --file kdeglobals --group KDE --key widgetStyle Breeze
+fi
+
+touch "$state_file"

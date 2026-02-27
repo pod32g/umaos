@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Apply UmaOS Theme
+Comment=Apply UmaOS defaults on first login
+Exec=/usr/local/bin/umao-apply-theme --once
+Terminal=false
+OnlyShowIn=KDE;
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

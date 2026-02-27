@@ -1,0 +1,12 @@
+NAME="UmaOS"
+PRETTY_NAME="UmaOS (Arch-based)"
+ID=umaos
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;56;133;255"
+HOME_URL="https://example.com/umaos"
+DOCUMENTATION_URL="https://example.com/umaos/docs"
+SUPPORT_URL="https://example.com/umaos/support"
+BUG_REPORT_URL="https://example.com/umaos/issues"
+PRIVACY_POLICY_URL="https://example.com/umaos/privacy"
+LOGO=archlinux-logo

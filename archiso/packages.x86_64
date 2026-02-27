@@ -1,0 +1,24 @@
+# UmaOS extra packages merged into releng package set.
+archinstall
+calamares
+ckbcomp
+kpmcore
+networkmanager
+plasma-meta
+sddm
+qt6-svg
+konsole
+dolphin
+firefox
+git
+nano
+vim
+wget
+curl
+unzip
+zip
+noto-fonts
+noto-fonts-cjk
+noto-fonts-emoji
+kvantum
+papirus-icon-theme

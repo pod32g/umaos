@@ -1,0 +1,16 @@
+[Icon Theme]
+Name=UmaOS-Papirus
+Comment=UmaOS icon mapping overlay with Papirus inheritance
+Inherits=Papirus
+Example=folder
+Directories=apps/scalable,actions/24
+
+[apps/scalable]
+Size=128
+Context=Applications
+Type=Scalable
+
+[actions/24]
+Size=24
+Context=Actions
+Type=Fixed

@@ -1,0 +1,45 @@
+---
+componentName: umaos
+welcomeStyleCalamares: true
+welcomeExpandingLogo: true
+
+windowExpanding: normal
+windowSize: 920px,560px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+  productName: "UmaOS"
+  shortProductName: "UmaOS"
+  version: "Rolling"
+  shortVersion: "rolling"
+  versionedName: "UmaOS Rolling"
+  shortVersionedName: "UmaOS"
+  bootloaderEntryName: "UmaOS"
+  productUrl: "https://example.com/umaos"
+  supportUrl: "https://example.com/umaos/support"
+  knownIssuesUrl: "https://example.com/umaos/issues"
+  releaseNotesUrl: "https://example.com/umaos/releases"
+  donateUrl: "https://example.com/umaos/donate"
+
+images:
+  productBanner: "banner.svg"
+  productIcon: "logo.svg"
+  productLogo: "logo.svg"
+  productWallpaper: "wallpaper.svg"
+  productWelcome: "welcome.svg"
+
+style:
+  SidebarBackground: "#143d7a"
+  SidebarText: "#f8fafd"
+  SidebarTextCurrent: "#0f2850"
+  SidebarBackgroundCurrent: "#ff88b7"
+
+slideshow: "show.qml"
+slideshowAPI: 2
+
+uploadServer:
+  type: "none"
+  url: ""
+  sizeLimit: -1

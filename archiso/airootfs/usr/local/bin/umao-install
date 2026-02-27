@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: umao-install [--gui|--cli] [--autostart] [--help]
+
+Default behavior:
+  - launch Calamares GUI when available
+  - if Calamares is unavailable or exits with an error, offer archinstall fallback
+
+Options:
+  --gui        Force Calamares GUI (exit non-zero on failure)
+  --cli        Force archinstall TUI
+  --autostart  Non-interactive mode for desktop autostart hook
+  --help       Show this help text
+USAGE
+}
+
+mode="auto"
+autostart=0
+
+while (($#)); do
+  case "$1" in
+    --gui)
+      mode="gui"
+      ;;
+    --cli)
+      mode="cli"
+      ;;
+    --autostart)
+      autostart=1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+run_cli() {
+  if ! command -v archinstall >/dev/null 2>&1; then
+    echo "archinstall not found in this live environment." >&2
+    return 127
+  fi
+
+  echo "Launching archinstall..."
+  exec archinstall
+}
+
+run_gui() {
+  if ! command -v calamares >/dev/null 2>&1; then
+    echo "Calamares is not installed in this live environment." >&2
+    return 127
+  fi
+
+  if (($autostart == 0)); then
+    cat <<'BANNER'
+====================================
+       UmaOS GUI Installer
+====================================
+BANNER
+  fi
+
+  calamares
+}
+
+case "$mode" in
+  cli)
+    run_cli
+    ;;
+  gui)
+    run_gui
+    ;;
+  auto)
+    if command -v calamares >/dev/null 2>&1; then
+      if run_gui; then
+        exit 0
+      fi
+      echo "Calamares exited with an error." >&2
+    fi
+
+    if (($autostart == 1)); then
+      echo "Autostart mode: Calamares unavailable or failed, skipping fallback." >&2
+      exit 1
+    fi
+
+    echo "Calamares unavailable or failed. Fall back to archinstall? [Y/n]"
+    read -r answer
+    answer=${answer:-Y}
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+      run_cli
+    fi
+    echo "Installer canceled."
+    ;;
+esac

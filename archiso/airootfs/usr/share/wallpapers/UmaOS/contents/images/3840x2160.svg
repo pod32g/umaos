@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#e0efff"/>
+      <stop offset="1" stop-color="#ffd6e8"/>
+    </linearGradient>
+  </defs>
+  <rect width="3840" height="2160" fill="url(#sky)"/>
+  <path d="M0 1520 C520 1280, 1100 1700, 1600 1480 C2260 1180, 2900 1730, 3840 1420 L3840 2160 L0 2160 Z" fill="#2f74cc" opacity="0.18"/>
+  <path d="M0 1680 C760 1390, 1440 1960, 2200 1720 C2840 1500, 3300 1840, 3840 1720 L3840 2160 L0 2160 Z" fill="#ff91c0" opacity="0.25"/>
+  <text x="220" y="1910" fill="#1e4f89" font-size="240" font-family="Noto Sans">UmaOS</text>
+</svg>

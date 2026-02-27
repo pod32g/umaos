@@ -1,0 +1,10 @@
+[SddmGreeterTheme]
+Name=UmaOS Race
+Description=UmaOS sky-blue and pink login theme skeleton
+Author=UmaOS Project
+License=CC0
+Type=sddm-theme
+Version=0.1.0
+MainScript=Main.qml
+Theme-Id=umaos-race
+Theme-API=2.0

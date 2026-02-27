@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+marker="/tmp/umaos-calamares-autostart.done"
+
+if [[ -e "$marker" ]]; then
+  exit 0
+fi
+
+touch "$marker"
+
+# Give the desktop shell a moment before opening the installer.
+sleep 4
+exec /usr/local/bin/umao-install --gui --autostart
