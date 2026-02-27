@@ -9,7 +9,7 @@ OUT_DIR="$ROOT_DIR/out"
 DATE_TAG="$(date +%Y.%m.%d)"
 ISO_LABEL="UMAOS_$(date +%Y%m)"
 
-CALAMARES_REQUIRED_PKGS=(calamares ckbcomp)
+CALAMARES_REQUIRED_PKGS=(calamares xorg-xkbcomp)
 MISSING_CALAMARES_PKGS=()
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
 AUR_SRC_DIR="$ROOT_DIR/build/aur-src"
@@ -71,7 +71,10 @@ build_missing_calamares_from_aur() {
   local builder_user="${USER:-}"
   local pkg
   local pkg_src
-  local pkg_file
+  local pkg_files
+  local file
+  local copied_count
+  local has_requested_pkg
   local built_pkg_files=()
 
   require_cmd git
@@ -89,6 +92,9 @@ build_missing_calamares_from_aur() {
   log "AUR fallback enabled. Building missing packages as user '$builder_user': ${MISSING_CALAMARES_PKGS[*]}"
 
   mkdir -p "$AUR_SRC_DIR" "$LOCAL_REPO_DIR"
+  if [[ "$EUID" -eq 0 ]]; then
+    chown -R "$builder_user":"$builder_user" "$AUR_SRC_DIR"
+  fi
 
   for pkg in "${MISSING_CALAMARES_PKGS[@]}"; do
     pkg_src="$AUR_SRC_DIR/$pkg"
@@ -102,16 +108,20 @@ build_missing_calamares_from_aur() {
       (cd "$pkg_src" && makepkg -s --needed --noconfirm)
     fi
 
-    pkg_file=""
-    for candidate in "$pkg_src"/"$pkg"-*.pkg.tar.*; do
-      [[ -f "$candidate" ]] || continue
-      [[ "$candidate" == *.sig ]] && continue
-      pkg_file="$candidate"
-    done
+    copied_count=0
+    has_requested_pkg=0
+    while IFS= read -r file; do
+      cp -f "$file" "$LOCAL_REPO_DIR/"
+      built_pkg_files+=("$LOCAL_REPO_DIR/$(basename "$file")")
+      if [[ "$(basename "$file")" == "$pkg"-*.pkg.tar.* ]]; then
+        has_requested_pkg=1
+      fi
+      copied_count=$((copied_count + 1))
+    done < <(find "$pkg_src" -maxdepth 1 -type f -name "*.pkg.tar.*" \
+      ! -name "*.sig" ! -name "*-debug-*.pkg.tar.*" | sort)
 
-    [[ -n "$pkg_file" ]] || die "AUR build for '$pkg' did not produce a package file"
-    cp -f "$pkg_file" "$LOCAL_REPO_DIR/"
-    built_pkg_files+=("$LOCAL_REPO_DIR/$(basename "$pkg_file")")
+    [[ "$copied_count" -gt 0 ]] || die "AUR build for '$pkg' did not produce installable package files"
+    [[ "$has_requested_pkg" -eq 1 ]] || die "AUR build for '$pkg' did not produce a '$pkg' package artifact"
   done
 
   rm -f "$LOCAL_REPO_DIR/$LOCAL_REPO_NAME.db" "$LOCAL_REPO_DIR/$LOCAL_REPO_NAME.db.tar.gz" \

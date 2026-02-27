@@ -1,5 +1,5 @@
 NAME="UmaOS"
-PRETTY_NAME="UmaOS (Arch-based)"
+PRETTY_NAME="UmaOS"
 ID=umaos
 ID_LIKE=arch
 BUILD_ID=rolling

@@ -1,7 +1,7 @@
 # UmaOS extra packages merged into releng package set.
 archinstall
 calamares
-ckbcomp
+xorg-xkbcomp
 kpmcore
 networkmanager
 plasma-meta

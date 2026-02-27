@@ -29,6 +29,30 @@ sudo pacman -S --needed archiso rsync pacman
 
 Resulting ISOs are written to `out/`.
 
+## Build on macOS (Docker wrapper)
+
+If you do not want local Arch dependencies (`pacman`, `mkarchiso`) on macOS, use Docker:
+
+```bash
+./scripts/build-iso-docker.sh
+```
+
+Optional variables:
+
+```bash
+DOCKER_PLATFORM=linux/amd64 ./scripts/build-iso-docker.sh
+UMAOS_ALLOW_AUR=1 ./scripts/build-iso-docker.sh
+UMAOS_SKIP_DOCKER_BUILD=1 ./scripts/build-iso-docker.sh
+```
+
+Notes:
+
+- Docker runs the build in a privileged Arch container.
+- The wrapper uses Docker named volumes for `build/` and `work/` so case-sensitive paths work correctly on macOS.
+- Generated ISOs still end up in local `out/`.
+- Optional cleanup of old host-side artifacts from earlier runs:
+  `rm -rf work build`
+
 ## Calamares package sourcing policy
 
 UmaOS prefers official Arch repos.

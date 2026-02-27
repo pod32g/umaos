@@ -16,16 +16,26 @@ fi
 
 accel_args=()
 cpu_arg="max"
-case "$(uname -s)" in
-  Linux)
-    accel_args=(-enable-kvm)
-    cpu_arg="host"
-    ;;
-  Darwin)
-    accel_args=(-accel hvf)
-    cpu_arg="host"
-    ;;
-esac
+accel_help="$(qemu-system-x86_64 -accel help 2>/dev/null || true)"
+
+if grep -q '^kvm$' <<<"$accel_help"; then
+  accel_args=(-accel kvm)
+  cpu_arg="host"
+elif grep -q '^hvf$' <<<"$accel_help"; then
+  accel_args=(-accel hvf)
+  cpu_arg="host"
+elif grep -q '^whpx$' <<<"$accel_help"; then
+  accel_args=(-accel whpx)
+  cpu_arg="host"
+elif grep -q '^tcg$' <<<"$accel_help"; then
+  accel_args=(-accel tcg)
+else
+  echo "No supported QEMU accelerator found; trying default execution." >&2
+fi
+
+if [[ "$cpu_arg" == "host" ]] && [[ " ${accel_args[*]} " == *" tcg "* ]]; then
+  cpu_arg="max"
+fi
 
 exec qemu-system-x86_64 \
   -m 4096 \
