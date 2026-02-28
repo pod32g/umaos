@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ -z "${BASH_VERSION:-}" ]; then
+  echo "[umaos] ERROR: scripts/build-iso.sh must be run with bash." >&2
+  exit 1
+fi
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RELENG_DIR="/usr/share/archiso/configs/releng"
 BUILD_PROFILE="$ROOT_DIR/build/profile"
@@ -16,6 +21,8 @@ AUR_SRC_DIR="$ROOT_DIR/build/aur-src"
 LOCAL_REPO_DIR="$ROOT_DIR/build/localrepo"
 LOCAL_REPO_NAME="umaos-local"
 LOCAL_REPO_DB="$LOCAL_REPO_DIR/$LOCAL_REPO_NAME.db.tar.gz"
+GRUB_BACKGROUND_SRC="$ROOT_DIR/uma1.png"
+SYSLINUX_BACKGROUND_SRC="$ROOT_DIR/uma1-syslinux.png"
 
 log() {
   echo "[umaos] $*"
@@ -101,10 +108,24 @@ build_missing_calamares_from_aur() {
 
     if [[ "$EUID" -eq 0 ]]; then
       sudo -u "$builder_user" bash -lc "rm -rf '$pkg_src' && git clone --depth=1 'https://aur.archlinux.org/$pkg.git' '$pkg_src'"
-      sudo -u "$builder_user" bash -lc "cd '$pkg_src' && makepkg -s --needed --noconfirm"
     else
       rm -rf "$pkg_src"
       git clone --depth=1 "https://aur.archlinux.org/$pkg.git" "$pkg_src"
+    fi
+
+    if [[ "$pkg" == "calamares" && -f "$pkg_src/PKGBUILD" ]]; then
+      # Ensure Python-backed installer modules are built in AUR fallback builds.
+      if ! grep -q "'python'" "$pkg_src/PKGBUILD"; then
+        sed -i "/'qt6-translations'/a\\  'python'" "$pkg_src/PKGBUILD"
+      fi
+      if ! grep -q -- "-DWITH_PYTHON=ON" "$pkg_src/PKGBUILD"; then
+        sed -i "/-DWITH_QT6=ON/a\\    -DWITH_PYTHON=ON\\n    -DWITH_PYBIND11=ON" "$pkg_src/PKGBUILD"
+      fi
+    fi
+
+    if [[ "$EUID" -eq 0 ]]; then
+      sudo -u "$builder_user" bash -lc "cd '$pkg_src' && makepkg -s --needed --noconfirm"
+    else
       (cd "$pkg_src" && makepkg -s --needed --noconfirm)
     fi
 
@@ -131,6 +152,91 @@ build_missing_calamares_from_aur() {
   log "Created local package repo at $LOCAL_REPO_DIR"
 }
 
+replace_boot_branding_strings() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  sed -i.bak \
+    -e "s/Arch Linux/UmaOS/g" \
+    -e "s/archlinux/umaos/g" \
+    "$file"
+  rm -f "$file.bak"
+}
+
+configure_boot_branding() {
+  local grub_loopback="$BUILD_PROFILE/grub/loopback.cfg"
+  local syslinux_splash="$BUILD_PROFILE/syslinux/splash.png"
+  local syslinux_head="$BUILD_PROFILE/syslinux/archiso_head.cfg"
+  local syslinux_src="$GRUB_BACKGROUND_SRC"
+  local tmp_file
+  local cfg
+
+  # Brand boot menu text across GRUB, Syslinux and EFI loader entries.
+  replace_boot_branding_strings "$grub_loopback"
+  if [[ -d "$BUILD_PROFILE/syslinux" ]]; then
+    while IFS= read -r cfg; do
+      replace_boot_branding_strings "$cfg"
+    done < <(find "$BUILD_PROFILE/syslinux" -maxdepth 1 -type f -name "*.cfg" | sort)
+  fi
+  if [[ -d "$BUILD_PROFILE/efiboot/loader/entries" ]]; then
+    while IFS= read -r cfg; do
+      replace_boot_branding_strings "$cfg"
+    done < <(find "$BUILD_PROFILE/efiboot/loader/entries" -maxdepth 1 -type f -name "*.conf" | sort)
+  fi
+
+  # Apply custom GRUB background if the image exists in repo root.
+  if [[ -f "$GRUB_BACKGROUND_SRC" && -f "$grub_loopback" ]]; then
+    cp -f "$GRUB_BACKGROUND_SRC" "$BUILD_PROFILE/grub/uma1.png"
+
+    if ! grep -q "uma1.png" "$grub_loopback"; then
+      tmp_file="$(mktemp)"
+      awk '
+        { print }
+        /^timeout_style=menu$/ {
+          print ""
+          print "insmod png"
+          print "if background_image /boot/grub/uma1.png; then"
+          print "    true"
+          print "fi"
+          print ""
+        }
+      ' "$grub_loopback" > "$tmp_file"
+      mv "$tmp_file" "$grub_loopback"
+    fi
+
+    log "Applied GRUB background: $GRUB_BACKGROUND_SRC"
+  else
+    log "No GRUB background override applied (missing $GRUB_BACKGROUND_SRC or grub/loopback.cfg)."
+  fi
+
+  # Apply custom Syslinux splash for BIOS boots.
+  if [[ -f "$SYSLINUX_BACKGROUND_SRC" ]]; then
+    syslinux_src="$SYSLINUX_BACKGROUND_SRC"
+  fi
+  if [[ -f "$syslinux_src" && -f "$syslinux_splash" ]]; then
+    cp -f "$syslinux_src" "$syslinux_splash"
+    log "Applied Syslinux splash background: $syslinux_src"
+  else
+    log "No Syslinux splash override applied (missing $syslinux_src or syslinux/splash.png)."
+  fi
+
+  # Improve BIOS boot menu readability on bright backgrounds.
+  if [[ -f "$syslinux_head" ]]; then
+    sed -i.bak \
+      -e 's|^MENU COLOR border.*|MENU COLOR border       37;40   #ffffffff #d0000000 std|' \
+      -e 's|^MENU COLOR title.*|MENU COLOR title        1;37;40 #ffffffff #d0000000 std|' \
+      -e 's|^MENU COLOR sel.*|MENU COLOR sel          7;37;40 #ffffffff #e0304f78 all|' \
+      -e 's|^MENU COLOR unsel.*|MENU COLOR unsel        37;40   #ffffffff #b0000000 std|' \
+      -e 's|^MENU COLOR help.*|MENU COLOR help         37;40   #ffffffff #c0000000 std|' \
+      -e 's|^MENU COLOR timeout_msg.*|MENU COLOR timeout_msg  37;40   #ffffffff #00000000 std|' \
+      -e 's|^MENU COLOR timeout .*|MENU COLOR timeout      1;37;40 #ffffffff #00000000 std|' \
+      -e 's|^MENU COLOR msg07.*|MENU COLOR msg07        37;40   #ffffffff #c0000000 std|' \
+      -e 's|^MENU COLOR tabmsg.*|MENU COLOR tabmsg       37;40   #ffffffff #00000000 std|' \
+      "$syslinux_head"
+    rm -f "$syslinux_head.bak"
+    log "Applied high-contrast Syslinux menu colors."
+  fi
+}
+
 if [[ ! -d "$RELENG_DIR" ]]; then
   die "releng profile not found at $RELENG_DIR. Install archiso: sudo pacman -S --needed archiso"
 fi
@@ -149,10 +255,20 @@ if ((${#MISSING_CALAMARES_PKGS[@]} > 0)); then
   fi
 fi
 
-rm -rf "$BUILD_PROFILE"
-mkdir -p "$BUILD_PROFILE" "$WORK_DIR" "$OUT_DIR"
+# Start from a clean state so mkarchiso does not reuse stale run markers.
+clean_dir_contents() {
+  local dir="$1"
+  mkdir -p "$dir"
+  find "$dir" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+}
+
+clean_dir_contents "$BUILD_PROFILE"
+clean_dir_contents "$WORK_DIR"
+clean_dir_contents "$OUT_DIR"
 
 rsync -a --delete "$RELENG_DIR/" "$BUILD_PROFILE/"
+
+configure_boot_branding
 
 if [[ -f "$ROOT_DIR/archiso/packages.x86_64" ]]; then
   cat "$ROOT_DIR/archiso/packages.x86_64" >> "$BUILD_PROFILE/packages.x86_64"
@@ -161,6 +277,14 @@ fi
 if [[ -d "$ROOT_DIR/archiso/airootfs" ]]; then
   rsync -a "$ROOT_DIR/archiso/airootfs/" "$BUILD_PROFILE/airootfs/"
 fi
+
+# Harden permissions for helper entrypoints in case host fs metadata gets normalized.
+chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-installer-autostart" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-theme" \
+  "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
+  "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
+  "$BUILD_PROFILE/airootfs/etc/skel/Desktop/Install Uma Musume.sh" 2>/dev/null || true
 
 if [[ -f "$LOCAL_REPO_DB" ]]; then
   prepare_local_repo_pacman_conf
@@ -173,8 +297,37 @@ sed -i.bak "s/^iso_application=.*/iso_application=\"UmaOS Live ISO\"/" "$BUILD_P
 sed -i.bak "s/^iso_version=.*/iso_version=\"$DATE_TAG\"/" "$BUILD_PROFILE/profiledef.sh"
 rm -f "$BUILD_PROFILE/profiledef.sh.bak"
 
-log "Building UmaOS ISO..."
-mkarchiso -v -w "$WORK_DIR" -o "$OUT_DIR" "$BUILD_PROFILE"
+cat >> "$BUILD_PROFILE/profiledef.sh" <<'EOF'
 
-log "Build complete. ISO files:"
-ls -1 "$OUT_DIR"/*.iso
+# UmaOS custom permissions for executable helper entrypoints copied via custom airootfs.
+file_permissions+=(
+  ["/usr/local/bin/umao-install"]="0:0:755"
+  ["/usr/local/bin/umao-installer-autostart"]="0:0:755"
+  ["/usr/local/bin/umao-apply-theme"]="0:0:755"
+  ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
+  ["/home/arch/Desktop/UmaOS Installer.desktop"]="0:0:755"
+  ["/home/arch/Desktop/Install Uma Musume.sh"]="0:0:755"
+  ["/etc/skel/Desktop/Install Uma Musume.sh"]="0:0:755"
+)
+EOF
+
+log "Building UmaOS ISO..."
+mkarchiso_help="$(mkarchiso -h 2>&1 || true)"
+mkarchiso_cmd=(mkarchiso -v -w "$WORK_DIR" -o "$OUT_DIR")
+
+# Newer archiso releases require explicit build modes.
+if grep -q "Build mode(s) to use" <<<"$mkarchiso_help"; then
+  mkarchiso_cmd+=(-m "${MKARCHISO_MODES:-iso}")
+fi
+
+mkarchiso_cmd+=("$BUILD_PROFILE")
+"${mkarchiso_cmd[@]}"
+
+log "Build complete. Output artifacts:"
+mapfile -t out_files < <(find "$OUT_DIR" -maxdepth 5 -type f 2>/dev/null | sort)
+if ((${#out_files[@]} == 0)); then
+  die "No output files found in $OUT_DIR. mkarchiso may have only validated options. Set MKARCHISO_MODES if needed."
+else
+  printf '%s\n' "${out_files[@]}"
+  log "Umazing!"
+fi

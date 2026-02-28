@@ -43,12 +43,14 @@ Optional variables:
 DOCKER_PLATFORM=linux/amd64 ./scripts/build-iso-docker.sh
 UMAOS_ALLOW_AUR=1 ./scripts/build-iso-docker.sh
 UMAOS_SKIP_DOCKER_BUILD=1 ./scripts/build-iso-docker.sh
+MKARCHISO_MODES=iso ./scripts/build-iso-docker.sh
 ```
 
 Notes:
 
 - Docker runs the build in a privileged Arch container.
 - The wrapper uses Docker named volumes for `build/` and `work/` so case-sensitive paths work correctly on macOS.
+- Each build starts from a clean `work/` and `out/` state to avoid stale mkarchiso markers.
 - Generated ISOs still end up in local `out/`.
 - Optional cleanup of old host-side artifacts from earlier runs:
   `rm -rf work build`
@@ -71,14 +73,17 @@ UMAOS_ALLOW_AUR=1 ./scripts/build-iso.sh
 
 In the live KDE session:
 
+- live boot target is `graphical.target` (SDDM enabled in the ISO)
 - Calamares auto-launches once at login.
 - Users can relaunch from `Install UmaOS` desktop icon or app menu entry.
+- Desktop includes `Install Uma Musume.sh` to install the game via Steam (`steam://install/3224770`).
+- Default wallpaper target is video: `/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4` (fallback to static SVG if video wallpaper is unsupported).
 - `umao-install` defaults to GUI-first and falls back to `archinstall` if Calamares is unavailable or exits with an error.
 
 Installer command contract:
 
 ```bash
-umao-install            # GUI first, then CLI fallback
+umao-install            # GUI first in desktop session; in TTY offers CLI fallback
 umao-install --gui      # force Calamares
 umao-install --cli      # force archinstall
 ```

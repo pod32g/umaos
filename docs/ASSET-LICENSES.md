@@ -32,4 +32,5 @@ Every asset entry must include:
 | assets/wallpapers/.gitkeep | placeholder | N/A | N/A | N/A | N/A | no | N/A | TBD | TBD | BLOCKED | Replace with licensed wallpaper assets |
 | assets/icons/.gitkeep | placeholder | N/A | N/A | N/A | N/A | no | N/A | TBD | TBD | BLOCKED | Replace with licensed icon assets |
 | archiso/airootfs/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg | wallpaper | local placeholder | UmaOS Project | CC0 (intended) | pending | yes | private build only | TBD | TBD | BLOCKED | Validate license annotation before release |
+| archiso/airootfs/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4 | wallpaper video | provided media file | TBD | TBD | pending | no | private build only | TBD | TBD | BLOCKED | Confirm source rights before any public redistribution |
 | archiso/airootfs/usr/share/sddm/themes/umaos-race/background.svg | sddm background | local placeholder | UmaOS Project | CC0 (intended) | pending | yes | private build only | TBD | TBD | BLOCKED | Validate license annotation before release |

@@ -33,3 +33,4 @@ if ((${#missing[@]} > 0)); then
 fi
 
 echo "Prerequisites OK"
+echo "Umazing!"

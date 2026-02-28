@@ -51,13 +51,23 @@ run_cli() {
   fi
 
   echo "Launching archinstall..."
-  exec archinstall
+  if archinstall; then
+    echo "Umazing!"
+    return 0
+  fi
+
+  return $?
 }
 
 run_gui() {
   if ! command -v calamares >/dev/null 2>&1; then
     echo "Calamares is not installed in this live environment." >&2
     return 127
+  fi
+
+  if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+    echo "No graphical session detected. Run from KDE desktop, or use: umao-install --cli" >&2
+    return 65
   fi
 
   if (($autostart == 0)); then
@@ -68,7 +78,12 @@ run_gui() {
 BANNER
   fi
 
-  calamares
+  if calamares; then
+    echo "Umazing!"
+    return 0
+  fi
+
+  return $?
 }
 
 case "$mode" in
@@ -79,6 +94,21 @@ case "$mode" in
     run_gui
     ;;
   auto)
+    if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+      if (($autostart == 1)); then
+        echo "Autostart mode: no graphical session yet." >&2
+        exit 1
+      fi
+      echo "No graphical session detected. Fall back to archinstall? [Y/n]"
+      read -r answer
+      answer=${answer:-Y}
+      if [[ "$answer" =~ ^[Yy]$ ]]; then
+        run_cli
+      fi
+      echo "Installer canceled."
+      exit 0
+    fi
+
     if command -v calamares >/dev/null 2>&1; then
       if run_gui; then
         exit 0

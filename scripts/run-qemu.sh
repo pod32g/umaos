@@ -29,6 +29,9 @@ elif grep -q '^whpx$' <<<"$accel_help"; then
   cpu_arg="host"
 elif grep -q '^tcg$' <<<"$accel_help"; then
   accel_args=(-accel tcg)
+  echo "Warning: QEMU is using TCG software emulation (no hardware acceleration detected)." >&2
+  echo "Performance will be significantly slower, especially for KDE/graphics." >&2
+  echo "For better speed, run on x86_64 Linux with KVM or Intel macOS with HVF-enabled x86_64 QEMU." >&2
 else
   echo "No supported QEMU accelerator found; trying default execution." >&2
 fi
@@ -37,11 +40,13 @@ if [[ "$cpu_arg" == "host" ]] && [[ " ${accel_args[*]} " == *" tcg "* ]]; then
   cpu_arg="max"
 fi
 
-exec qemu-system-x86_64 \
+if qemu-system-x86_64 \
   -m 4096 \
   -smp 4 \
   -boot d \
   -cdrom "$ISO" \
   "${accel_args[@]}" \
   -cpu "$cpu_arg" \
-  -vga virtio
+  -vga virtio; then
+  echo "Umazing!"
+fi

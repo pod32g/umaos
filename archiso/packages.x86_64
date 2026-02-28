@@ -5,8 +5,11 @@ xorg-xkbcomp
 kpmcore
 networkmanager
 plasma-meta
+plasma-x11-session
+kwin-x11
 sddm
 qt6-svg
+xcb-util-cursor
 konsole
 dolphin
 firefox

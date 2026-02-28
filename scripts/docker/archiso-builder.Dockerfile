@@ -8,6 +8,7 @@ RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
       git \
       base-devel \
       pacman-contrib \
+      python \
       sudo && \
     useradd -m -s /bin/bash builder && \
     printf 'builder ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder && \

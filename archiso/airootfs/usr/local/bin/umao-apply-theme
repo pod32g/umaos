@@ -36,14 +36,22 @@ if (($once == 1)) && [[ -f "$state_file" ]]; then
   exit 0
 fi
 
-wallpaper="/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg"
+wallpaper_video="/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4"
+wallpaper_fallback="/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg"
+wallpaper_applied=0
 
 if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
   plasma-apply-colorscheme UmaSkyPink >/dev/null 2>&1 || true
 fi
 
-if command -v plasma-apply-wallpaperimage >/dev/null 2>&1 && [[ -f "$wallpaper" ]]; then
-  plasma-apply-wallpaperimage "$wallpaper" >/dev/null 2>&1 || true
+if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
+  if [[ -f "$wallpaper_video" ]] && plasma-apply-wallpaperimage "$wallpaper_video" >/dev/null 2>&1; then
+    wallpaper_applied=1
+  fi
+
+  if [[ "$wallpaper_applied" -eq 0 ]] && [[ -f "$wallpaper_fallback" ]]; then
+    plasma-apply-wallpaperimage "$wallpaper_fallback" >/dev/null 2>&1 || true
+  fi
 fi
 
 kwriteconfig_cmd=""

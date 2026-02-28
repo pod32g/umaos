@@ -4,5 +4,7 @@ Quick start:
   1) Connect network (if needed): nmtui
   2) Calamares should auto-launch once in KDE
   3) Relaunch installer anytime: umao-install
+  4) From TTY/console use CLI installer: umao-install --cli
+  5) Install game from desktop: Install Uma Musume.sh
 
 Project: UmaOS

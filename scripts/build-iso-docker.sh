@@ -9,6 +9,7 @@ BUILD_VOLUME="${UMAOS_DOCKER_BUILD_VOLUME:-umaos-build-volume}"
 WORK_VOLUME="${UMAOS_DOCKER_WORK_VOLUME:-umaos-work-volume}"
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
 SKIP_IMAGE_BUILD="${UMAOS_SKIP_DOCKER_BUILD:-0}"
+ARCHISO_MODES="${MKARCHISO_MODES:-iso}"
 
 HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
@@ -42,6 +43,7 @@ echo "[umaos] Running ISO build in container"
 docker run --rm --privileged \
   --platform "$DOCKER_PLATFORM" \
   -e UMAOS_ALLOW_AUR="$ALLOW_AUR" \
+  -e MKARCHISO_MODES="$ARCHISO_MODES" \
   -e HOST_UID="$HOST_UID" \
   -e HOST_GID="$HOST_GID" \
   -v "$ROOT_DIR":/workspace \
@@ -58,11 +60,12 @@ docker run --rm --privileged \
     fi
 
     ./scripts/check-prereqs.sh
-    ./scripts/build-iso.sh
+    bash ./scripts/build-iso.sh
 
     if [[ -d out ]]; then
       chown -R "$HOST_UID:$HOST_GID" out
     fi
   '
 
-echo "[umaos] Docker build complete. ISO files are in $ROOT_DIR/out"
+echo "[umaos] Docker build complete. Build outputs are in $ROOT_DIR/out"
+echo "[umaos] Umazing!"
