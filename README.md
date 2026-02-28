@@ -54,13 +54,16 @@ Notes:
 - Generated ISOs still end up in local `out/`.
 - Optional cleanup of old host-side artifacts from earlier runs:
   `rm -rf work build`
+- Build automatically runs ISO branding verification (`scripts/verify-iso-branding.sh`) after successful ISO creation.
+- Skip verification with: `UMAOS_SKIP_BRANDING_VERIFY=1`.
 
-## Calamares package sourcing policy
+## Package sourcing policy
 
 UmaOS prefers official Arch repos.
 
-- Default behavior: fail build if required Calamares packages are unavailable.
-- Optional fallback: set `UMAOS_ALLOW_AUR=1` to build missing Calamares packages from AUR into a local repo used by `mkarchiso`.
+- Default behavior: fail build if required packages are unavailable in official repos.
+- Optional fallback: set `UMAOS_ALLOW_AUR=1` to build missing packages from AUR into a local repo used by `mkarchiso`.
+- Current AUR-backed requirement: `plasma6-wallpapers-smart-video-wallpaper-reborn` (video wallpaper plugin).
 
 Example:
 
@@ -74,11 +77,15 @@ UMAOS_ALLOW_AUR=1 ./scripts/build-iso.sh
 In the live KDE session:
 
 - live boot target is `graphical.target` (SDDM enabled in the ISO)
+- UEFI boot path uses GRUB (`uefi.grub`) so boot menu branding/background matches the themed experience.
 - Calamares auto-launches once at login.
 - Users can relaunch from `Install UmaOS` desktop icon or app menu entry.
 - Desktop includes `Install Uma Musume.sh` to install the game via Steam (`steam://install/3224770`).
-- Default wallpaper target is video: `/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4` (fallback to static SVG if video wallpaper is unsupported).
+- Default wallpaper target is video: `/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4`.
+- If Plasma crashes/restarts right after applying video wallpaper, UmaOS auto-falls back to static SVG and can log diagnostics.
+- Manual controls: `umao-apply-theme --video`, `umao-apply-theme --no-video`, `umao-apply-theme --debug-video`.
 - `umao-install` defaults to GUI-first and falls back to `archinstall` if Calamares is unavailable or exits with an error.
+- Successful `pacman` package transactions print `Umazing!` via an ALPM post-transaction hook.
 
 Installer command contract:
 
@@ -93,8 +100,10 @@ umao-install --cli      # force archinstall
 - Calamares branding: `archiso/airootfs/etc/calamares/branding/umaos`
 - KDE colors: `archiso/airootfs/usr/share/color-schemes/UmaSkyPink.colors`
 - Wallpaper pack: `archiso/airootfs/usr/share/wallpapers/UmaOS`
+- Boot-art wallpaper option: `archiso/airootfs/usr/share/wallpapers/UmaBoot`
 - SDDM theme: `archiso/airootfs/usr/share/sddm/themes/umaos-race`
 - Icon mapping overlay: `archiso/airootfs/usr/share/icons/UmaOS-Papirus`
+- Custom cursor packs: place `.tar.gz`/`.tgz` archives in `assets/cursors/`; build imports them into `/usr/share/icons`.
 
 First-login theme apply hook:
 
@@ -106,10 +115,21 @@ First-login theme apply hook:
 - `scripts/` build and VM test utilities
 - `archiso/` ArchISO overlay and package list
 - `docs/` roadmap, theme spec, and licensing gates
-- `assets/` source artwork placeholders
+- `assets/boot/` GRUB and Syslinux source images (`uma1*.png`)
+- `assets/cursors/` cursor theme archives imported during build
+- `assets/wallpapers/` source wallpaper/video files
+- `assets/ascii/` terminal splash art sources
 
 ## Licensing and release guardrail
 
-Uma Musume assets are copyrighted.
+`Uma Musume: Pretty Derby` and related names, characters, logos, and media are owned by Cygames, Inc. and their respective rights holders.
+
+UmaOS is a fan project and is not affiliated with or endorsed by Cygames.
 
 Current styling direction intentionally matches franchise aesthetics, but **public redistribution must remain blocked until asset-rights clearance is complete**. Track all shipped assets in `docs/ASSET-LICENSES.md`.
+
+If Cygames (or another valid rights holder) requests removal, the maintainers will remove affected assets and may take down this repository at any time.
+
+## Acknowledgements
+
+- Cursor theme packs (`assets/cursors/*.tar.gz`) are credited to the artist at: https://ko-fi.com/N4N8U8SL2

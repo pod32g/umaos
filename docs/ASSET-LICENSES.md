@@ -2,6 +2,14 @@
 
 Track each shipped image, icon, font, audio clip, and animation before release.
 
+## Franchise ownership notice
+
+`Uma Musume: Pretty Derby` and related names, characters, logos, and media are owned by Cygames, Inc. and their respective rights holders.
+
+UmaOS is a fan project and is not affiliated with or endorsed by Cygames.
+
+If Cygames (or another valid rights holder) requests removal, maintainers will remove affected assets and may take down this repository at any time.
+
 ## Required metadata fields
 
 Every asset entry must include:
@@ -29,8 +37,9 @@ Every asset entry must include:
 
 | Path | Type | Source | Rights Holder | License | Proof | Modified | Redistribution | Reviewer | Review Date | Gate | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| assets/wallpapers/.gitkeep | placeholder | N/A | N/A | N/A | N/A | no | N/A | TBD | TBD | BLOCKED | Replace with licensed wallpaper assets |
 | assets/icons/.gitkeep | placeholder | N/A | N/A | N/A | N/A | no | N/A | TBD | TBD | BLOCKED | Replace with licensed icon assets |
+| assets/cursors/*.tar.gz | cursor theme archives | https://ko-fi.com/N4N8U8SL2 | pixloen (cursor artist) | TBD | pending | no | private build only | TBD | TBD | BLOCKED | Imported at build time into `/usr/share/icons`; artist credit: https://ko-fi.com/N4N8U8SL2 ; verify redistribution rights |
 | archiso/airootfs/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg | wallpaper | local placeholder | UmaOS Project | CC0 (intended) | pending | yes | private build only | TBD | TBD | BLOCKED | Validate license annotation before release |
+| archiso/airootfs/usr/share/wallpapers/UmaBoot/contents/images/1920x1080.png | wallpaper | derived from assets/boot/uma1.png | TBD | TBD | pending | yes | private build only | TBD | TBD | BLOCKED | Used for KDE wallpaper option and boot-art variant |
 | archiso/airootfs/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4 | wallpaper video | provided media file | TBD | TBD | pending | no | private build only | TBD | TBD | BLOCKED | Confirm source rights before any public redistribution |
 | archiso/airootfs/usr/share/sddm/themes/umaos-race/background.svg | sddm background | local placeholder | UmaOS Project | CC0 (intended) | pending | yes | private build only | TBD | TBD | BLOCKED | Validate license annotation before release |

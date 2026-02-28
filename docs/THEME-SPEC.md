@@ -50,4 +50,10 @@ Define a cohesive KDE visual baseline for UmaOS using a sky-blue and pink accent
 
 This project currently targets direct franchise styling by request.
 
+`Uma Musume: Pretty Derby` and related names, characters, logos, and media are owned by Cygames, Inc. and their respective rights holders.
+
+UmaOS is a fan project and is not affiliated with or endorsed by Cygames.
+
+If Cygames (or another valid rights holder) requests removal, maintainers will remove affected assets and may take down this repository at any time.
+
 Do not publish public ISO artifacts until all shipped assets are marked `CLEARED` in `docs/ASSET-LICENSES.md`.
