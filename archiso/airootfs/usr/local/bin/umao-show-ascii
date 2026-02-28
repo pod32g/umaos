@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+# Show UmaOS ASCII art on interactive terminal startup.
+
+case "$-" in
+  *i*) ;;
+  *)
+    return 0 2>/dev/null || exit 0
+    ;;
+esac
+
+ascii_file="/usr/share/umaos/umaascii.txt"
+
+if [ -r "$ascii_file" ]; then
+  cat "$ascii_file"
+  printf '\n'
+fi

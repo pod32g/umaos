@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Service
+Name=UmaOS Boot Art
+Comment=Boot artwork wallpaper option
+
+[X-KDE-PluginInfo]
+Name=UmaBoot
+Author=UmaOS Project
+License=Proprietary

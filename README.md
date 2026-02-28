@@ -57,6 +57,36 @@ Notes:
 - Build automatically runs ISO branding verification (`scripts/verify-iso-branding.sh`) after successful ISO creation.
 - Skip verification with: `UMAOS_SKIP_BRANDING_VERIFY=1`.
 
+## Wallhaven wallpaper sync (Uma Musume)
+
+Fetch all SFW results for `uma musume` from Wallhaven and stage them for ISO import:
+
+```bash
+python3 ./scripts/sync-wallhaven-wallpapers.py
+```
+
+Options:
+
+```bash
+# Metadata only (no downloads)
+python3 ./scripts/sync-wallhaven-wallpapers.py --metadata-only
+
+# Test subset of pages
+python3 ./scripts/sync-wallhaven-wallpapers.py --max-pages 3
+
+# Keep only desktop-grade images and remove low-res/weird-ratio local files
+python3 ./scripts/sync-wallhaven-wallpapers.py \
+  --min-width 1920 --min-height 1080 \
+  --min-aspect 1.6 --max-aspect 1.9 \
+  --prune-images
+```
+
+Build integration:
+
+- If `assets/wallpapers/wallhaven/manifest.tsv` exists, `build-iso.sh` imports all downloaded files as KDE wallpaper options under `/usr/share/wallpapers/Wallhaven-*`.
+- Disable import with `UMAOS_INCLUDE_WALLHAVEN=0`.
+- Large downloads can significantly increase ISO size and build time.
+
 ## Package sourcing policy
 
 UmaOS prefers official Arch repos.
@@ -81,6 +111,9 @@ In the live KDE session:
 - Calamares auto-launches once at login.
 - Users can relaunch from `Install UmaOS` desktop icon or app menu entry.
 - Desktop includes `Install Uma Musume.sh` to install the game via Steam (`steam://install/3224770`).
+- On first login of an installed system, UmaOS now attempts to:
+  - install Steam automatically (enabling `multilib` if needed), then
+  - open `steam://install/3224770` for Umamusume.
 - Default wallpaper target is video: `/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4`.
 - If Plasma crashes/restarts right after applying video wallpaper, UmaOS auto-falls back to static SVG and can log diagnostics.
 - Manual controls: `umao-apply-theme --video`, `umao-apply-theme --no-video`, `umao-apply-theme --debug-video`.

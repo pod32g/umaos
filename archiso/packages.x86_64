@@ -3,6 +3,10 @@ archinstall
 calamares
 xorg-xkbcomp
 kpmcore
+plasma6-wallpapers-smart-video-wallpaper-reborn
+qt6-multimedia
+qt6-multimedia-ffmpeg
+qt6-tools
 networkmanager
 plasma-meta
 plasma-x11-session

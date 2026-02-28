@@ -4,3 +4,6 @@ build/
 *.iso
 *.img
 .DS_Store
+assets/wallpapers/wallhaven/images/
+assets/wallpapers/wallhaven/manifest.tsv
+assets/wallpapers/wallhaven/search-meta.json

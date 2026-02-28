@@ -14,15 +14,23 @@ OUT_DIR="$ROOT_DIR/out"
 DATE_TAG="$(date +%Y.%m.%d)"
 ISO_LABEL="UMAOS_$(date +%Y%m)"
 
-CALAMARES_REQUIRED_PKGS=(calamares xorg-xkbcomp)
-MISSING_CALAMARES_PKGS=()
+REQUIRED_REPO_PKGS=(
+  calamares
+  xorg-xkbcomp
+  plasma6-wallpapers-smart-video-wallpaper-reborn
+)
+MISSING_REQUIRED_PKGS=()
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
 AUR_SRC_DIR="$ROOT_DIR/build/aur-src"
 LOCAL_REPO_DIR="$ROOT_DIR/build/localrepo"
 LOCAL_REPO_NAME="umaos-local"
 LOCAL_REPO_DB="$LOCAL_REPO_DIR/$LOCAL_REPO_NAME.db.tar.gz"
-GRUB_BACKGROUND_SRC="$ROOT_DIR/uma1.png"
-SYSLINUX_BACKGROUND_SRC="$ROOT_DIR/uma1-syslinux.png"
+GRUB_BACKGROUND_SRC="$ROOT_DIR/assets/boot/uma1.png"
+SYSLINUX_BACKGROUND_SRC="$ROOT_DIR/assets/boot/uma1-syslinux.png"
+WALLHAVEN_ASSETS_DIR="$ROOT_DIR/assets/wallpapers/wallhaven"
+WALLHAVEN_IMAGES_DIR="$WALLHAVEN_ASSETS_DIR/images"
+WALLHAVEN_MANIFEST="$WALLHAVEN_ASSETS_DIR/manifest.tsv"
+INCLUDE_WALLHAVEN="${UMAOS_INCLUDE_WALLHAVEN:-1}"
 
 log() {
   echo "[umaos] $*"
@@ -31,6 +39,10 @@ log() {
 die() {
   echo "[umaos] ERROR: $*" >&2
   exit 1
+}
+
+warn() {
+  echo "[umaos] WARN: $*" >&2
 }
 
 require_cmd() {
@@ -45,11 +57,11 @@ package_available_official() {
   pacman -Si "$pkg" >/dev/null 2>&1
 }
 
-find_missing_calamares_packages() {
+find_missing_required_packages() {
   local pkg
-  for pkg in "${CALAMARES_REQUIRED_PKGS[@]}"; do
+  for pkg in "${REQUIRED_REPO_PKGS[@]}"; do
     if ! package_available_official "$pkg"; then
-      MISSING_CALAMARES_PKGS+=("$pkg")
+      MISSING_REQUIRED_PKGS+=("$pkg")
     fi
   done
 }
@@ -74,7 +86,173 @@ PACCONF
   log "Injected local repo '$LOCAL_REPO_NAME' into build pacman.conf"
 }
 
-build_missing_calamares_from_aur() {
+find_cursor_archives() {
+  find "$ROOT_DIR/assets/cursors" -maxdepth 1 -type f \( -name "*.tar.gz" -o -name "*.tgz" \) 2>/dev/null | sort -u
+}
+
+sanitize_theme_dir() {
+  local raw="$1"
+  printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g'
+}
+
+install_custom_cursor_themes() {
+  local dest_icons="$BUILD_PROFILE/airootfs/usr/share/icons"
+  local archive
+  local idx_path
+  local source_subdir
+  local extract_root
+  local extract_dir
+  local theme_name
+  local theme_dir
+  local target_dir
+  local installed=0
+  local -a archives=()
+
+  mapfile -t archives < <(find_cursor_archives)
+  if ((${#archives[@]} == 0)); then
+    log "No custom cursor archives found; skipping cursor import."
+    return 0
+  fi
+
+  mkdir -p "$dest_icons"
+
+  for archive in "${archives[@]}"; do
+    if ! idx_path="$(tar -tzf "$archive" 2>/dev/null | awk '
+      /(^|\/)index\.theme$/ && !found {
+        print
+        found=1
+      }
+      END {
+        if (!found) {
+          exit 1
+        }
+      }
+    ')"; then
+      warn "Skipping cursor archive without index.theme: $archive"
+      continue
+    fi
+
+    source_subdir="${idx_path%/index.theme}"
+    if [[ "$idx_path" == "index.theme" ]]; then
+      source_subdir=""
+    fi
+
+    extract_root="$(mktemp -d)"
+    tar -xzf "$archive" -C "$extract_root"
+    extract_dir="$extract_root"
+
+    if [[ -n "$source_subdir" ]]; then
+      extract_dir="$extract_dir/$source_subdir"
+    fi
+
+    if [[ ! -f "$extract_dir/index.theme" || ! -d "$extract_dir/cursors" ]]; then
+      warn "Skipping invalid cursor archive layout: $archive"
+      rm -rf "$extract_root"
+      continue
+    fi
+
+    theme_name="$(awk -F= '/^Name=/{print $2; exit}' "$extract_dir/index.theme" | tr -d '\r')"
+    if [[ -z "$theme_name" ]]; then
+      theme_name="$(basename "$archive")"
+      theme_name="${theme_name%.tar.gz}"
+      theme_name="${theme_name%.tgz}"
+    fi
+
+    theme_dir="$(sanitize_theme_dir "$theme_name")"
+    if [[ -z "$theme_dir" ]]; then
+      warn "Skipping cursor archive with unresolvable theme name: $archive"
+      rm -rf "$extract_root"
+      continue
+    fi
+
+    target_dir="$dest_icons/$theme_dir"
+    rm -rf "$target_dir"
+    mkdir -p "$target_dir"
+    cp -a "$extract_dir"/. "$target_dir"/
+
+    installed=$((installed + 1))
+    log "Installed cursor theme '$theme_name' as '$theme_dir'"
+    rm -rf "$extract_root"
+  done
+
+  log "Installed $installed custom cursor theme(s)."
+}
+
+install_wallhaven_wallpapers() {
+  local wallpapers_root="$BUILD_PROFILE/airootfs/usr/share/wallpapers"
+  local id
+  local width
+  local height
+  local ext
+  local filename
+  local url
+  local src
+  local pkg_dir
+  local img_dir
+  local out_name
+  local safe_width
+  local safe_height
+  local imported=0
+
+  if [[ "$INCLUDE_WALLHAVEN" != "1" ]]; then
+    log "Wallhaven wallpaper import disabled (UMAOS_INCLUDE_WALLHAVEN=$INCLUDE_WALLHAVEN)."
+    return 0
+  fi
+
+  if [[ ! -f "$WALLHAVEN_MANIFEST" ]]; then
+    log "No Wallhaven manifest found at $WALLHAVEN_MANIFEST; skipping import."
+    return 0
+  fi
+
+  mkdir -p "$wallpapers_root"
+
+  while IFS=$'\t' read -r id width height ext filename url; do
+    [[ -z "$id" || "$id" == "id" ]] && continue
+    src="$WALLHAVEN_IMAGES_DIR/$filename"
+    if [[ ! -s "$src" ]]; then
+      warn "Skipping missing Wallhaven file for id=$id: $src"
+      continue
+    fi
+
+    safe_width="$width"
+    safe_height="$height"
+    if [[ ! "$safe_width" =~ ^[0-9]+$ ]]; then
+      safe_width=1920
+    fi
+    if [[ ! "$safe_height" =~ ^[0-9]+$ ]]; then
+      safe_height=1080
+    fi
+    if [[ ! "$ext" =~ ^\.[A-Za-z0-9]+$ ]]; then
+      ext=".jpg"
+    fi
+
+    pkg_dir="$wallpapers_root/Wallhaven-$id"
+    img_dir="$pkg_dir/contents/images"
+    out_name="${safe_width}x${safe_height}${ext,,}"
+
+    rm -rf "$pkg_dir"
+    mkdir -p "$img_dir"
+    cp -f "$src" "$img_dir/$out_name"
+
+    cat > "$pkg_dir/metadata.desktop" <<EOF
+[Desktop Entry]
+Type=Service
+Name=Wallhaven $id
+Comment=Uma Musume wallpaper from Wallhaven ($id)
+
+[X-KDE-PluginInfo]
+Name=Wallhaven-$id
+Author=Wallhaven contributor
+License=Unknown
+EOF
+
+    imported=$((imported + 1))
+  done < "$WALLHAVEN_MANIFEST"
+
+  log "Imported $imported Wallhaven wallpaper option(s) from $WALLHAVEN_MANIFEST."
+}
+
+build_missing_required_from_aur() {
   local builder_user="${USER:-}"
   local pkg
   local pkg_src
@@ -82,6 +260,7 @@ build_missing_calamares_from_aur() {
   local file
   local copied_count
   local has_requested_pkg
+  local cached_pkg
   local built_pkg_files=()
 
   require_cmd git
@@ -96,14 +275,22 @@ build_missing_calamares_from_aur() {
     builder_user="$SUDO_USER"
   fi
 
-  log "AUR fallback enabled. Building missing packages as user '$builder_user': ${MISSING_CALAMARES_PKGS[*]}"
+  log "AUR fallback enabled. Building missing packages as user '$builder_user': ${MISSING_REQUIRED_PKGS[*]}"
 
   mkdir -p "$AUR_SRC_DIR" "$LOCAL_REPO_DIR"
   if [[ "$EUID" -eq 0 ]]; then
     chown -R "$builder_user":"$builder_user" "$AUR_SRC_DIR"
   fi
 
-  for pkg in "${MISSING_CALAMARES_PKGS[@]}"; do
+  for pkg in "${MISSING_REQUIRED_PKGS[@]}"; do
+    cached_pkg="$(find "$LOCAL_REPO_DIR" -maxdepth 1 -type f -name "$pkg-*.pkg.tar.*" \
+      ! -name "*.sig" ! -name "*-debug-*.pkg.tar.*" | sort | tail -n 1)"
+    if [[ -n "$cached_pkg" ]]; then
+      built_pkg_files+=("$cached_pkg")
+      log "Reusing cached local package for '$pkg': $(basename "$cached_pkg")"
+      continue
+    fi
+
     pkg_src="$AUR_SRC_DIR/$pkg"
 
     if [[ "$EUID" -eq 0 ]]; then
@@ -163,6 +350,7 @@ replace_boot_branding_strings() {
 }
 
 configure_boot_branding() {
+  local grub_cfg="$BUILD_PROFILE/grub/grub.cfg"
   local grub_loopback="$BUILD_PROFILE/grub/loopback.cfg"
   local syslinux_splash="$BUILD_PROFILE/syslinux/splash.png"
   local syslinux_head="$BUILD_PROFILE/syslinux/archiso_head.cfg"
@@ -171,6 +359,7 @@ configure_boot_branding() {
   local cfg
 
   # Brand boot menu text across GRUB, Syslinux and EFI loader entries.
+  replace_boot_branding_strings "$grub_cfg"
   replace_boot_branding_strings "$grub_loopback"
   if [[ -d "$BUILD_PROFILE/syslinux" ]]; then
     while IFS= read -r cfg; do
@@ -183,29 +372,30 @@ configure_boot_branding() {
     done < <(find "$BUILD_PROFILE/efiboot/loader/entries" -maxdepth 1 -type f -name "*.conf" | sort)
   fi
 
-  # Apply custom GRUB background if the image exists in repo root.
-  if [[ -f "$GRUB_BACKGROUND_SRC" && -f "$grub_loopback" ]]; then
-    cp -f "$GRUB_BACKGROUND_SRC" "$BUILD_PROFILE/grub/uma1.png"
-
-    if ! grep -q "uma1.png" "$grub_loopback"; then
-      tmp_file="$(mktemp)"
-      awk '
-        { print }
-        /^timeout_style=menu$/ {
-          print ""
-          print "insmod png"
-          print "if background_image /boot/grub/uma1.png; then"
-          print "    true"
-          print "fi"
-          print ""
-        }
-      ' "$grub_loopback" > "$tmp_file"
-      mv "$tmp_file" "$grub_loopback"
-    fi
+  # Apply custom GRUB background if the configured image exists.
+  if [[ -f "$GRUB_BACKGROUND_SRC" ]]; then
+    for cfg in "$grub_cfg" "$grub_loopback"; do
+      [[ -f "$cfg" ]] || continue
+      if ! grep -q "background_image /boot/syslinux/splash.png" "$cfg"; then
+        tmp_file="$(mktemp)"
+        awk '
+          { print }
+          /^timeout_style=menu$/ {
+            print ""
+            print "insmod png"
+            print "if background_image /boot/syslinux/splash.png; then"
+            print "    true"
+            print "fi"
+            print ""
+          }
+        ' "$cfg" > "$tmp_file"
+        mv "$tmp_file" "$cfg"
+      fi
+    done
 
     log "Applied GRUB background: $GRUB_BACKGROUND_SRC"
   else
-    log "No GRUB background override applied (missing $GRUB_BACKGROUND_SRC or grub/loopback.cfg)."
+    log "No GRUB background override applied (missing $GRUB_BACKGROUND_SRC)."
   fi
 
   # Apply custom Syslinux splash for BIOS boots.
@@ -245,13 +435,14 @@ require_cmd rsync
 require_cmd sed
 require_cmd mkarchiso
 require_cmd pacman
+require_cmd grub-mkstandalone
 
-find_missing_calamares_packages
-if ((${#MISSING_CALAMARES_PKGS[@]} > 0)); then
+find_missing_required_packages
+if ((${#MISSING_REQUIRED_PKGS[@]} > 0)); then
   if [[ "$ALLOW_AUR" == "1" ]]; then
-    build_missing_calamares_from_aur
+    build_missing_required_from_aur
   else
-    die "Missing Calamares packages in official repos: ${MISSING_CALAMARES_PKGS[*]}. Re-run with UMAOS_ALLOW_AUR=1 to enable AUR fallback."
+    die "Missing required packages in official repos: ${MISSING_REQUIRED_PKGS[*]}. Re-run with UMAOS_ALLOW_AUR=1 to enable AUR fallback."
   fi
 fi
 
@@ -278,10 +469,20 @@ if [[ -d "$ROOT_DIR/archiso/airootfs" ]]; then
   rsync -a "$ROOT_DIR/archiso/airootfs/" "$BUILD_PROFILE/airootfs/"
 fi
 
+# grml-zsh-config owns /etc/skel/.zshrc; pre-seeding it in airootfs causes
+# pacman file-conflict failures during mkarchiso package installation.
+rm -f "$BUILD_PROFILE/airootfs/etc/skel/.zshrc"
+
+install_custom_cursor_themes
+install_wallhaven_wallpapers
+
 # Harden permissions for helper entrypoints in case host fs metadata gets normalized.
 chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-installer-autostart" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-theme" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install-steam-root" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-first-login-umamusume" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-show-ascii" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
   "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
   "$BUILD_PROFILE/airootfs/etc/skel/Desktop/Install Uma Musume.sh" 2>/dev/null || true
@@ -299,11 +500,18 @@ rm -f "$BUILD_PROFILE/profiledef.sh.bak"
 
 cat >> "$BUILD_PROFILE/profiledef.sh" <<'EOF'
 
+# Force UEFI to GRUB so UEFI path gets the same branding/theming controls.
+bootmodes=('bios.syslinux'
+           'uefi.grub')
+
 # UmaOS custom permissions for executable helper entrypoints copied via custom airootfs.
 file_permissions+=(
   ["/usr/local/bin/umao-install"]="0:0:755"
   ["/usr/local/bin/umao-installer-autostart"]="0:0:755"
   ["/usr/local/bin/umao-apply-theme"]="0:0:755"
+  ["/usr/local/bin/umao-install-steam-root"]="0:0:755"
+  ["/usr/local/bin/umao-first-login-umamusume"]="0:0:755"
+  ["/usr/local/bin/umao-show-ascii"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
   ["/home/arch/Desktop/UmaOS Installer.desktop"]="0:0:755"
   ["/home/arch/Desktop/Install Uma Musume.sh"]="0:0:755"
@@ -329,5 +537,16 @@ if ((${#out_files[@]} == 0)); then
   die "No output files found in $OUT_DIR. mkarchiso may have only validated options. Set MKARCHISO_MODES if needed."
 else
   printf '%s\n' "${out_files[@]}"
+  if [[ "${UMAOS_SKIP_BRANDING_VERIFY:-0}" != "1" ]]; then
+    mapfile -t iso_files < <(printf '%s\n' "${out_files[@]}" | grep -E '\.iso$' || true)
+    if ((${#iso_files[@]} > 0)); then
+      log "Running branding verification checks..."
+      for iso_file in "${iso_files[@]}"; do
+        bash "$ROOT_DIR/scripts/verify-iso-branding.sh" "$iso_file"
+      done
+    else
+      log "No ISO artifacts found for branding verification."
+    fi
+  fi
   log "Umazing!"
 fi

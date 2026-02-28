@@ -2,25 +2,40 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: umao-apply-theme [--once]"
+  echo "Usage: umao-apply-theme [--once] [--video] [--no-video] [--debug-video]"
 }
 
 once=0
+force_video=0
+disable_video=0
+debug_video=0
 if (($# > 0)); then
-  case "$1" in
-    --once)
-      once=1
-      ;;
-    --help|-h)
-      usage
-      exit 0
-      ;;
-    *)
-      echo "Unknown argument: $1" >&2
-      usage >&2
-      exit 2
-      ;;
-  esac
+  while (($# > 0)); do
+    case "$1" in
+      --once)
+        once=1
+        ;;
+      --video)
+        force_video=1
+        ;;
+      --no-video)
+        disable_video=1
+        ;;
+      --debug-video)
+        debug_video=1
+        ;;
+      --help|-h)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown argument: $1" >&2
+        usage >&2
+        exit 2
+        ;;
+    esac
+    shift
+  done
 fi
 
 if [[ -z "${HOME:-}" ]]; then
@@ -31,6 +46,7 @@ fi
 state_dir="$HOME/.config/umaos"
 state_file="$state_dir/theme-applied"
 mkdir -p "$state_dir"
+log_file="$state_dir/video-wallpaper-debug.log"
 
 if (($once == 1)) && [[ -f "$state_file" ]]; then
   exit 0
@@ -38,17 +54,102 @@ fi
 
 wallpaper_video="/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4"
 wallpaper_fallback="/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg"
+video_plugin_id="luisbocanegra.smart.video.wallpaper.reborn"
+video_plugin_dir="/usr/share/plasma/wallpapers/${video_plugin_id}"
+cursor_theme="pixloen-haru-urara-v1.7"
 wallpaper_applied=0
+apply_video=1
+
+if [[ "${UMAOS_VIDEO_WALLPAPER:-1}" == "0" ]] || ((disable_video == 1)); then
+  apply_video=0
+fi
+if ((force_video == 1)) || [[ "${UMAOS_VIDEO_WALLPAPER:-1}" == "1" ]]; then
+  apply_video=1
+fi
+if [[ "${UMAOS_DEBUG_VIDEO_WALLPAPER:-0}" == "1" ]]; then
+  debug_video=1
+fi
+
+log_debug() {
+  if ((debug_video == 1)); then
+    printf '[%s] %s\n' "$(date -Iseconds)" "$*" >> "$log_file"
+  fi
+}
+
+capture_recent_logs() {
+  if ((debug_video == 1)); then
+    {
+      echo "----- user journal (recent) -----"
+      journalctl --user -b --since "-3 min" --no-pager
+      echo "----- system journal (recent) -----"
+      journalctl -b --since "-3 min" --no-pager
+    } >> "$log_file" 2>/dev/null || true
+  fi
+}
+
+find_qdbus_cmd() {
+  local candidate
+  for candidate in qdbus6 qdbus-qt6 qdbus; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+apply_video_wallpaper_plugin() {
+  local qdbus_cmd="$1"
+  local video_uri="file://${wallpaper_video}"
+  local js
+
+  js="$(cat <<EOF
+var allDesktops = desktops();
+for (var i = 0; i < allDesktops.length; i++) {
+  var d = allDesktops[i];
+  d.wallpaperPlugin = "${video_plugin_id}";
+  d.currentConfigGroup = ["Wallpaper", "${video_plugin_id}", "General"];
+  d.writeConfig("VideoUrls", JSON.stringify([{ filename: "${video_uri}", enabled: true }]));
+  d.writeConfig("ResumeLastVideo", true);
+  d.writeConfig("RandomMode", false);
+  d.reloadConfig();
+}
+EOF
+)"
+
+  "$qdbus_cmd" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$js" >/dev/null 2>&1
+}
 
 if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
   plasma-apply-colorscheme UmaSkyPink >/dev/null 2>&1 || true
 fi
 
-if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
-  if [[ -f "$wallpaper_video" ]] && plasma-apply-wallpaperimage "$wallpaper_video" >/dev/null 2>&1; then
-    wallpaper_applied=1
-  fi
+if ((apply_video == 1)) && [[ -f "$wallpaper_video" ]] && [[ -d "$video_plugin_dir" ]]; then
+  qdbus_cmd="$(find_qdbus_cmd || true)"
+  old_pid="$(pgrep -n -u "$(id -u)" plasmashell 2>/dev/null || true)"
+  log_debug "Attempting video wallpaper plugin apply: $wallpaper_video via ${qdbus_cmd:-none} (old plasmashell pid: ${old_pid:-none})"
 
+  if [[ -n "$qdbus_cmd" ]] && apply_video_wallpaper_plugin "$qdbus_cmd"; then
+    sleep 4
+    new_pid="$(pgrep -n -u "$(id -u)" plasmashell 2>/dev/null || true)"
+    log_debug "Video wallpaper plugin apply returned success (new plasmashell pid: ${new_pid:-none})"
+
+    if [[ -n "${old_pid:-}" && -z "${new_pid:-}" ]]; then
+      log_debug "plasmashell appears to have crashed after video wallpaper apply; using fallback wallpaper."
+      capture_recent_logs
+    elif [[ -n "${old_pid:-}" && -n "${new_pid:-}" && "$old_pid" != "$new_pid" ]]; then
+      log_debug "plasmashell restarted after video wallpaper apply; using fallback wallpaper."
+      capture_recent_logs
+    else
+      wallpaper_applied=1
+    fi
+  else
+    log_debug "Video wallpaper plugin apply failed (plugin or qdbus missing); using fallback wallpaper."
+    capture_recent_logs
+  fi
+fi
+
+if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
   if [[ "$wallpaper_applied" -eq 0 ]] && [[ -f "$wallpaper_fallback" ]]; then
     plasma-apply-wallpaperimage "$wallpaper_fallback" >/dev/null 2>&1 || true
   fi
@@ -62,9 +163,19 @@ elif command -v kwriteconfig5 >/dev/null 2>&1; then
 fi
 
 if [[ -n "$kwriteconfig_cmd" ]]; then
+  if [[ ! -d "/usr/share/icons/${cursor_theme}" ]]; then
+    cursor_theme="breeze_cursors"
+  fi
   "$kwriteconfig_cmd" --file kdeglobals --group General --key ColorScheme UmaSkyPink
   "$kwriteconfig_cmd" --file kdeglobals --group Icons --key Theme UmaOS-Papirus
   "$kwriteconfig_cmd" --file kdeglobals --group KDE --key widgetStyle Breeze
+  "$kwriteconfig_cmd" --file kcminputrc --group Mouse --key cursorTheme "$cursor_theme"
+  "$kwriteconfig_cmd" --file kcminputrc --group Mouse --key cursorThemeName "$cursor_theme"
+  mkdir -p "$HOME/.icons/default"
+  cat > "$HOME/.icons/default/index.theme" <<EOF
+[Icon Theme]
+Inherits=${cursor_theme}
+EOF
 fi
 
 touch "$state_file"

@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_ID="3224770"
+GAME_NAME="Umamusume: Pretty Derby"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/umaos"
+MARKER_FILE="$STATE_DIR/umamusume-first-login.done"
+LOG_FILE="$STATE_DIR/umamusume-first-login.log"
+
+mkdir -p "$STATE_DIR"
+
+log() {
+  printf '[%s] %s\n' "$(date -Iseconds)" "$*" | tee -a "$LOG_FILE" >/dev/null
+}
+
+if [[ -f "$MARKER_FILE" ]]; then
+  exit 0
+fi
+
+if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+  log "No graphical session detected; skipping first-login game bootstrap."
+  exit 0
+fi
+
+install_steam_if_missing() {
+  if command -v steam >/dev/null 2>&1; then
+    return 0
+  fi
+
+  log "Steam not found. Attempting installation..."
+
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    /usr/local/bin/umao-install-steam-root >>"$LOG_FILE" 2>&1
+    return $?
+  fi
+
+  if command -v pkexec >/dev/null 2>&1; then
+    if pkexec /usr/local/bin/umao-install-steam-root >>"$LOG_FILE" 2>&1; then
+      return 0
+    fi
+    log "pkexec Steam install was canceled or failed."
+  fi
+
+  if command -v sudo >/dev/null 2>&1; then
+    if sudo /usr/local/bin/umao-install-steam-root >>"$LOG_FILE" 2>&1; then
+      return 0
+    fi
+    log "sudo Steam install failed."
+  fi
+
+  return 1
+}
+
+launch_game_install() {
+  local url="steam://install/${APP_ID}"
+
+  if command -v xdg-open >/dev/null 2>&1; then
+    if xdg-open "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+
+  if command -v steam >/dev/null 2>&1; then
+    steam "$url" >/dev/null 2>&1 &
+    return 0
+  fi
+
+  return 1
+}
+
+log "Running first-login bootstrap for ${GAME_NAME}."
+
+if install_steam_if_missing && launch_game_install; then
+  touch "$MARKER_FILE"
+  log "Steam ensured and ${GAME_NAME} install URL launched."
+  echo "Umazing!"
+  exit 0
+fi
+
+log "Could not complete ${GAME_NAME} bootstrap; will retry on next login."
+exit 0

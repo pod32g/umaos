@@ -31,6 +31,17 @@ if [[ "$SKIP_IMAGE_BUILD" != "1" ]]; then
     -t "$IMAGE_NAME" \
     -f "$ROOT_DIR/scripts/docker/archiso-builder.Dockerfile" \
     "$ROOT_DIR"
+else
+  if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+    echo "[umaos] Docker image '$IMAGE_NAME' not found while UMAOS_SKIP_DOCKER_BUILD=1." >&2
+    echo "[umaos] Re-run without UMAOS_SKIP_DOCKER_BUILD=1 to build/update the image." >&2
+    exit 1
+  fi
+  if ! docker run --rm --platform "$DOCKER_PLATFORM" "$IMAGE_NAME" bash -lc 'command -v grub-mkstandalone >/dev/null 2>&1'; then
+    echo "[umaos] Docker image '$IMAGE_NAME' is missing grub tooling (grub-mkstandalone)." >&2
+    echo "[umaos] Re-run without UMAOS_SKIP_DOCKER_BUILD=1 so the builder image is rebuilt." >&2
+    exit 1
+  fi
 fi
 
 echo "[umaos] Ensuring pacman cache volume: $PACMAN_CACHE_VOLUME"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-required=(mkarchiso rsync pacman)
+required=(mkarchiso rsync pacman grub-mkstandalone)
 missing=()
 
 for cmd in "${required[@]}"; do
@@ -25,7 +25,7 @@ fi
 
 if ((${#missing[@]} > 0)); then
   echo "Missing required tools: ${missing[*]}" >&2
-  echo "Install base tools with: sudo pacman -S --needed archiso rsync pacman" >&2
+  echo "Install base tools with: sudo pacman -S --needed archiso rsync pacman grub" >&2
   if [[ "${UMAOS_ALLOW_AUR:-0}" == "1" ]]; then
     echo "AUR fallback also needs: sudo pacman -S --needed git base-devel pacman-contrib sudo" >&2
   fi

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Install Steam and Uma Musume
+Comment=Install Steam and launch Uma Musume on first login
+Exec=/usr/local/bin/umao-first-login-umamusume
+Terminal=false
+OnlyShowIn=KDE;
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

@@ -14,13 +14,19 @@ install_steam_if_missing() {
   fi
 
   log "Steam is not installed. Installing Steam first..."
-  if [[ "$EUID" -eq 0 ]]; then
-    pacman -Sy --noconfirm --needed steam
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    /usr/local/bin/umao-install-steam-root
     return 0
   fi
 
+  if command -v pkexec >/dev/null 2>&1; then
+    if pkexec /usr/local/bin/umao-install-steam-root; then
+      return 0
+    fi
+  fi
+
   if command -v sudo >/dev/null 2>&1; then
-    sudo pacman -Sy --noconfirm --needed steam
+    sudo /usr/local/bin/umao-install-steam-root
     return 0
   fi
 
