@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_URL="${UMAOS_UPDATE_REPO:-https://github.com/pod32g/umaos}"
+REF="${UMAOS_UPDATE_REF:-main}"
+
+dry_run=0
+
+usage() {
+  cat <<'EOF'
+Usage: uma-update [--ref <branch|tag|sha>] [--repo <url>] [--dry-run]
+
+Downloads the latest UmaOS repository snapshot from GitHub and syncs
+runtime scripts into the local system.
+
+Default repo: https://github.com/pod32g/umaos
+Default ref:  main
+
+Options:
+  --ref <ref>     Git reference to fetch (branch, tag, or commit)
+  --repo <url>    Override repository URL
+  --dry-run       Show what would be updated without writing
+  --help          Show this help
+EOF
+}
+
+log() {
+  printf '[uma-update] %s\n' "$*"
+}
+
+die() {
+  printf '[uma-update] ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+while (($# > 0)); do
+  case "$1" in
+    --ref)
+      shift
+      [[ $# -gt 0 ]] || die "--ref requires a value"
+      REF="$1"
+      ;;
+    --repo)
+      shift
+      [[ $# -gt 0 ]] || die "--repo requires a value"
+      REPO_URL="$1"
+      ;;
+    --dry-run)
+      dry_run=1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+  die "Run as root (use sudo) so system scripts can be updated."
+fi
+
+require_cmd curl
+require_cmd tar
+require_cmd install
+require_cmd find
+
+tmp_dir="$(mktemp -d)"
+cleanup() {
+  rm -rf "$tmp_dir"
+}
+trap cleanup EXIT
+
+repo_url="${REPO_URL%/}"
+archive_path="$tmp_dir/repo.tar.gz"
+
+download_archive() {
+  local url
+  local -a candidates=(
+    "${repo_url}/archive/refs/heads/${REF}.tar.gz"
+    "${repo_url}/archive/refs/tags/${REF}.tar.gz"
+    "${repo_url}/archive/${REF}.tar.gz"
+  )
+  for url in "${candidates[@]}"; do
+    if curl -fsSL "$url" -o "$archive_path"; then
+      log "Downloaded: $url"
+      return 0
+    fi
+  done
+  return 1
+}
+
+download_archive || die "Failed to download repo archive for ref '$REF' from '$repo_url'"
+
+tar -xzf "$archive_path" -C "$tmp_dir"
+repo_extract_dir="$(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | head -n1 || true)"
+[[ -n "$repo_extract_dir" && -d "$repo_extract_dir" ]] || die "Could not locate extracted repository directory"
+
+updated=0
+skipped=0
+
+sync_dir_files() {
+  local src_dir="$1"
+  local dst_dir="$2"
+  local file
+  local dst_file
+  local mode
+
+  if [[ ! -d "$src_dir" ]]; then
+    log "Skipping missing source directory: $src_dir"
+    return 0
+  fi
+
+  mkdir -p "$dst_dir"
+
+  while IFS= read -r -d '' file; do
+    dst_file="$dst_dir/$(basename "$file")"
+    mode="0644"
+    if [[ -x "$file" ]]; then
+      mode="0755"
+    fi
+
+    if cmp -s "$file" "$dst_file" 2>/dev/null; then
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if ((dry_run == 1)); then
+      log "Would update: $dst_file"
+    else
+      install -D -m "$mode" "$file" "$dst_file"
+      log "Updated: $dst_file"
+    fi
+    updated=$((updated + 1))
+  done < <(find "$src_dir" -maxdepth 1 -type f -print0 | sort -z)
+}
+
+# Script-bearing paths in the repo overlay, synced into the local system.
+sync_dir_files "$repo_extract_dir/archiso/airootfs/usr/local/bin" "/usr/local/bin"
+sync_dir_files "$repo_extract_dir/archiso/airootfs/etc/profile.d" "/etc/profile.d"
+sync_dir_files "$repo_extract_dir/archiso/airootfs/etc/skel/Desktop" "/etc/skel/Desktop"
+sync_dir_files "$repo_extract_dir/archiso/airootfs/etc/skel/.config/autostart" "/etc/skel/.config/autostart"
+sync_dir_files "$repo_extract_dir/archiso/airootfs/usr/share/applications" "/usr/share/applications"
+
+if ((dry_run == 1)); then
+  log "Dry-run complete. Files to update: $updated, unchanged: $skipped."
+else
+  log "Update complete. Files updated: $updated, unchanged: $skipped."
+  echo "Umazing!"
+fi

@@ -478,6 +478,7 @@ install_wallhaven_wallpapers
 
 # Harden permissions for helper entrypoints in case host fs metadata gets normalized.
 chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/uma-update" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-installer-autostart" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-theme" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install-steam-root" \
@@ -507,6 +508,7 @@ bootmodes=('bios.syslinux'
 # UmaOS custom permissions for executable helper entrypoints copied via custom airootfs.
 file_permissions+=(
   ["/usr/local/bin/umao-install"]="0:0:755"
+  ["/usr/local/bin/uma-update"]="0:0:755"
   ["/usr/local/bin/umao-installer-autostart"]="0:0:755"
   ["/usr/local/bin/umao-apply-theme"]="0:0:755"
   ["/usr/local/bin/umao-install-steam-root"]="0:0:755"

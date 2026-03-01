@@ -126,6 +126,15 @@ Installer command contract:
 umao-install            # GUI first in desktop session; in TTY offers CLI fallback
 umao-install --gui      # force Calamares
 umao-install --cli      # force archinstall
+sudo uma-update         # pull latest GitHub scripts and sync system script paths
+```
+
+`uma-update` options:
+
+```bash
+sudo uma-update --ref main
+sudo uma-update --ref <tag-or-branch>
+sudo uma-update --dry-run
 ```
 
 ## Theme pack structure
