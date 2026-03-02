@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() {
+  printf '[umao-apply-grub-branding] %s\n' "$*"
+}
+
+find_background_source() {
+  local candidate
+  for candidate in \
+    /usr/share/wallpapers/UmaBoot/contents/images/1920x1080.png \
+    /usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg \
+    /usr/share/wallpapers/UmaOS/contents/images/3840x2160.svg; do
+    if [[ -f "$candidate" ]]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+write_grub_defaults() {
+  local background="$1"
+  local defaults_file="/etc/default/grub"
+
+  install -d /etc/default
+  touch "$defaults_file"
+
+  set_grub_var() {
+    local key="$1"
+    local value="$2"
+    if grep -Eq "^${key}=" "$defaults_file"; then
+      sed -i "s|^${key}=.*|${key}=${value}|g" "$defaults_file"
+    else
+      printf '%s=%s\n' "$key" "$value" >> "$defaults_file"
+    fi
+  }
+
+  set_grub_var GRUB_DISTRIBUTOR '"UmaOS"'
+  set_grub_var GRUB_BACKGROUND "\"$background\""
+  set_grub_var GRUB_GFXMODE 'auto'
+  set_grub_var GRUB_GFXPAYLOAD_LINUX 'keep'
+  set_grub_var GRUB_TIMEOUT_STYLE 'menu'
+  set_grub_var GRUB_COLOR_NORMAL '"white/black"'
+  set_grub_var GRUB_COLOR_HIGHLIGHT '"white/blue"'
+
+  log "Updated /etc/default/grub with UmaOS branding defaults"
+
+  # Also write a drop-in for distros/builds that source /etc/default/grub.d.
+  install -d /etc/default/grub.d
+  cat > /etc/default/grub.d/50-umaos-theme.cfg <<EOF
+GRUB_DISTRIBUTOR="UmaOS"
+GRUB_BACKGROUND="$background"
+GRUB_GFXMODE=auto
+GRUB_GFXPAYLOAD_LINUX=keep
+GRUB_TIMEOUT_STYLE=menu
+GRUB_COLOR_NORMAL="white/black"
+GRUB_COLOR_HIGHLIGHT="white/blue"
+EOF
+  log "Wrote /etc/default/grub.d/50-umaos-theme.cfg (compatibility drop-in)"
+}
+
+rebuild_grub_config() {
+  local cfg_target=""
+  if [[ -d /boot/grub ]]; then
+    cfg_target="/boot/grub/grub.cfg"
+  elif [[ -d /boot/grub2 ]]; then
+    cfg_target="/boot/grub2/grub.cfg"
+  else
+    log "GRUB directory not found; skipping grub.cfg regeneration."
+    return 0
+  fi
+
+  if ! command -v grub-mkconfig >/dev/null 2>&1; then
+    log "grub-mkconfig not found; skipping grub.cfg regeneration."
+    return 0
+  fi
+
+  if grub-mkconfig -o "$cfg_target" >/dev/null 2>&1; then
+    log "Regenerated $cfg_target with UmaOS branding."
+    echo "Umazing!"
+  else
+    log "Failed to regenerate $cfg_target; installation continues."
+  fi
+}
+
+main() {
+  local source_bg=""
+  local target_bg="/boot/grub/umaos-background.png"
+
+  if ! source_bg="$(find_background_source)"; then
+    log "No bundled background image found; skipping GRUB branding."
+    exit 0
+  fi
+
+  if [[ ! -d /boot/grub ]]; then
+    log "GRUB not detected in target; skipping GRUB branding."
+    exit 0
+  fi
+
+  install -d /boot/grub
+  cp -f "$source_bg" "$target_bg"
+  log "Installed GRUB background: $target_bg"
+  write_grub_defaults "$target_bg"
+  rebuild_grub_config
+}
+
+main "$@"

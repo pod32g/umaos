@@ -1,0 +1,13 @@
+{
+  "KPlugin": {
+    "Id": "UmaOS",
+    "Name": "UmaOS Sky Pink",
+    "Description": "UmaOS default wallpaper pack",
+    "Authors": [
+      {
+        "Name": "UmaOS Project"
+      }
+    ],
+    "License": "CC0"
+  }
+}

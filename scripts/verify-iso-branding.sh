@@ -98,12 +98,15 @@ fi
 
 if [[ -f "$grub_cfg" ]]; then
   check_contains "$grub_cfg" 'background_image /boot/syslinux/splash.png' "GRUB background injection present"
+  check_contains "$grub_cfg" '### UMAOS GRUB THEME START' "GRUB theme block injected"
+  check_contains "$grub_cfg" 'terminal_output gfxterm' "GRUB uses graphical terminal output"
   check_contains "$grub_cfg" 'UmaOS install medium' "GRUB menu title branded"
   check_not_contains "$grub_cfg" 'Arch Linux install medium' "GRUB Arch branding removed"
 fi
 
 if [[ -f "$loopback_cfg" ]]; then
   check_contains "$loopback_cfg" 'background_image /boot/syslinux/splash.png' "Loopback GRUB background injection present"
+  check_contains "$loopback_cfg" '### UMAOS GRUB THEME START' "Loopback GRUB theme block injected"
   check_contains "$loopback_cfg" 'UmaOS install medium' "Loopback GRUB menu title branded"
   check_not_contains "$loopback_cfg" 'Arch Linux install medium' "Loopback GRUB Arch branding removed"
 fi

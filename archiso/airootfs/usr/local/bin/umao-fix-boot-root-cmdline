@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() {
+  printf '[umao-fix-boot-root-cmdline] %s\n' "$*"
+}
+
+find_root_spec() {
+  local spec=""
+
+  if [[ -r /etc/fstab ]]; then
+    spec="$(awk '$2 == "/" { print $1; exit }' /etc/fstab || true)"
+  fi
+
+  printf '%s' "$spec"
+}
+
+root_arg_from_spec() {
+  local spec="$1"
+  local uuid=""
+
+  if [[ -z "$spec" ]]; then
+    return 1
+  fi
+
+  case "$spec" in
+    UUID=*|PARTUUID=*|LABEL=*)
+      printf 'root=%s' "$spec"
+      return 0
+      ;;
+    /dev/*)
+      if command -v blkid >/dev/null 2>&1; then
+        uuid="$(blkid -s UUID -o value "$spec" 2>/dev/null || true)"
+        if [[ -n "$uuid" ]]; then
+          printf 'root=UUID=%s' "$uuid"
+          return 0
+        fi
+      fi
+      printf 'root=%s' "$spec"
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+ensure_cmdline_has_root() {
+  local root_arg="$1"
+  local cmdline_file="/etc/kernel/cmdline"
+  local cmdline=""
+
+  mkdir -p /etc/kernel
+  [[ -f "$cmdline_file" ]] || touch "$cmdline_file"
+  cmdline="$(tr '\n' ' ' < "$cmdline_file" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+
+  if [[ "$cmdline" =~ (^|[[:space:]])root= ]]; then
+    log "Kernel cmdline already has root= entry."
+    return 0
+  fi
+
+  if [[ -n "$cmdline" ]]; then
+    printf '%s %s\n' "$cmdline" "$root_arg" > "$cmdline_file"
+  else
+    printf '%s rw quiet splash\n' "$root_arg" > "$cmdline_file"
+  fi
+  log "Injected ${root_arg} into /etc/kernel/cmdline."
+}
+
+patch_loader_entries() {
+  local root_arg="$1"
+  local entry
+  local found=0
+
+  for entry in /boot/efi/loader/entries/*.conf /boot/loader/entries/*.conf; do
+    [[ -f "$entry" ]] || continue
+    found=1
+    if grep -Eq '^[[:space:]]*options[[:space:]].*root=' "$entry"; then
+      continue
+    fi
+    if grep -Eq '^[[:space:]]*options[[:space:]]+' "$entry"; then
+      sed -i.bak -E "s|^([[:space:]]*options[[:space:]]+.*)$|\\1 ${root_arg}|" "$entry"
+      rm -f "$entry.bak"
+    else
+      printf '\noptions %s rw quiet splash\n' "$root_arg" >> "$entry"
+    fi
+    log "Patched loader entry with ${root_arg}: $entry"
+  done
+
+  if [[ "$found" -eq 0 ]]; then
+    log "No systemd-boot loader entries found to patch."
+  fi
+}
+
+rebuild_systemd_boot_entries() {
+  local had_kernel_install=0
+  local vmlinuz_path
+  local kernel_version
+
+  command -v kernel-install >/dev/null 2>&1 || return 0
+
+  for vmlinuz_path in /usr/lib/modules/*/vmlinuz; do
+    [[ -f "$vmlinuz_path" ]] || continue
+    had_kernel_install=1
+    kernel_version="$(basename "$(dirname "$vmlinuz_path")")"
+    if kernel-install add "$kernel_version" "$vmlinuz_path" >/dev/null 2>&1; then
+      log "Regenerated boot entry via kernel-install for $kernel_version"
+    fi
+  done
+
+  [[ "$had_kernel_install" -eq 0 ]] && log "No /usr/lib/modules/*/vmlinuz found for kernel-install."
+}
+
+ensure_grub_default_cmdline_root() {
+  local root_arg="$1"
+  local grub_default="/etc/default/grub"
+
+  [[ -f "$grub_default" ]] || return 0
+
+  if grep -Eq '^GRUB_CMDLINE_LINUX=.*root=' "$grub_default"; then
+    return 0
+  fi
+
+  if grep -Eq '^GRUB_CMDLINE_LINUX=' "$grub_default"; then
+    sed -i.bak -E "s|^GRUB_CMDLINE_LINUX=\"(.*)\"$|GRUB_CMDLINE_LINUX=\"\\1 ${root_arg}\"|" "$grub_default"
+    rm -f "$grub_default.bak"
+  else
+    printf '\nGRUB_CMDLINE_LINUX="%s"\n' "$root_arg" >> "$grub_default"
+  fi
+  log "Ensured GRUB_CMDLINE_LINUX includes ${root_arg}."
+}
+
+main() {
+  local root_spec
+  local root_arg
+
+  root_spec="$(find_root_spec)"
+  if ! root_arg="$(root_arg_from_spec "$root_spec")"; then
+    log "Could not determine root spec from /etc/fstab; skipping root= patch."
+    exit 0
+  fi
+
+  ensure_cmdline_has_root "$root_arg"
+  ensure_grub_default_cmdline_root "$root_arg"
+  rebuild_systemd_boot_entries
+  patch_loader_entries "$root_arg"
+  echo "Umazing!"
+}
+
+main "$@"

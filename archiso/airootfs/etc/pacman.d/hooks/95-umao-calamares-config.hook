@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = calamares
+
+[Action]
+Description = Applying UmaOS Calamares configuration
+When = PostTransaction
+Exec = /usr/local/bin/umao-sync-calamares-config

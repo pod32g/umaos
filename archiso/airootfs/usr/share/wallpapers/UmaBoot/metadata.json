@@ -1,0 +1,13 @@
+{
+  "KPlugin": {
+    "Id": "UmaBoot",
+    "Name": "UmaOS Boot Art",
+    "Description": "Boot artwork wallpaper option",
+    "Authors": [
+      {
+        "Name": "UmaOS Project"
+      }
+    ],
+    "License": "Proprietary"
+  }
+}

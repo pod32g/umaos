@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat > /etc/lsb-release <<'EOF'
+LSB_VERSION=1.4
+DISTRIB_ID=UmaOS
+DISTRIB_RELEASE=rolling
+DISTRIB_CODENAME=uma
+DISTRIB_DESCRIPTION="UmaOS"
+EOF

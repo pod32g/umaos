@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() {
+  printf '[umao-fix-initcpio-preset] %s\n' "$*"
+}
+
+preset="/etc/mkinitcpio.d/linux.preset"
+
+if [[ ! -f "$preset" ]]; then
+  log "linux.preset not found; nothing to normalize."
+  exit 0
+fi
+
+if grep -Eq "archiso|initramfs-linux-lts\.img|archiso\.conf" "$preset"; then
+  cat > "$preset" <<'EOF'
+ALL_config="/etc/mkinitcpio.conf"
+ALL_kver="/boot/vmlinuz-linux"
+PRESETS=('default' 'fallback')
+default_image="/boot/initramfs-linux.img"
+fallback_image="/boot/initramfs-linux-fallback.img"
+fallback_options="-S autodetect"
+EOF
+  log "Normalized linux.preset for installed system."
+fi
+
+if [[ ! -r /boot/vmlinuz-linux ]]; then
+  kver_path="$(find /usr/lib/modules -maxdepth 3 -type f -name vmlinuz 2>/dev/null | sort | tail -n1 || true)"
+  if [[ -n "$kver_path" ]]; then
+    install -Dm644 "$kver_path" /boot/vmlinuz-linux
+    log "Installed kernel image to /boot/vmlinuz-linux from $kver_path"
+  else
+    log "No kernel image found under /usr/lib/modules; mkinitcpio may fail."
+  fi
+fi
+
+echo "Umazing!"

@@ -12,12 +12,15 @@ plasma-meta
 plasma-x11-session
 kwin-x11
 sddm
+qt5-base
+qt5-declarative
 qt6-svg
 xcb-util-cursor
 konsole
 dolphin
 firefox
 git
+yay
 nano
 vim
 wget
@@ -29,3 +32,4 @@ noto-fonts-cjk
 noto-fonts-emoji
 kvantum
 papirus-icon-theme
+packagekit-qt6

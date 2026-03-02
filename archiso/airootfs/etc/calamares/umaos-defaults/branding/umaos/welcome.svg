@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" viewBox="0 0 640 320">
+  <rect width="640" height="320" fill="#f5f9ff"/>
+  <circle cx="180" cy="160" r="120" fill="#2f74cc" opacity="0.2"/>
+  <circle cx="460" cy="140" r="110" fill="#ff91c0" opacity="0.2"/>
+  <text x="86" y="184" fill="#163d72" font-size="54" font-family="Noto Sans">UmaOS</text>
+  <text x="88" y="226" fill="#355f98" font-size="28" font-family="Noto Sans">Fast install. Fast desktop.</text>
+</svg>

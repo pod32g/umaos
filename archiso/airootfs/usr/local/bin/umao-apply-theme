@@ -47,6 +47,8 @@ state_dir="$HOME/.config/umaos"
 state_file="$state_dir/theme-applied"
 mkdir -p "$state_dir"
 log_file="$state_dir/video-wallpaper-debug.log"
+video_disabled_marker="$state_dir/video-wallpaper.disabled"
+video_fail_file="$state_dir/video-wallpaper.failcount"
 
 if (($once == 1)) && [[ -f "$state_file" ]]; then
   exit 0
@@ -59,6 +61,19 @@ video_plugin_dir="/usr/share/plasma/wallpapers/${video_plugin_id}"
 cursor_theme="pixloen-haru-urara-v1.7"
 wallpaper_applied=0
 apply_video=1
+video_stability_seconds="${UMAOS_VIDEO_STABILITY_SECONDS:-12}"
+has_graphical_session=0
+video_fail_count=0
+video_apply_failed=0
+
+if [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]]; then
+  has_graphical_session=1
+fi
+
+if [[ -f "$video_fail_file" ]]; then
+  read -r video_fail_count < "$video_fail_file" || true
+  [[ "$video_fail_count" =~ ^[0-9]+$ ]] || video_fail_count=0
+fi
 
 if [[ "${UMAOS_VIDEO_WALLPAPER:-1}" == "0" ]] || ((disable_video == 1)); then
   apply_video=0
@@ -68,6 +83,21 @@ if ((force_video == 1)) || [[ "${UMAOS_VIDEO_WALLPAPER:-1}" == "1" ]]; then
 fi
 if [[ "${UMAOS_DEBUG_VIDEO_WALLPAPER:-0}" == "1" ]]; then
   debug_video=1
+fi
+if ((force_video == 0)) && [[ -f "$video_disabled_marker" ]]; then
+  # Backward-compatible self-heal:
+  # Older builds created the disable marker without a failcount.
+  # Re-enable video automatically unless we have reached the hard failure threshold.
+  if ((video_fail_count >= 3)); then
+    apply_video=0
+  else
+    rm -f "$video_disabled_marker"
+    apply_video=1
+    if ((debug_video == 1)); then
+      printf '[%s] %s\n' "$(date -Iseconds)" \
+        "Cleared stale video disable marker (failcount=${video_fail_count})." >> "$log_file"
+    fi
+  fi
 fi
 
 log_debug() {
@@ -85,6 +115,16 @@ capture_recent_logs() {
       journalctl -b --since "-3 min" --no-pager
     } >> "$log_file" 2>/dev/null || true
   fi
+}
+
+clear_video_urls_config() {
+  local cfg
+  for cfg in \
+    "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc" \
+    "$HOME/.config/kscreenlockerrc"; do
+    [[ -f "$cfg" ]] || continue
+    sed -i 's/^VideoUrls=.*$/VideoUrls=/g' "$cfg" || true
+  done
 }
 
 find_qdbus_cmd() {
@@ -120,36 +160,66 @@ EOF
   "$qdbus_cmd" org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "$js" >/dev/null 2>&1
 }
 
-if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+if ((has_graphical_session == 1)) && command -v plasma-apply-colorscheme >/dev/null 2>&1; then
   plasma-apply-colorscheme UmaSkyPink >/dev/null 2>&1 || true
 fi
 
-if ((apply_video == 1)) && [[ -f "$wallpaper_video" ]] && [[ -d "$video_plugin_dir" ]]; then
+if ((has_graphical_session == 1)) && ((apply_video == 1)) && [[ -f "$wallpaper_video" ]] && [[ -d "$video_plugin_dir" ]]; then
   qdbus_cmd="$(find_qdbus_cmd || true)"
   old_pid="$(pgrep -n -u "$(id -u)" plasmashell 2>/dev/null || true)"
   log_debug "Attempting video wallpaper plugin apply: $wallpaper_video via ${qdbus_cmd:-none} (old plasmashell pid: ${old_pid:-none})"
 
   if [[ -n "$qdbus_cmd" ]] && apply_video_wallpaper_plugin "$qdbus_cmd"; then
-    sleep 4
-    new_pid="$(pgrep -n -u "$(id -u)" plasmashell 2>/dev/null || true)"
-    log_debug "Video wallpaper plugin apply returned success (new plasmashell pid: ${new_pid:-none})"
+    local_pid="$(pgrep -n -u "$(id -u)" plasmashell 2>/dev/null || true)"
+    restarted=0
+    log_debug "Video wallpaper plugin apply returned success (pid: ${local_pid:-none}); monitoring ${video_stability_seconds}s."
 
-    if [[ -n "${old_pid:-}" && -z "${new_pid:-}" ]]; then
-      log_debug "plasmashell appears to have crashed after video wallpaper apply; using fallback wallpaper."
-      capture_recent_logs
-    elif [[ -n "${old_pid:-}" && -n "${new_pid:-}" && "$old_pid" != "$new_pid" ]]; then
-      log_debug "plasmashell restarted after video wallpaper apply; using fallback wallpaper."
+    if [[ -z "${local_pid:-}" ]]; then
+      restarted=1
+    else
+      for ((i = 0; i < video_stability_seconds; i++)); do
+        sleep 1
+        new_pid="$(pgrep -n -u "$(id -u)" plasmashell 2>/dev/null || true)"
+        if [[ -z "${new_pid:-}" || "$new_pid" != "$local_pid" ]]; then
+          restarted=1
+          break
+        fi
+      done
+    fi
+
+    if ((restarted == 1)); then
+      log_debug "plasmashell crashed/restarted after video wallpaper apply; recording failure."
+      video_apply_failed=1
+      video_fail_count=$((video_fail_count + 1))
+      printf '%s\n' "$video_fail_count" > "$video_fail_file"
+      if ((video_fail_count >= 3)); then
+        touch "$video_disabled_marker"
+      else
+        rm -f "$video_disabled_marker"
+      fi
+      clear_video_urls_config
       capture_recent_logs
     else
       wallpaper_applied=1
+      video_fail_count=0
+      rm -f "$video_fail_file"
+      rm -f "$video_disabled_marker"
     fi
   else
     log_debug "Video wallpaper plugin apply failed (plugin or qdbus missing); using fallback wallpaper."
+    video_apply_failed=1
+    video_fail_count=$((video_fail_count + 1))
+    printf '%s\n' "$video_fail_count" > "$video_fail_file"
+    if ((video_fail_count >= 3)); then
+      touch "$video_disabled_marker"
+    else
+      rm -f "$video_disabled_marker"
+    fi
     capture_recent_logs
   fi
 fi
 
-if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
+if ((has_graphical_session == 1)) && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
   if [[ "$wallpaper_applied" -eq 0 ]] && [[ -f "$wallpaper_fallback" ]]; then
     plasma-apply-wallpaperimage "$wallpaper_fallback" >/dev/null 2>&1 || true
   fi
@@ -169,6 +239,7 @@ if [[ -n "$kwriteconfig_cmd" ]]; then
   "$kwriteconfig_cmd" --file kdeglobals --group General --key ColorScheme UmaSkyPink
   "$kwriteconfig_cmd" --file kdeglobals --group Icons --key Theme UmaOS-Papirus
   "$kwriteconfig_cmd" --file kdeglobals --group KDE --key widgetStyle Breeze
+  "$kwriteconfig_cmd" --file ksplashrc --group KSplash --key Theme com.umaos.desktop
   "$kwriteconfig_cmd" --file kcminputrc --group Mouse --key cursorTheme "$cursor_theme"
   "$kwriteconfig_cmd" --file kcminputrc --group Mouse --key cursorThemeName "$cursor_theme"
   mkdir -p "$HOME/.icons/default"
@@ -178,4 +249,11 @@ Inherits=${cursor_theme}
 EOF
 fi
 
-touch "$state_file"
+if ((has_graphical_session == 1)); then
+  # In --once mode, allow automatic retries for transient video setup failures.
+  if ((once == 1)) && ((apply_video == 1)) && ((video_apply_failed == 1)) && ((video_fail_count < 3)); then
+    rm -f "$state_file"
+  else
+    touch "$state_file"
+  fi
+fi

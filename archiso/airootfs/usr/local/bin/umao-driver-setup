@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dry_run=0
+report_only=0
+yes=0
+best_effort=0
+
+usage() {
+  cat <<'EOF'
+Usage: umao-driver-setup [--dry-run] [--report-only] [--yes] [--best-effort]
+
+Auto-detects common hardware and installs appropriate Arch driver packages.
+
+Options:
+  --dry-run      Show packages that would be installed, do not install
+  --report-only  Show detected hardware and package plan, do not install
+  --yes          Pass --noconfirm to pacman
+  --best-effort  Never fail hard; print warning and exit 0 on errors
+  --help         Show this help
+EOF
+}
+
+log() {
+  printf '[umao-driver-setup] %s\n' "$*"
+}
+
+die() {
+  printf '[umao-driver-setup] ERROR: %s\n' "$*" >&2
+  exit 1
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+}
+
+while (($# > 0)); do
+  case "$1" in
+    --dry-run)
+      dry_run=1
+      ;;
+    --report-only)
+      report_only=1
+      ;;
+    --yes)
+      yes=1
+      ;;
+    --best-effort)
+      best_effort=1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
+if ! command -v lspci >/dev/null 2>&1; then
+  if ((best_effort == 1)); then
+    log "lspci not found; skipping hardware detection in best-effort mode."
+    echo "Umazing!"
+    exit 0
+  fi
+  require_cmd lspci
+fi
+
+declare -a plan_pkgs=()
+
+has_pkg_in_plan() {
+  local pkg="$1"
+  local existing
+  for existing in "${plan_pkgs[@]:-}"; do
+    [[ "$existing" == "$pkg" ]] && return 0
+  done
+  return 1
+}
+
+add_pkg() {
+  local pkg="$1"
+  if ! has_pkg_in_plan "$pkg"; then
+    plan_pkgs+=("$pkg")
+  fi
+}
+
+cpu_vendor="$(awk -F: '/vendor_id/{gsub(/^[ \t]+/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null || true)"
+model_name="$(awk -F: '/model name/{gsub(/^[ \t]+/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null || true)"
+pci_dump="$(lspci -nnk 2>/dev/null || true)"
+
+has_intel_gpu=0
+has_amd_gpu=0
+has_nvidia_gpu=0
+has_broadcom_net=0
+has_intel_net=0
+
+if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump"; then
+  if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump" && grep -Eqi 'Intel' <<<"$pci_dump"; then
+    has_intel_gpu=1
+  fi
+  if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump" && grep -Eqi 'AMD|ATI' <<<"$pci_dump"; then
+    has_amd_gpu=1
+  fi
+  if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump" && grep -Eqi 'NVIDIA' <<<"$pci_dump"; then
+    has_nvidia_gpu=1
+  fi
+fi
+
+if grep -Eqi 'Network controller|Ethernet controller' <<<"$pci_dump" && grep -Eqi 'Broadcom' <<<"$pci_dump"; then
+  has_broadcom_net=1
+fi
+if grep -Eqi 'Network controller|Ethernet controller' <<<"$pci_dump" && grep -Eqi 'Intel' <<<"$pci_dump"; then
+  has_intel_net=1
+fi
+
+# Base stack expected on desktop installs.
+add_pkg linux-firmware
+add_pkg mesa
+add_pkg pipewire
+add_pkg wireplumber
+add_pkg plasma-pa
+add_pkg alsa-utils
+
+# CPU microcode
+if [[ "$cpu_vendor" == *"GenuineIntel"* ]]; then
+  add_pkg intel-ucode
+elif [[ "$cpu_vendor" == *"AuthenticAMD"* ]]; then
+  add_pkg amd-ucode
+fi
+
+# GPU-specific userspace and acceleration stacks.
+if ((has_intel_gpu == 1)); then
+  add_pkg vulkan-intel
+  add_pkg intel-media-driver
+  add_pkg libva-utils
+fi
+if ((has_amd_gpu == 1)); then
+  add_pkg vulkan-radeon
+  add_pkg libva-mesa-driver
+fi
+
+# NVIDIA is intentionally not auto-installed here because package choice
+# depends on card generation and kernel policy (nvidia-open vs nvidia).
+if ((has_nvidia_gpu == 1)); then
+  log "NVIDIA GPU detected. Auto-install skipped; choose driver manually (nvidia-open or nvidia)."
+fi
+
+# Common Wi-Fi driver package for Broadcom chipsets.
+if ((has_broadcom_net == 1)); then
+  add_pkg broadcom-wl
+fi
+
+echo "Detected CPU vendor: ${cpu_vendor:-unknown}"
+echo "Detected CPU model:  ${model_name:-unknown}"
+echo "Detected GPUs: Intel=$has_intel_gpu AMD=$has_amd_gpu NVIDIA=$has_nvidia_gpu"
+echo "Detected network: Intel=$has_intel_net Broadcom=$has_broadcom_net"
+echo
+echo "Driver package plan (${#plan_pkgs[@]}): ${plan_pkgs[*]}"
+
+if ((report_only == 1 || dry_run == 1)); then
+  echo "Umazing!"
+  exit 0
+fi
+
+require_cmd pacman
+
+pacman_cmd=(pacman -S --needed)
+if ((yes == 1)); then
+  pacman_cmd+=(--noconfirm)
+fi
+pacman_cmd+=("${plan_pkgs[@]}")
+
+if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+  if ! "${pacman_cmd[@]}"; then
+    if ((best_effort == 1)); then
+      log "Driver installation failed, continuing due to --best-effort."
+      echo "Umazing!"
+      exit 0
+    fi
+    exit 1
+  fi
+else
+  if command -v sudo >/dev/null 2>&1; then
+    if ! sudo "${pacman_cmd[@]}"; then
+      if ((best_effort == 1)); then
+        log "Driver installation failed, continuing due to --best-effort."
+        echo "Umazing!"
+        exit 0
+      fi
+      exit 1
+    fi
+  else
+    if ((best_effort == 1)); then
+      log "Root privileges unavailable; skipping due to --best-effort."
+      echo "Umazing!"
+      exit 0
+    fi
+    die "Root privileges required (run as root or install sudo)."
+  fi
+fi
+
+echo "Umazing!"

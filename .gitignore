@@ -7,3 +7,5 @@ build/
 assets/wallpapers/wallhaven/images/
 assets/wallpapers/wallhaven/manifest.tsv
 assets/wallpapers/wallhaven/search-meta.json
+archiso/airootfs/usr/local/bin/umao-debug
+archiso/airootfs/usr/local/bin/umao-debug-upload

@@ -18,6 +18,7 @@ REQUIRED_REPO_PKGS=(
   calamares
   xorg-xkbcomp
   plasma6-wallpapers-smart-video-wallpaper-reborn
+  yay
 )
 MISSING_REQUIRED_PKGS=()
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
@@ -31,6 +32,9 @@ WALLHAVEN_ASSETS_DIR="$ROOT_DIR/assets/wallpapers/wallhaven"
 WALLHAVEN_IMAGES_DIR="$WALLHAVEN_ASSETS_DIR/images"
 WALLHAVEN_MANIFEST="$WALLHAVEN_ASSETS_DIR/manifest.tsv"
 INCLUDE_WALLHAVEN="${UMAOS_INCLUDE_WALLHAVEN:-1}"
+URA_LOGO_SRC="$ROOT_DIR/ura_logo.png"
+DEFAULT_CURSOR_THEME="pixloen-haru-urara-v1.7"
+EXPECTED_WALLHAVEN_COUNT=0
 
 log() {
   echo "[umaos] $*"
@@ -178,6 +182,31 @@ install_custom_cursor_themes() {
   log "Installed $installed custom cursor theme(s)."
 }
 
+ensure_default_cursor_theme() {
+  local dest_icons="$BUILD_PROFILE/airootfs/usr/share/icons"
+  local preferred="$DEFAULT_CURSOR_THEME"
+  local detected_haru_theme
+
+  if [[ -d "$dest_icons/$preferred" ]]; then
+    log "Default cursor theme present: $preferred"
+    return 0
+  fi
+
+  detected_haru_theme="$(
+    find "$dest_icons" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; \
+      | grep -Ei '^pixloen-.*haru.*urara' \
+      | head -n 1 || true
+  )"
+
+  if [[ -n "$detected_haru_theme" ]]; then
+    ln -sfn "$detected_haru_theme" "$dest_icons/$preferred"
+    log "Created cursor alias '$preferred' -> '$detected_haru_theme'."
+    return 0
+  fi
+
+  warn "Default cursor theme '$preferred' not found in $dest_icons. System may fall back to Breeze cursors."
+}
+
 install_wallhaven_wallpapers() {
   local wallpapers_root="$BUILD_PROFILE/airootfs/usr/share/wallpapers"
   local id
@@ -246,10 +275,123 @@ Author=Wallhaven contributor
 License=Unknown
 EOF
 
+    cat > "$pkg_dir/metadata.json" <<EOF
+{
+  "KPlugin": {
+    "Id": "Wallhaven-$id",
+    "Name": "Wallhaven $id",
+    "Description": "Uma Musume wallpaper from Wallhaven ($id)",
+    "Authors": [
+      {
+        "Name": "Wallhaven contributor"
+      }
+    ],
+    "License": "Unknown"
+  }
+}
+EOF
+
     imported=$((imported + 1))
   done < "$WALLHAVEN_MANIFEST"
 
   log "Imported $imported Wallhaven wallpaper option(s) from $WALLHAVEN_MANIFEST."
+}
+
+install_uma_ksplash_theme() {
+  local theme_id="com.umaos.desktop"
+  local theme_root="$BUILD_PROFILE/airootfs/usr/share/plasma/look-and-feel/$theme_id"
+  local splash_dir="$theme_root/contents/splash"
+  local images_dir="$splash_dir/images"
+
+  if [[ ! -f "$URA_LOGO_SRC" ]]; then
+    log "No KSplash logo source found at $URA_LOGO_SRC; skipping custom Plasma loading logo."
+    return 0
+  fi
+
+  rm -rf "$theme_root"
+  mkdir -p "$images_dir"
+  cp -f "$URA_LOGO_SRC" "$images_dir/ura_logo.png"
+
+  cat > "$theme_root/metadata.json" <<'EOF'
+{
+  "KPlugin": {
+    "Id": "com.umaos.desktop",
+    "Name": "UmaOS",
+    "Description": "UmaOS custom startup splash",
+    "Version": "1.0",
+    "License": "CC-BY-NC-ND",
+    "Website": "https://github.com/pod32g/umaos"
+  }
+}
+EOF
+
+  cat > "$splash_dir/Splash.qml" <<'EOF'
+import QtQuick 2.15
+
+Rectangle {
+    id: root
+    property int stage: 0
+    color: "#11192e"
+
+    Image {
+        id: logo
+        anchors.centerIn: parent
+        source: "images/ura_logo.png"
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        sourceSize.width: Math.min(parent.width * 0.32, 560)
+        sourceSize.height: Math.min(parent.height * 0.32, 560)
+        opacity: 0.92
+    }
+
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: logo.bottom
+        anchors.topMargin: Math.max(24, parent.height * 0.03)
+        text: "UmaOS"
+        color: "#f3f7ff"
+        font.pixelSize: Math.max(20, parent.height * 0.034)
+        font.bold: true
+        opacity: 0.9
+    }
+}
+EOF
+
+  log "Installed custom Plasma KSplash theme using $URA_LOGO_SRC."
+}
+
+sync_calamares_defaults() {
+  local cal_root="$BUILD_PROFILE/airootfs/etc/calamares"
+  local defaults_root="$cal_root/umaos-defaults"
+  local module
+  local -a required_modules=(
+    bootloader
+    displaymanager
+    keyboard
+    locale
+    partition
+    users
+    unpackfs
+    shellprocess-preinit
+    shellprocess-postboot
+  )
+
+  [[ -d "$cal_root" ]] || die "Missing Calamares directory in profile: $cal_root"
+  [[ -f "$cal_root/settings.conf" ]] || die "Missing Calamares settings.conf in profile"
+  [[ -d "$cal_root/modules" ]] || die "Missing Calamares modules directory in profile"
+  [[ -d "$cal_root/branding/umaos" ]] || die "Missing Calamares UmaOS branding directory in profile"
+
+  rm -rf "$defaults_root"
+  mkdir -p "$defaults_root/modules" "$defaults_root/branding"
+  cp -f "$cal_root/settings.conf" "$defaults_root/settings.conf"
+
+  for module in "${required_modules[@]}"; do
+    [[ -f "$cal_root/modules/$module.conf" ]] || die "Missing required Calamares module config: $module.conf"
+    cp -f "$cal_root/modules/$module.conf" "$defaults_root/modules/$module.conf"
+  done
+
+  cp -a "$cal_root/branding/umaos" "$defaults_root/branding/"
+  log "Synced Calamares defaults into /etc/calamares/umaos-defaults."
 }
 
 build_missing_required_from_aur() {
@@ -349,18 +491,55 @@ replace_boot_branding_strings() {
   rm -f "$file.bak"
 }
 
+apply_grub_theme_block() {
+  local file="$1"
+  local tmp_file
+  [[ -f "$file" ]] || return 0
+
+  replace_boot_branding_strings "$file"
+
+  # GRUB background/theming requires gfxterm, not plain console output.
+  sed -i.bak \
+    -e 's/^[[:space:]]*terminal_output[[:space:]]\+console[[:space:]]*$/    terminal_output gfxterm/' \
+    "$file"
+  rm -f "$file.bak"
+
+  if grep -q "### UMAOS GRUB THEME START" "$file"; then
+    return 0
+  fi
+
+  tmp_file="$(mktemp)"
+  awk '
+    { print }
+    /^timeout_style=menu$/ {
+      print ""
+      print "### UMAOS GRUB THEME START"
+      print "insmod gfxterm"
+      print "insmod png"
+      print "set menu_color_normal=white/black"
+      print "set menu_color_highlight=white/blue"
+      print "if background_image /boot/syslinux/splash.png; then"
+      print "    true"
+      print "fi"
+      print "### UMAOS GRUB THEME END"
+      print ""
+    }
+  ' "$file" > "$tmp_file"
+  mv "$tmp_file" "$file"
+}
+
 configure_boot_branding() {
-  local grub_cfg="$BUILD_PROFILE/grub/grub.cfg"
-  local grub_loopback="$BUILD_PROFILE/grub/loopback.cfg"
   local syslinux_splash="$BUILD_PROFILE/syslinux/splash.png"
   local syslinux_head="$BUILD_PROFILE/syslinux/archiso_head.cfg"
   local syslinux_src="$GRUB_BACKGROUND_SRC"
-  local tmp_file
   local cfg
 
   # Brand boot menu text across GRUB, Syslinux and EFI loader entries.
-  replace_boot_branding_strings "$grub_cfg"
-  replace_boot_branding_strings "$grub_loopback"
+  if [[ -d "$BUILD_PROFILE/grub" ]]; then
+    while IFS= read -r cfg; do
+      apply_grub_theme_block "$cfg"
+    done < <(find "$BUILD_PROFILE/grub" -type f -name "*.cfg" | sort)
+  fi
   if [[ -d "$BUILD_PROFILE/syslinux" ]]; then
     while IFS= read -r cfg; do
       replace_boot_branding_strings "$cfg"
@@ -374,25 +553,6 @@ configure_boot_branding() {
 
   # Apply custom GRUB background if the configured image exists.
   if [[ -f "$GRUB_BACKGROUND_SRC" ]]; then
-    for cfg in "$grub_cfg" "$grub_loopback"; do
-      [[ -f "$cfg" ]] || continue
-      if ! grep -q "background_image /boot/syslinux/splash.png" "$cfg"; then
-        tmp_file="$(mktemp)"
-        awk '
-          { print }
-          /^timeout_style=menu$/ {
-            print ""
-            print "insmod png"
-            print "if background_image /boot/syslinux/splash.png; then"
-            print "    true"
-            print "fi"
-            print ""
-          }
-        ' "$cfg" > "$tmp_file"
-        mv "$tmp_file" "$cfg"
-      fi
-    done
-
     log "Applied GRUB background: $GRUB_BACKGROUND_SRC"
   else
     log "No GRUB background override applied (missing $GRUB_BACKGROUND_SRC)."
@@ -473,16 +633,44 @@ fi
 # pacman file-conflict failures during mkarchiso package installation.
 rm -f "$BUILD_PROFILE/airootfs/etc/skel/.zshrc"
 
+sync_calamares_defaults
+if [[ -x "$ROOT_DIR/scripts/verify-calamares-profile.sh" ]]; then
+  bash "$ROOT_DIR/scripts/verify-calamares-profile.sh" "$BUILD_PROFILE/airootfs"
+fi
+
 install_custom_cursor_themes
+ensure_default_cursor_theme
 install_wallhaven_wallpapers
+install_uma_ksplash_theme
+if [[ "$INCLUDE_WALLHAVEN" == "1" && -f "$WALLHAVEN_MANIFEST" ]]; then
+  EXPECTED_WALLHAVEN_COUNT="$(tail -n +2 "$WALLHAVEN_MANIFEST" | wc -l | tr -d '[:space:]')"
+fi
+if [[ -x "$ROOT_DIR/scripts/verify-customization-profile.sh" ]]; then
+  bash "$ROOT_DIR/scripts/verify-customization-profile.sh" \
+    "$BUILD_PROFILE/airootfs" \
+    "$BUILD_PROFILE/packages.x86_64" \
+    "${EXPECTED_WALLHAVEN_COUNT:-0}"
+fi
 
 # Harden permissions for helper entrypoints in case host fs metadata gets normalized.
 chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/uma-update" \
+  "$BUILD_PROFILE/airootfs/root/customize_airootfs.sh" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-sync-calamares-config" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-prepare-calamares" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-fix-initcpio-preset" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-fix-boot-root-cmdline" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-finalize-installed-customization" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-grub-branding" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-driver-setup" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-audio-doctor" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-debug" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-debug-upload" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-installer-autostart" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-theme" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install-steam-root" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-first-login-umamusume" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-refresh-lsb-release" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-show-ascii" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
   "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
@@ -494,6 +682,11 @@ fi
 
 sed -i.bak "s/^iso_name=.*/iso_name=\"umaos\"/" "$BUILD_PROFILE/profiledef.sh"
 sed -i.bak "s/^iso_label=.*/iso_label=\"$ISO_LABEL\"/" "$BUILD_PROFILE/profiledef.sh"
+if grep -q '^install_dir=' "$BUILD_PROFILE/profiledef.sh"; then
+  sed -i.bak "s|^install_dir=.*|install_dir=\"arch\"|" "$BUILD_PROFILE/profiledef.sh"
+else
+  echo 'install_dir="arch"' >> "$BUILD_PROFILE/profiledef.sh"
+fi
 sed -i.bak "s/^iso_publisher=.*/iso_publisher=\"UmaOS Project <https:\/\/example.com\/umaos>\"/" "$BUILD_PROFILE/profiledef.sh"
 sed -i.bak "s/^iso_application=.*/iso_application=\"UmaOS Live ISO\"/" "$BUILD_PROFILE/profiledef.sh"
 sed -i.bak "s/^iso_version=.*/iso_version=\"$DATE_TAG\"/" "$BUILD_PROFILE/profiledef.sh"
@@ -509,10 +702,21 @@ bootmodes=('bios.syslinux'
 file_permissions+=(
   ["/usr/local/bin/umao-install"]="0:0:755"
   ["/usr/local/bin/uma-update"]="0:0:755"
+  ["/usr/local/bin/umao-sync-calamares-config"]="0:0:755"
+  ["/usr/local/bin/umao-prepare-calamares"]="0:0:755"
+  ["/usr/local/bin/umao-fix-initcpio-preset"]="0:0:755"
+  ["/usr/local/bin/umao-fix-boot-root-cmdline"]="0:0:755"
+  ["/usr/local/bin/umao-finalize-installed-customization"]="0:0:755"
+  ["/usr/local/bin/umao-apply-grub-branding"]="0:0:755"
+  ["/usr/local/bin/umao-driver-setup"]="0:0:755"
+  ["/usr/local/bin/umao-audio-doctor"]="0:0:755"
+  ["/usr/local/bin/umao-debug"]="0:0:755"
+  ["/usr/local/bin/umao-debug-upload"]="0:0:755"
   ["/usr/local/bin/umao-installer-autostart"]="0:0:755"
   ["/usr/local/bin/umao-apply-theme"]="0:0:755"
   ["/usr/local/bin/umao-install-steam-root"]="0:0:755"
   ["/usr/local/bin/umao-first-login-umamusume"]="0:0:755"
+  ["/usr/local/bin/umao-refresh-lsb-release"]="0:0:755"
   ["/usr/local/bin/umao-show-ascii"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
   ["/home/arch/Desktop/UmaOS Installer.desktop"]="0:0:755"

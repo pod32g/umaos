@@ -86,6 +86,7 @@ Build integration:
 - If `assets/wallpapers/wallhaven/manifest.tsv` exists, `build-iso.sh` imports all downloaded files as KDE wallpaper options under `/usr/share/wallpapers/Wallhaven-*`.
 - Disable import with `UMAOS_INCLUDE_WALLHAVEN=0`.
 - Large downloads can significantly increase ISO size and build time.
+- Build verification now checks that Wallhaven entries were actually imported when manifest import is enabled.
 
 ## Package sourcing policy
 
@@ -93,7 +94,9 @@ UmaOS prefers official Arch repos.
 
 - Default behavior: fail build if required packages are unavailable in official repos.
 - Optional fallback: set `UMAOS_ALLOW_AUR=1` to build missing packages from AUR into a local repo used by `mkarchiso`.
-- Current AUR-backed requirement: `plasma6-wallpapers-smart-video-wallpaper-reborn` (video wallpaper plugin).
+- Current AUR-backed requirements:
+  - `plasma6-wallpapers-smart-video-wallpaper-reborn` (video wallpaper plugin)
+  - `yay` (AUR helper included in live and installed UmaOS)
 
 Example:
 
@@ -115,10 +118,14 @@ In the live KDE session:
   - install Steam automatically (enabling `multilib` if needed), then
   - open `steam://install/3224770` for Umamusume.
 - Default wallpaper target is video: `/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4`.
-- If Plasma crashes/restarts right after applying video wallpaper, UmaOS auto-falls back to static SVG and can log diagnostics.
+- In virtual machines, video wallpaper is skipped by default (use `umao-apply-theme --video` to force it).
+- If Plasma crashes/restarts after applying video wallpaper, UmaOS auto-falls back to static SVG, clears `VideoUrls`, and records a disable marker at `~/.config/umaos/video-wallpaper.disabled`.
 - Manual controls: `umao-apply-theme --video`, `umao-apply-theme --no-video`, `umao-apply-theme --debug-video`.
 - `umao-install` defaults to GUI-first and falls back to `archinstall` if Calamares is unavailable or exits with an error.
+- Before launching Calamares, `umao-install` re-syncs UmaOS Calamares defaults (`umao-sync-calamares-config`).
+- Before launching Calamares, `umao-install` regenerates `unpackfs.conf` from detected live-media paths (`umao-prepare-calamares`) to avoid source-path install failures.
 - Successful `pacman` package transactions print `Umazing!` via an ALPM post-transaction hook.
+- `yay` is preinstalled as the AUR helper (`yay -S <package>`).
 
 Installer command contract:
 
@@ -127,7 +134,25 @@ umao-install            # GUI first in desktop session; in TTY offers CLI fallba
 umao-install --gui      # force Calamares
 umao-install --cli      # force archinstall
 sudo uma-update         # pull latest GitHub scripts and sync system script paths
+umao-driver-setup --report-only
+sudo umao-driver-setup --yes
+umao-audio-doctor       # print audio diagnostics
+sudo umao-audio-doctor --apply-thinkpad-p1-legacy
+umao-debug              # collect a full diagnostics bundle (.tar.gz)
+umao-debug-upload --host <ip> --user <user> [--password <pass>]  # upload bundle
 ```
+
+Calamares integration:
+
+- ArchISO post-package hook (`/etc/pacman.d/hooks/95-umao-calamares-config.hook`) reapplies UmaOS Calamares config from `/etc/calamares/umaos-defaults` so package defaults cannot override it.
+- Build fallback (`/root/customize_airootfs.sh`) also re-syncs those defaults in chroot.
+- Installer pre-initcpio fix normalizes `linux.preset` (`umao-fix-initcpio-preset`) to avoid ArchISO preset leakage into installed systems.
+- Installer post-bootloader fix enforces valid `root=...` boot arguments (`umao-fix-boot-root-cmdline`) to prevent empty-root boot failures.
+- Installer post-bootloader stage also applies GRUB branding (`umao-apply-grub-branding`) on systems that install GRUB.
+- Installer post-bootloader finalizer (`umao-finalize-installed-customization`) applies live-theme defaults to installed users and system config (SDDM, KDE defaults, cursor defaults, lsb-release).
+- Installer post-bootloader finalizer also enforces GUI boot (`graphical.target` + `sddm.service` symlinks) and pins SDDM to `DisplayServer=x11` for stability.
+- During install, UmaOS runs `umao-driver-setup --yes --best-effort` automatically in target chroot via Calamares shellprocess stages.
+- If hardware-specific driver installs fail (e.g. no network), installation continues and you can rerun manually after first boot.
 
 `uma-update` options:
 
@@ -135,6 +160,9 @@ sudo uma-update         # pull latest GitHub scripts and sync system script path
 sudo uma-update --ref main
 sudo uma-update --ref <tag-or-branch>
 sudo uma-update --dry-run
+scripts/verify-calamares-profile.sh archiso/airootfs
+scripts/verify-customization-profile.sh build/profile/airootfs build/profile/packages.x86_64
+scripts/audit-customization-parity.sh
 ```
 
 ## Theme pack structure
@@ -144,6 +172,7 @@ sudo uma-update --dry-run
 - Wallpaper pack: `archiso/airootfs/usr/share/wallpapers/UmaOS`
 - Boot-art wallpaper option: `archiso/airootfs/usr/share/wallpapers/UmaBoot`
 - SDDM theme: `archiso/airootfs/usr/share/sddm/themes/umaos-race`
+- Plasma startup splash (KSplash): generated at build time from `ura_logo.png`
 - Icon mapping overlay: `archiso/airootfs/usr/share/icons/UmaOS-Papirus`
 - Custom cursor packs: place `.tar.gz`/`.tgz` archives in `assets/cursors/`; build imports them into `/usr/share/icons`.
 
@@ -151,6 +180,15 @@ First-login theme apply hook:
 
 - `/usr/local/bin/umao-apply-theme --once`
 - autostarted from `/etc/skel/.config/autostart/umaos-first-login.desktop`
+
+Quick runtime checks (inside live/installed UmaOS):
+
+```bash
+sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/umaos-race
+umao-apply-theme --debug-video
+umao-debug --journal-lines 800
+umao-debug-upload --host 192.168.68.225 --user pod32g --password '<password>'
+```
 
 ## Repository layout
 

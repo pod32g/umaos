@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONF_FILE="/etc/modprobe.d/umao-thinkpad-p1-audio.conf"
+
+usage() {
+  cat <<'EOF'
+Usage: umao-audio-doctor [--report] [--apply-thinkpad-p1-legacy] [--restore] [--force]
+
+Commands:
+  --report                    Print audio diagnostics (default)
+  --apply-thinkpad-p1-legacy  Apply Intel legacy HDA fallback:
+                              options snd-intel-dspcfg dsp_driver=1
+                              (often restores speakers on some ThinkPad P1 generations,
+                              but may disable built-in mic on some models)
+  --restore                   Remove fallback config and restore default behavior
+  --force                     Allow apply even when machine is not detected as ThinkPad P1
+  --help                      Show this help
+EOF
+}
+
+log() {
+  printf '[umao-audio-doctor] %s\n' "$*"
+}
+
+is_thinkpad_p1() {
+  local product=""
+  local vendor=""
+  product="$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)"
+  vendor="$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || true)"
+  [[ "$vendor" == *"LENOVO"* && "$product" == *"ThinkPad P1"* ]]
+}
+
+require_root() {
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    log "This action needs root. Re-run with sudo."
+    exit 1
+  fi
+}
+
+maybe_rebuild_initramfs() {
+  if command -v mkinitcpio >/dev/null 2>&1; then
+    log "Rebuilding initramfs..."
+    mkinitcpio -P
+  fi
+}
+
+print_report() {
+  echo "==== Hardware ===="
+  uname -a || true
+  printf 'Vendor: %s\n' "$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
+  printf 'Model:  %s\n' "$(cat /sys/class/dmi/id/product_name 2>/dev/null || echo unknown)"
+  echo
+
+  echo "==== Audio PCI devices ===="
+  lspci -nnk | awk '/Audio|Multimedia/{flag=1} flag{print} /^$/{flag=0}' || true
+  echo
+
+  echo "==== ALSA devices ===="
+  aplay -l || true
+  arecord -l || true
+  echo
+
+  echo "==== PipeWire / WirePlumber ===="
+  systemctl --user --no-pager --full status pipewire.service pipewire-pulse.service wireplumber.service 2>/dev/null || true
+  echo
+
+  echo "==== Pulse/PipeWire sinks ===="
+  pactl info 2>/dev/null || true
+  pactl list short sinks 2>/dev/null || true
+  echo
+
+  echo "==== Recent kernel audio logs ===="
+  journalctl -b -g 'snd|sof|hda|audio' --no-pager -n 200 2>/dev/null || true
+}
+
+apply_legacy=0
+restore=0
+force=0
+
+if (($# == 0)); then
+  print_report
+  exit 0
+fi
+
+while (($# > 0)); do
+  case "$1" in
+    --report)
+      ;;
+    --apply-thinkpad-p1-legacy)
+      apply_legacy=1
+      ;;
+    --restore)
+      restore=1
+      ;;
+    --force)
+      force=1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      log "Unknown argument: $1"
+      usage
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+if ((apply_legacy == 1)); then
+  require_root
+  if ((force == 0)) && ! is_thinkpad_p1; then
+    log "This machine is not detected as ThinkPad P1. Use --force if intentional."
+    exit 1
+  fi
+
+  mkdir -p /etc/modprobe.d
+  cat > "$CONF_FILE" <<'EOF'
+# UmaOS ThinkPad P1 audio fallback
+# This forces legacy HDA path instead of SOF.
+options snd-intel-dspcfg dsp_driver=1
+EOF
+
+  maybe_rebuild_initramfs
+  log "Applied legacy audio fallback in $CONF_FILE"
+  log "Reboot required."
+  echo "Umazing!"
+  exit 0
+fi
+
+if ((restore == 1)); then
+  require_root
+  if [[ -f "$CONF_FILE" ]]; then
+    rm -f "$CONF_FILE"
+    maybe_rebuild_initramfs
+    log "Removed $CONF_FILE"
+    log "Reboot required."
+    echo "Umazing!"
+  else
+    log "No fallback config found."
+  fi
+  exit 0
+fi
+
+print_report

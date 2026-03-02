@@ -78,6 +78,26 @@ run_gui() {
 BANNER
   fi
 
+  if command -v umao-sync-calamares-config >/dev/null 2>&1; then
+    if ! umao-sync-calamares-config; then
+      echo "Warning: failed to sync UmaOS Calamares defaults; trying existing config." >&2
+    fi
+  fi
+
+  if command -v umao-prepare-calamares >/dev/null 2>&1; then
+    if ! umao-prepare-calamares; then
+      echo "Warning: failed to refresh Calamares source paths; trying existing Calamares config." >&2
+    fi
+  fi
+
+  if command -v localectl >/dev/null 2>&1; then
+    x11_layout="$(localectl status 2>/dev/null | awk -F: '/X11 Layout/{gsub(/^[ \t]+/,"",$2); print $2; exit}' || true)"
+    if [[ -z "${x11_layout:-}" || "${x11_layout}" == "custom" ]]; then
+      echo "Warning: invalid X11 keyboard layout '${x11_layout:-<empty>}' detected, forcing 'us' for installer stability." >&2
+      localectl --no-convert set-x11-keymap us pc105 "" "" >/dev/null 2>&1 || true
+    fi
+  fi
+
   if calamares; then
     echo "Umazing!"
     return 0

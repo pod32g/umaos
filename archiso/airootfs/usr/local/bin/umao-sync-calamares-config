@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+defaults_root="/etc/calamares/umaos-defaults"
+
+if [[ -f "$defaults_root/settings.conf" ]]; then
+  install -Dm644 "$defaults_root/settings.conf" /etc/calamares/settings.conf
+fi
+
+if [[ -d "$defaults_root/modules" ]]; then
+  install -d /etc/calamares/modules
+  cp -af "$defaults_root/modules/." /etc/calamares/modules/
+fi
+
+if [[ -d "$defaults_root/branding/umaos" ]]; then
+  install -d /etc/calamares/branding
+  cp -af "$defaults_root/branding/umaos" /etc/calamares/branding/
+fi

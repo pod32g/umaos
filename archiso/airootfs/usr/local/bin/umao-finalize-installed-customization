@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+log() {
+  printf '[umao-finalize-installed-customization] %s\n' "$*"
+}
+
+trim() {
+  local v="$1"
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  printf '%s\n' "$v"
+}
+
+ensure_graphical_boot() {
+  # Do not rely on systemctl availability inside installer chroot.
+  install -d /etc/systemd/system
+  ln -sfn /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target
+
+  install -d /etc/systemd/system/graphical.target.wants
+  ln -sfn /usr/lib/systemd/system/sddm.service /etc/systemd/system/graphical.target.wants/sddm.service
+  ln -sfn /usr/lib/systemd/system/sddm.service /etc/systemd/system/display-manager.service
+}
+
+write_installed_motd() {
+  cat > /etc/motd <<'EOF'
+Welcome to UmaOS
+
+Quick start:
+  1) Refresh scripts from GitHub: sudo uma-update
+  2) Reapply desktop defaults: umao-apply-theme --once
+  3) Driver auto-detect and install: sudo umao-driver-setup --yes
+  4) Audio diagnostics: umao-audio-doctor
+  5) Collect debug bundle: umao-debug
+  6) Install game from desktop: Install Uma Musume.sh
+
+Project: UmaOS
+EOF
+}
+
+resolve_cursor_theme() {
+  local preferred="pixloen-haru-urara-v1.7"
+  if [[ -d "/usr/share/icons/$preferred" ]]; then
+    printf '%s\n' "$preferred"
+    return 0
+  fi
+  printf '%s\n' "breeze_cursors"
+}
+
+write_system_theme_defaults() {
+  local cursor_theme="$1"
+  local sddm_theme="umaos-race"
+
+  # Keep UmaOS branding by default, but never brick login if the theme is missing.
+  if [[ ! -f "/usr/share/sddm/themes/${sddm_theme}/Main.qml" ]]; then
+    sddm_theme="breeze"
+  fi
+
+  install -d /etc/sddm.conf.d
+  cat > /etc/sddm.conf.d/umaos-theme.conf <<'EOF'
+[Theme]
+Current=__SDDM_THEME__
+CursorTheme=__CURSOR_THEME__
+CursorSize=24
+EOF
+  sed -i "s/__SDDM_THEME__/${sddm_theme}/g" /etc/sddm.conf.d/umaos-theme.conf
+  sed -i "s/__CURSOR_THEME__/${cursor_theme}/g" /etc/sddm.conf.d/umaos-theme.conf
+
+  # Favor X11 for maximum compatibility across real hardware and VMs.
+  cat > /etc/sddm.conf.d/10-umaos-display.conf <<'EOF'
+[General]
+DisplayServer=x11
+EOF
+
+  # Live-only SDDM autologin config should never survive installation.
+  rm -f /etc/sddm.conf.d/umaos-live.conf
+
+  install -d /etc/xdg
+  cat > /etc/xdg/kdeglobals <<'EOF'
+[General]
+ColorScheme=UmaSkyPink
+
+[Icons]
+Theme=UmaOS-Papirus
+
+[KDE]
+widgetStyle=Breeze
+EOF
+
+  cat > /etc/xdg/kcminputrc <<'EOF'
+[Mouse]
+cursorTheme=__CURSOR_THEME__
+cursorThemeName=__CURSOR_THEME__
+cursorSize=24
+EOF
+  sed -i "s/__CURSOR_THEME__/${cursor_theme}/g" /etc/xdg/kcminputrc
+
+  install -d /usr/share/icons/default
+  cat > /usr/share/icons/default/index.theme <<'EOF'
+[Icon Theme]
+Inherits=__CURSOR_THEME__
+EOF
+  sed -i "s/__CURSOR_THEME__/${cursor_theme}/g" /usr/share/icons/default/index.theme
+}
+
+sanitize_sddm_configuration() {
+  local sddm_cfg="/etc/sddm.conf"
+  [[ -f "$sddm_cfg" ]] || return 0
+
+  # Calamares may emit session aliases that are not valid .desktop entries.
+  sed -i \
+    -e 's/^Session=plasma$/Session=plasma.desktop/' \
+    -e 's/^Session=plasma-x11$/Session=plasma.desktop/' \
+    -e 's/^Session=plasmawayland$/Session=plasmawayland.desktop/' \
+    "$sddm_cfg"
+
+  # If Autologin exists but has no user, drop the generated file entirely.
+  if awk '
+    /^\[Autologin\]$/ { in_auto=1; saw_auto=1; next }
+    /^\[/ { in_auto=0 }
+    in_auto && /^User=/ { has_user=1 }
+    END { exit !(saw_auto && !has_user) }
+  ' "$sddm_cfg"; then
+    log "Removing invalid ${sddm_cfg} (Autologin without User=)."
+    rm -f "$sddm_cfg"
+  fi
+}
+
+ensure_wallpaper_metadata_json() {
+  local wallpapers_root="/usr/share/wallpapers"
+  local dir
+  local id
+  local desktop
+  local json
+  local name
+  local generated=0
+
+  [[ -d "$wallpapers_root" ]] || return 0
+
+  for dir in "$wallpapers_root"/*; do
+    [[ -d "$dir" ]] || continue
+    desktop="$dir/metadata.desktop"
+    json="$dir/metadata.json"
+    [[ -f "$desktop" ]] || continue
+    [[ -f "$json" ]] && continue
+
+    id="$(basename "$dir")"
+    name="$(awk -F= '
+      /^\[Desktop Entry\]$/ { in_desktop=1; next }
+      /^\[/ { if (in_desktop) in_desktop=0 }
+      in_desktop && /^Name=/ { print substr($0,6); exit }
+    ' "$desktop" | head -n1)"
+    name="$(trim "${name:-}")"
+    [[ -n "$name" ]] || name="$id"
+
+    cat > "$json" <<EOF
+{
+  "KPlugin": {
+    "Id": "$id",
+    "Name": "$name",
+    "Description": "$name wallpaper",
+    "License": "Unknown"
+  }
+}
+EOF
+    generated=$((generated + 1))
+  done
+
+  if ((generated > 0)); then
+    log "Generated missing Plasma metadata.json for ${generated} wallpaper package(s)."
+  fi
+}
+
+sync_user_customization() {
+  local user_name="$1"
+  local user_home="$2"
+  local uid="$3"
+  local gid="$4"
+  local cursor_theme="$5"
+
+  [[ -d "$user_home" ]] || return 0
+
+  install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config"
+  install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/umaos"
+  install -d -m 755 -o "$uid" -g "$gid" "$user_home/Desktop"
+  install -d -m 700 -o "$uid" -g "$gid" "$user_home/.icons/default"
+
+  install -m 600 -o "$uid" -g "$gid" /etc/skel/.config/kdeglobals "$user_home/.config/kdeglobals"
+  install -m 600 -o "$uid" -g "$gid" /etc/skel/.config/kcminputrc "$user_home/.config/kcminputrc"
+  install -m 600 -o "$uid" -g "$gid" /etc/skel/.config/ksplashrc "$user_home/.config/ksplashrc"
+
+  install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/autostart"
+  install -m 644 -o "$uid" -g "$gid" /etc/skel/.config/autostart/umaos-first-login.desktop \
+    "$user_home/.config/autostart/umaos-first-login.desktop"
+  install -m 644 -o "$uid" -g "$gid" /etc/skel/.config/autostart/umao-umamusume-first-login.desktop \
+    "$user_home/.config/autostart/umao-umamusume-first-login.desktop"
+
+  install -m 755 -o "$uid" -g "$gid" /etc/skel/Desktop/Install\ Uma\ Musume.sh \
+    "$user_home/Desktop/Install Uma Musume.sh"
+
+  cat > "$user_home/.icons/default/index.theme" <<'EOF'
+[Icon Theme]
+Inherits=__CURSOR_THEME__
+EOF
+  sed -i "s/__CURSOR_THEME__/${cursor_theme}/g" "$user_home/.icons/default/index.theme"
+  chown "$uid:$gid" "$user_home/.icons/default/index.theme"
+
+  # Ensure first login retries full theme application and video wallpaper setup.
+  rm -f \
+    "$user_home/.config/umaos/theme-applied" \
+    "$user_home/.config/umaos/video-wallpaper.disabled" \
+    "$user_home/.config/umaos/video-wallpaper.failcount"
+  chown "$uid:$gid" "$user_home/.config/umaos"
+}
+
+main() {
+  local cursor_theme
+  cursor_theme="$(resolve_cursor_theme)"
+  ensure_graphical_boot
+  write_system_theme_defaults "$cursor_theme"
+  ensure_wallpaper_metadata_json
+  sanitize_sddm_configuration
+  write_installed_motd
+
+  if command -v umao-refresh-lsb-release >/dev/null 2>&1; then
+    umao-refresh-lsb-release || true
+  fi
+
+  while IFS=: read -r name _ uid gid _ home shell; do
+    [[ "$uid" =~ ^[0-9]+$ ]] || continue
+    (( uid >= 1000 && uid < 60000 )) || continue
+    [[ "$home" != "/" && -n "$home" ]] || continue
+    [[ "$shell" != "/usr/bin/nologin" && "$shell" != "/bin/false" ]] || continue
+    sync_user_customization "$name" "$home" "$uid" "$gid" "$cursor_theme"
+    log "Applied UmaOS customization for user '$name'."
+  done < /etc/passwd
+
+  install -d /var/lib/umaos
+  date -Iseconds > /var/lib/umaos/install-customization.done
+  echo "Umazing!"
+}
+
+main "$@"
