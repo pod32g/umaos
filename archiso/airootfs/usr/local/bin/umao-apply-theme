@@ -254,83 +254,95 @@ Inherits=${cursor_theme}
 EOF
 fi
 
-# ── Panel customization: floating, translucent, and UmaOS launcher icon ──
-# Plasma's layout.js sets widget config but cannot set floating (a PanelView
-# property in plasmashellrc) or reliably set panelOpacity.  Patch them here
-# after Plasma has generated its initial config.
-apply_panel_properties() {
-  local appletsrc="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+# ── Panel customization via Plasma DBus scripting API ──
+# The shell layout.js (usr/share/plasma/shells/…/layout.js) sets widgets
+# and panelOpacity at first login.  Floating is a PanelView property that
+# cannot be set from layout.js, so we patch it live via evaluateScript.
+# The Kickoff icon is also reinforced here in case layout.js ran before
+# the icon was installed.
+apply_panel_properties_dbus() {
+  local qdbus_cmd
+  qdbus_cmd="$(find_qdbus_cmd || true)"
+  [[ -n "$qdbus_cmd" ]] || return 0
+
+  local js
+  js="$(cat <<'PANELJS'
+var allPanels = panels();
+for (var i = 0; i < allPanels.length; i++) {
+    var p = allPanels[i];
+
+    // Translucent opacity (0=adaptive, 1=opaque, 2=translucent)
+    p.currentConfigGroup = ["General"];
+    p.writeConfig("panelOpacity", 2);
+
+    // Enforce UmaOS Kickoff icon
+    var ws = p.widgets("org.kde.plasma.kickoff");
+    for (var j = 0; j < ws.length; j++) {
+        ws[j].currentConfigGroup = ["Configuration", "General"];
+        ws[j].writeConfig("icon", "umaos-launcher");
+    }
+
+    // Enforce pinned launchers on icontasks
+    var ts = p.widgets("org.kde.plasma.icontasks");
+    for (var k = 0; k < ts.length; k++) {
+        ts[k].currentConfigGroup = ["Configuration", "General"];
+        ts[k].writeConfig("launchers", [
+            "applications:systemsettings.desktop",
+            "applications:org.kde.dolphin.desktop",
+            "applications:org.kde.konsole.desktop",
+            "applications:helium.desktop"
+        ].join(","));
+    }
+
+    // Show date on digital clock
+    var cs = p.widgets("org.kde.plasma.digitalclock");
+    for (var m = 0; m < cs.length; m++) {
+        cs[m].currentConfigGroup = ["Configuration", "Appearance"];
+        cs[m].writeConfig("showDate", true);
+        cs[m].writeConfig("dateFormat", "shortDate");
+    }
+}
+PANELJS
+)"
+
+  "$qdbus_cmd" org.kde.plasmashell /PlasmaShell \
+    org.kde.PlasmaShell.evaluateScript "$js" >/dev/null 2>&1 || true
+
+  # Floating is a PanelView property stored in plasmashellrc, not in the
+  # containment config.  Patch the file and it takes effect on next login.
+  # (There is no scripting API for floating as of Plasma 6.)
   local shellrc="$HOME/.config/plasmashellrc"
-  [[ -f "$appletsrc" ]] || return 0
-
-  # Find the panel containment ID (the one with plugin=org.kde.panel)
-  local panel_id=""
-  local in_containment=""
-  while IFS= read -r line; do
-    if [[ "$line" =~ ^\[Containments\]\[([0-9]+)\]$ ]]; then
-      in_containment="${BASH_REMATCH[1]}"
-    elif [[ -n "$in_containment" && "$line" == "plugin=org.kde.panel" ]]; then
-      panel_id="$in_containment"
-      break
-    elif [[ "$line" =~ ^\[ ]]; then
-      in_containment=""
-    fi
-  done < "$appletsrc"
-
-  [[ -n "$panel_id" ]] || return 0
-
-  # Set panelOpacity=2 (translucent) in the containment's [General] group
-  if ! grep -q "^\[Containments\]\[${panel_id}\]\[General\]" "$appletsrc" 2>/dev/null; then
-    printf '\n[Containments][%s][General]\npanelOpacity=2\n' "$panel_id" >> "$appletsrc"
-  elif ! grep -q '^panelOpacity=' <(sed -n "/^\[Containments\]\[${panel_id}\]\[General\]/,/^\[/p" "$appletsrc"); then
-    sed -i "/^\[Containments\]\[${panel_id}\]\[General\]/a panelOpacity=2" "$appletsrc"
-  fi
-
-  # Set floating=1 in plasmashellrc [PlasmaViews][Panel <id>]
-  local panel_section="PlasmaViews][Panel ${panel_id}"
-  if [[ -f "$shellrc" ]]; then
-    if ! grep -q "^\[${panel_section}\]" "$shellrc" 2>/dev/null; then
-      printf '\n[%s]\nfloating=1\nThickness=44\n' "$panel_section" >> "$shellrc"
-    elif ! grep -q '^floating=' <(sed -n "/^\[${panel_section}\]/,/^\[/p" "$shellrc"); then
-      sed -i "/^\[${panel_section}\]/a floating=1" "$shellrc"
-    fi
-  else
-    printf '[%s]\nfloating=1\nThickness=44\n' "$panel_section" > "$shellrc"
-  fi
-
-  # Ensure the Kickoff applet uses our custom icon
-  local kickoff_section=""
-  local in_section=""
-  while IFS= read -r line; do
-    if [[ "$line" =~ ^\[Containments\]\[${panel_id}\]\[Applets\]\[([0-9]+)\]$ ]]; then
-      in_section="${BASH_REMATCH[0]}"
-    elif [[ -n "$in_section" && "$line" == "plugin=org.kde.plasma.kickoff" ]]; then
-      kickoff_section="$in_section"
-      break
-    elif [[ "$line" =~ ^\[ ]]; then
-      in_section=""
-    fi
-  done < "$appletsrc"
-
-  if [[ -n "$kickoff_section" ]]; then
-    local cfg_section="${kickoff_section}[Configuration][General]"
-    # Remove brackets for sed matching
-    local cfg_escaped="${cfg_section//\[/\\[}"
-    cfg_escaped="${cfg_escaped//\]/\\]}"
-    if grep -q "^${cfg_escaped}$" "$appletsrc" 2>/dev/null; then
-      if grep -q '^icon=' <(sed -n "/^${cfg_escaped}$/,/^\[/p" "$appletsrc"); then
-        sed -i "/^${cfg_escaped}$/,/^\[/ s/^icon=.*/icon=umaos-launcher/" "$appletsrc"
-      else
-        sed -i "/^${cfg_escaped}$/a icon=umaos-launcher" "$appletsrc"
+  local appletsrc="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+  if [[ -f "$appletsrc" ]]; then
+    # Find the panel containment ID
+    local panel_id=""
+    local in_containment=""
+    while IFS= read -r line; do
+      if [[ "$line" =~ ^\[Containments\]\[([0-9]+)\]$ ]]; then
+        in_containment="${BASH_REMATCH[1]}"
+      elif [[ -n "$in_containment" && "$line" == "plugin=org.kde.panel" ]]; then
+        panel_id="$in_containment"
+        break
+      elif [[ "$line" =~ ^\[ ]]; then
+        in_containment=""
       fi
-    else
-      printf '\n%s\nicon=umaos-launcher\n' "$cfg_section" >> "$appletsrc"
+    done < "$appletsrc"
+
+    if [[ -n "$panel_id" ]]; then
+      local section="PlasmaViews][Panel ${panel_id}"
+      if [[ -f "$shellrc" ]] && grep -q "^\[${section}\]" "$shellrc" 2>/dev/null; then
+        if ! grep -q '^floating=' <(sed -n "/^\[${section}\]/,/^\[/p" "$shellrc"); then
+          sed -i "/^\[${section}\]/a floating=1" "$shellrc"
+        fi
+      else
+        printf '\n[%s]\nfloating=1\nThickness=44\n' "$section" >> "$shellrc"
+      fi
     fi
   fi
 }
 
 if ((has_graphical_session == 1)); then
-  apply_panel_properties
+  apply_panel_properties_dbus
 fi
 
 if ((has_graphical_session == 1)); then

@@ -162,11 +162,11 @@ else
   fail "Konsole default profile is not consistently set to UmaOS.profile"
 fi
 
-if grep -q 'icon=umaos-launcher' "$ROOT/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc" \
-  && grep -q 'icon=umaos-launcher' "$ROOT/home/arch/.config/plasma-org.kde.plasma.desktop-appletsrc"; then
-  pass "Kickoff launcher icon set to umaos-launcher for skel and live user"
+if [[ -f "$ROOT/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" ]] \
+  && grep -q 'umaos-launcher' "$ROOT/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js"; then
+  pass "Shell layout.js exists and sets Kickoff icon to umaos-launcher"
 else
-  fail "Kickoff launcher icon is not set to umaos-launcher"
+  fail "Shell layout.js missing or does not set umaos-launcher icon"
 fi
 
 require_executable "/usr/local/bin/umao-install"
