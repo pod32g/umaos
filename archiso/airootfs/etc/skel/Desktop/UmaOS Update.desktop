@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=UmaOS Update
+Comment=Refresh UmaOS scripts from GitHub
+Exec=bash -c 'sudo uma-update; echo "Press Enter to close..."; read'
+Icon=system-software-update
+Terminal=true
+Categories=System;

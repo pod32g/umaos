@@ -18,10 +18,12 @@ fi
 
 enable_multilib() {
   local conf="/etc/pacman.conf"
-  local tmp
+  local tmp bak
 
   [[ -f "$conf" ]] || return 1
   tmp="$(mktemp)"
+  bak="${conf}.umao-backup"
+  trap 'rm -f "$tmp"' RETURN
 
   awk '
     BEGIN {
@@ -59,14 +61,22 @@ enable_multilib() {
     }
   ' "$conf" > "$tmp"
 
+  if ! grep -q '^\[core\]' "$tmp" || ! grep -q '^\[extra\]' "$tmp"; then
+    log "ERROR: multilib rewrite produced invalid pacman.conf; aborting."
+    return 1
+  fi
+
+  cp -f "$conf" "$bak"
   mv "$tmp" "$conf"
+  chmod 644 "$conf"
+  log "Backed up original pacman.conf to $bak"
 }
 
 log "Ensuring multilib is enabled..."
 enable_multilib
 
-log "Refreshing package database and installing Steam..."
-pacman -Sy --noconfirm --needed steam
+log "Upgrading system and installing Steam..."
+pacman -Syu --noconfirm --needed steam
 
 log "Steam installation complete."
 echo "Umazing!"

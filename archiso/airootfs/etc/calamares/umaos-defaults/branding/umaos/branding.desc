@@ -31,10 +31,10 @@ images:
   productWelcome: "welcome.svg"
 
 style:
-  SidebarBackground: "#143d7a"
-  SidebarText: "#f8fafd"
-  SidebarTextCurrent: "#0f2850"
-  SidebarBackgroundCurrent: "#ff88b7"
+  SidebarBackground: "#12301a"
+  SidebarText: "#e8f5ea"
+  SidebarTextCurrent: "#0a1f10"
+  SidebarBackgroundCurrent: "#42a54b"
 
 slideshow: "show.qml"
 slideshowAPI: 2

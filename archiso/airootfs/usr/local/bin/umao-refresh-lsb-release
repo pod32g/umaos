@@ -8,3 +8,16 @@ DISTRIB_RELEASE=rolling
 DISTRIB_CODENAME=uma
 DISTRIB_DESCRIPTION="UmaOS"
 EOF
+
+cat > /etc/os-release <<'EOF'
+NAME="UmaOS"
+PRETTY_NAME="UmaOS"
+ID=umaos
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="0;32"
+HOME_URL="https://example.com/umaos"
+SUPPORT_URL="https://example.com/umaos/support"
+BUG_REPORT_URL="https://example.com/umaos/issues"
+LOGO=umaos
+EOF

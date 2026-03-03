@@ -9,8 +9,8 @@ find_background_source() {
   local candidate
   for candidate in \
     /usr/share/wallpapers/UmaBoot/contents/images/1920x1080.png \
-    /usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg \
-    /usr/share/wallpapers/UmaOS/contents/images/3840x2160.svg; do
+    /usr/share/wallpapers/UmaOS/contents/images/1920x1080.jpg \
+    /usr/share/wallpapers/UmaOS/contents/images/3840x2160.jpg; do
     if [[ -f "$candidate" ]]; then
       printf '%s' "$candidate"
       return 0
@@ -41,12 +41,14 @@ write_grub_defaults() {
   set_grub_var GRUB_GFXMODE 'auto'
   set_grub_var GRUB_GFXPAYLOAD_LINUX 'keep'
   set_grub_var GRUB_TIMEOUT_STYLE 'menu'
-  set_grub_var GRUB_COLOR_NORMAL '"white/black"'
-  set_grub_var GRUB_COLOR_HIGHLIGHT '"white/blue"'
+  set_grub_var GRUB_COLOR_NORMAL '"light-green/black"'
+  set_grub_var GRUB_COLOR_HIGHLIGHT '"white/green"'
 
   log "Updated /etc/default/grub with UmaOS branding defaults"
 
-  # Also write a drop-in for distros/builds that source /etc/default/grub.d.
+  # Also write a drop-in for grub-mkconfig builds that source /etc/default/grub.d
+  # (e.g., Debian-patched GRUB). Standard Arch grub-mkconfig does not use this
+  # directory, but the drop-in is harmless and helps non-standard setups.
   install -d /etc/default/grub.d
   cat > /etc/default/grub.d/50-umaos-theme.cfg <<EOF
 GRUB_DISTRIBUTOR="UmaOS"
@@ -54,8 +56,8 @@ GRUB_BACKGROUND="$background"
 GRUB_GFXMODE=auto
 GRUB_GFXPAYLOAD_LINUX=keep
 GRUB_TIMEOUT_STYLE=menu
-GRUB_COLOR_NORMAL="white/black"
-GRUB_COLOR_HIGHLIGHT="white/blue"
+GRUB_COLOR_NORMAL="light-green/black"
+GRUB_COLOR_HIGHLIGHT="white/green"
 EOF
   log "Wrote /etc/default/grub.d/50-umaos-theme.cfg (compatibility drop-in)"
 }
@@ -76,12 +78,16 @@ rebuild_grub_config() {
     return 0
   fi
 
-  if grub-mkconfig -o "$cfg_target" >/dev/null 2>&1; then
+  local grub_log
+  grub_log="$(mktemp)"
+  if grub-mkconfig -o "$cfg_target" >"$grub_log" 2>&1; then
     log "Regenerated $cfg_target with UmaOS branding."
     echo "Umazing!"
   else
-    log "Failed to regenerate $cfg_target; installation continues."
+    log "WARNING: Failed to regenerate $cfg_target. grub-mkconfig output:"
+    cat "$grub_log" >&2
   fi
+  rm -f "$grub_log"
 }
 
 main() {

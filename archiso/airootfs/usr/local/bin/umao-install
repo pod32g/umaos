@@ -51,12 +51,12 @@ run_cli() {
   fi
 
   echo "Launching archinstall..."
-  if archinstall; then
+  local rc=0
+  archinstall || rc=$?
+  if ((rc == 0)); then
     echo "Umazing!"
-    return 0
   fi
-
-  return $?
+  return $rc
 }
 
 run_gui() {
@@ -98,12 +98,12 @@ BANNER
     fi
   fi
 
-  if calamares; then
+  local rc=0
+  calamares || rc=$?
+  if ((rc == 0)); then
     echo "Umazing!"
-    return 0
   fi
-
-  return $?
+  return $rc
 }
 
 case "$mode" in

@@ -1,18 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+log() { printf '[umao-sync-calamares-config] %s\n' "$*"; }
+
 defaults_root="/etc/calamares/umaos-defaults"
+
+if [[ ! -d "$defaults_root" ]]; then
+  log "WARNING: UmaOS Calamares defaults directory missing: $defaults_root"
+  log "Calamares will use existing config (if any). Installation may fail."
+  exit 1
+fi
 
 if [[ -f "$defaults_root/settings.conf" ]]; then
   install -Dm644 "$defaults_root/settings.conf" /etc/calamares/settings.conf
+  log "Synced settings.conf"
+else
+  log "WARNING: Missing $defaults_root/settings.conf"
 fi
 
 if [[ -d "$defaults_root/modules" ]]; then
   install -d /etc/calamares/modules
   cp -af "$defaults_root/modules/." /etc/calamares/modules/
+  log "Synced modules/"
+else
+  log "WARNING: Missing $defaults_root/modules/"
 fi
 
 if [[ -d "$defaults_root/branding/umaos" ]]; then
   install -d /etc/calamares/branding
   cp -af "$defaults_root/branding/umaos" /etc/calamares/branding/
+  log "Synced branding/umaos"
+else
+  log "WARNING: Missing $defaults_root/branding/umaos"
 fi
+
+log "Calamares config sync complete."

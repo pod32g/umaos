@@ -99,6 +99,10 @@ download_archive() {
 
 download_archive || die "Failed to download repo archive for ref '$REF' from '$repo_url'"
 
+if ! tar -tzf "$archive_path" >/dev/null 2>&1; then
+  die "Downloaded archive is corrupt or truncated. Check your network connection and try again."
+fi
+
 tar -xzf "$archive_path" -C "$tmp_dir"
 repo_extract_dir="$(find "$tmp_dir" -mindepth 1 -maxdepth 1 -type d | head -n1 || true)"
 [[ -n "$repo_extract_dir" && -d "$repo_extract_dir" ]] || die "Could not locate extracted repository directory"

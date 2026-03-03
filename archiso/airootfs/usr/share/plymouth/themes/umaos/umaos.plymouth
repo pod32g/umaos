@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=UmaOS
+Description=UmaOS boot splash — Uma Musume green with ura_logo
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/umaos
+ScriptFile=/usr/share/plymouth/themes/umaos/umaos.script

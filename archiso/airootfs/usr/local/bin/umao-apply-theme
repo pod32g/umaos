@@ -55,7 +55,7 @@ if (($once == 1)) && [[ -f "$state_file" ]]; then
 fi
 
 wallpaper_video="/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4"
-wallpaper_fallback="/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg"
+wallpaper_fallback="/usr/share/wallpapers/UmaOS/contents/images/1920x1080.jpg"
 video_plugin_id="luisbocanegra.smart.video.wallpaper.reborn"
 video_plugin_dir="/usr/share/plasma/wallpapers/${video_plugin_id}"
 cursor_theme="pixloen-haru-urara-v1.7"
@@ -161,7 +161,9 @@ EOF
 }
 
 if ((has_graphical_session == 1)) && command -v plasma-apply-colorscheme >/dev/null 2>&1; then
-  plasma-apply-colorscheme UmaSkyPink >/dev/null 2>&1 || true
+  if ! plasma-apply-colorscheme UmaSkyPink >/dev/null 2>&1; then
+    log_debug "WARNING: Failed to apply UmaSkyPink color scheme."
+  fi
 fi
 
 if ((has_graphical_session == 1)) && ((apply_video == 1)) && [[ -f "$wallpaper_video" ]] && [[ -d "$video_plugin_dir" ]]; then
@@ -221,7 +223,9 @@ fi
 
 if ((has_graphical_session == 1)) && command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
   if [[ "$wallpaper_applied" -eq 0 ]] && [[ -f "$wallpaper_fallback" ]]; then
-    plasma-apply-wallpaperimage "$wallpaper_fallback" >/dev/null 2>&1 || true
+    if ! plasma-apply-wallpaperimage "$wallpaper_fallback" >/dev/null 2>&1; then
+      log_debug "WARNING: Failed to apply fallback wallpaper."
+    fi
   fi
 fi
 

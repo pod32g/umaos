@@ -96,23 +96,27 @@ has_nvidia_gpu=0
 has_broadcom_net=0
 has_intel_net=0
 
-if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump"; then
-  if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump" && grep -Eqi 'Intel' <<<"$pci_dump"; then
+gpu_lines="$(grep -Ei 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump" || true)"
+if [[ -n "$gpu_lines" ]]; then
+  if grep -qi 'Intel' <<<"$gpu_lines"; then
     has_intel_gpu=1
   fi
-  if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump" && grep -Eqi 'AMD|ATI' <<<"$pci_dump"; then
+  if grep -Eqi 'AMD|ATI' <<<"$gpu_lines"; then
     has_amd_gpu=1
   fi
-  if grep -Eqi 'VGA compatible controller|3D controller|Display controller' <<<"$pci_dump" && grep -Eqi 'NVIDIA' <<<"$pci_dump"; then
+  if grep -qi 'NVIDIA' <<<"$gpu_lines"; then
     has_nvidia_gpu=1
   fi
 fi
 
-if grep -Eqi 'Network controller|Ethernet controller' <<<"$pci_dump" && grep -Eqi 'Broadcom' <<<"$pci_dump"; then
-  has_broadcom_net=1
-fi
-if grep -Eqi 'Network controller|Ethernet controller' <<<"$pci_dump" && grep -Eqi 'Intel' <<<"$pci_dump"; then
-  has_intel_net=1
+net_lines="$(grep -Ei 'Network controller|Ethernet controller' <<<"$pci_dump" || true)"
+if [[ -n "$net_lines" ]]; then
+  if grep -qi 'Broadcom' <<<"$net_lines"; then
+    has_broadcom_net=1
+  fi
+  if grep -qi 'Intel' <<<"$net_lines"; then
+    has_intel_net=1
+  fi
 fi
 
 # Base stack expected on desktop installs.
@@ -142,7 +146,7 @@ if ((has_amd_gpu == 1)); then
 fi
 
 # NVIDIA is intentionally not auto-installed here because package choice
-# depends on card generation and kernel policy (nvidia-open vs nvidia).
+# depends on card generation and kernel (nvidia, nvidia-open, nvidia-dkms, etc.).
 if ((has_nvidia_gpu == 1)); then
   log "NVIDIA GPU detected. Auto-install skipped; choose driver manually (nvidia-open or nvidia)."
 fi

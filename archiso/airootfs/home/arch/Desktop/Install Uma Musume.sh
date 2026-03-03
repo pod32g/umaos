@@ -37,18 +37,28 @@ install_steam_if_missing() {
 open_steam_install() {
   local url="steam://install/${APP_ID}"
 
-  if command -v xdg-open >/dev/null 2>&1; then
-    if xdg-open "$url" >/dev/null 2>&1; then
-      return 0
-    fi
+  if ! command -v steam >/dev/null 2>&1; then
+    log "ERROR: Steam is not installed. Cannot launch game installer."
+    return 1
   fi
 
-  steam "$url" >/dev/null 2>&1 &
+  if command -v xdg-open >/dev/null 2>&1; then
+    if xdg-open "$url" 2>/dev/null; then
+      return 0
+    fi
+    log "xdg-open failed for $url; trying direct steam launch."
+  fi
+
+  steam "$url" &
 }
 
 log "Preparing ${GAME_NAME} installer..."
 install_steam_if_missing
-open_steam_install
-log "Steam install page launched for ${GAME_NAME}."
-log "Sign in to Steam and complete the installation."
-echo "Umazing!"
+if open_steam_install; then
+  log "Steam install page launched for ${GAME_NAME}."
+  log "Sign in to Steam and complete the installation."
+  echo "Umazing!"
+else
+  log "ERROR: Failed to launch Steam installer for ${GAME_NAME}."
+  exit 1
+fi

@@ -49,4 +49,9 @@ if qemu-system-x86_64 \
   -cpu "$cpu_arg" \
   -vga virtio; then
   echo "Umazing!"
+else
+  rc=$?
+  echo "QEMU exited with code $rc. Check terminal output above for diagnostics." >&2
+  echo "ISO: $ISO" >&2
+  exit $rc
 fi

@@ -78,4 +78,7 @@ if install_steam_if_missing && launch_game_install; then
 fi
 
 log "Could not complete ${GAME_NAME} bootstrap; will retry on next login."
+if command -v notify-send >/dev/null 2>&1; then
+  notify-send "UmaOS" "Game bootstrap failed. Check ~/.local/state/umaos/umamusume-first-login.log for details." 2>/dev/null || true
+fi
 exit 0

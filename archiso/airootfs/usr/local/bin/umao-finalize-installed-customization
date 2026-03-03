@@ -13,7 +13,8 @@ trim() {
 }
 
 ensure_graphical_boot() {
-  # Do not rely on systemctl availability inside installer chroot.
+  # systemctl is unavailable inside the Calamares chroot (systemd is not PID 1).
+  # Create the symlinks manually instead of using systemctl enable.
   install -d /etc/systemd/system
   ln -sfn /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target
 
@@ -31,8 +32,7 @@ Quick start:
   2) Reapply desktop defaults: umao-apply-theme --once
   3) Driver auto-detect and install: sudo umao-driver-setup --yes
   4) Audio diagnostics: umao-audio-doctor
-  5) Collect debug bundle: umao-debug
-  6) Install game from desktop: Install Uma Musume.sh
+  5) Install game from desktop: Install Uma Musume.sh
 
 Project: UmaOS
 EOF
@@ -66,7 +66,8 @@ EOF
   sed -i "s/__SDDM_THEME__/${sddm_theme}/g" /etc/sddm.conf.d/umaos-theme.conf
   sed -i "s/__CURSOR_THEME__/${cursor_theme}/g" /etc/sddm.conf.d/umaos-theme.conf
 
-  # Favor X11 for maximum compatibility across real hardware and VMs.
+  # Pin SDDM to X11: the Wayland SDDM greeter is unstable in VMs (black screen
+  # on VirtIO/QXL), and NVIDIA proprietary drivers sometimes fail at login.
   cat > /etc/sddm.conf.d/10-umaos-display.conf <<'EOF'
 [General]
 DisplayServer=x11
@@ -76,7 +77,21 @@ EOF
   rm -f /etc/sddm.conf.d/umaos-live.conf
 
   install -d /etc/xdg
-  cat > /etc/xdg/kdeglobals <<'EOF'
+  # Write full color values so KDE picks up the theme without needing
+  # plasma-apply-colorscheme at first login.
+  if [[ -f /usr/share/color-schemes/UmaSkyPink.colors ]]; then
+    cp /usr/share/color-schemes/UmaSkyPink.colors /etc/xdg/kdeglobals
+    # Append the keys that are not part of the .colors file
+    cat >> /etc/xdg/kdeglobals <<'EOF'
+
+[Icons]
+Theme=UmaOS-Papirus
+
+[KDE]
+widgetStyle=Breeze
+EOF
+  else
+    cat > /etc/xdg/kdeglobals <<'EOF'
 [General]
 ColorScheme=UmaSkyPink
 
@@ -86,6 +101,7 @@ Theme=UmaOS-Papirus
 [KDE]
 widgetStyle=Breeze
 EOF
+  fi
 
   cat > /etc/xdg/kcminputrc <<'EOF'
 [Mouse]
@@ -185,18 +201,55 @@ sync_user_customization() {
   install -d -m 755 -o "$uid" -g "$gid" "$user_home/Desktop"
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.icons/default"
 
-  install -m 600 -o "$uid" -g "$gid" /etc/skel/.config/kdeglobals "$user_home/.config/kdeglobals"
-  install -m 600 -o "$uid" -g "$gid" /etc/skel/.config/kcminputrc "$user_home/.config/kcminputrc"
-  install -m 600 -o "$uid" -g "$gid" /etc/skel/.config/ksplashrc "$user_home/.config/ksplashrc"
+  local src
+  for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc; do
+    if [[ -f "/etc/skel/.config/$src" ]]; then
+      install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$src" "$user_home/.config/$src"
+    else
+      log "WARNING: Missing /etc/skel/.config/$src for user '$user_name'"
+    fi
+  done
 
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/autostart"
-  install -m 644 -o "$uid" -g "$gid" /etc/skel/.config/autostart/umaos-first-login.desktop \
-    "$user_home/.config/autostart/umaos-first-login.desktop"
-  install -m 644 -o "$uid" -g "$gid" /etc/skel/.config/autostart/umao-umamusume-first-login.desktop \
-    "$user_home/.config/autostart/umao-umamusume-first-login.desktop"
+  for src in umaos-first-login.desktop umao-umamusume-first-login.desktop; do
+    if [[ -f "/etc/skel/.config/autostart/$src" ]]; then
+      install -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$src" \
+        "$user_home/.config/autostart/$src"
+    else
+      log "WARNING: Missing /etc/skel/.config/autostart/$src for user '$user_name'"
+    fi
+  done
 
-  install -m 755 -o "$uid" -g "$gid" /etc/skel/Desktop/Install\ Uma\ Musume.sh \
-    "$user_home/Desktop/Install Uma Musume.sh"
+  if [[ -f "/etc/skel/Desktop/Install Uma Musume.sh" ]]; then
+    install -m 755 -o "$uid" -g "$gid" "/etc/skel/Desktop/Install Uma Musume.sh" \
+      "$user_home/Desktop/Install Uma Musume.sh"
+  else
+    log "WARNING: Missing /etc/skel/Desktop/Install Uma Musume.sh for user '$user_name'"
+  fi
+
+  # Sync desktop utility launchers.
+  for src in "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop"; do
+    if [[ -f "/etc/skel/Desktop/$src" ]]; then
+      install -m 755 -o "$uid" -g "$gid" "/etc/skel/Desktop/$src" \
+        "$user_home/Desktop/$src"
+    fi
+  done
+
+  # Sync GTK theme settings.
+  for gtk_ver in gtk-3.0 gtk-4.0; do
+    if [[ -f "/etc/skel/.config/$gtk_ver/settings.ini" ]]; then
+      install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/$gtk_ver"
+      install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$gtk_ver/settings.ini" \
+        "$user_home/.config/$gtk_ver/settings.ini"
+    fi
+  done
+
+  # Sync fastfetch config.
+  if [[ -f "/etc/skel/.config/fastfetch/config.jsonc" ]]; then
+    install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/fastfetch"
+    install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/fastfetch/config.jsonc" \
+      "$user_home/.config/fastfetch/config.jsonc"
+  fi
 
   cat > "$user_home/.icons/default/index.theme" <<'EOF'
 [Icon Theme]
@@ -223,7 +276,9 @@ main() {
   write_installed_motd
 
   if command -v umao-refresh-lsb-release >/dev/null 2>&1; then
-    umao-refresh-lsb-release || true
+    if ! umao-refresh-lsb-release; then
+      log "WARNING: Failed to refresh lsb-release branding."
+    fi
   fi
 
   while IFS=: read -r name _ uid gid _ home shell; do
@@ -234,6 +289,14 @@ main() {
     sync_user_customization "$name" "$home" "$uid" "$gid" "$cursor_theme"
     log "Applied UmaOS customization for user '$name'."
   done < /etc/passwd
+
+  # Set UmaOS Plymouth theme on installed system.
+  if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+    if [[ -f /usr/share/plymouth/themes/umaos/umaos.plymouth ]]; then
+      plymouth-set-default-theme umaos
+      log "Plymouth default theme set to umaos."
+    fi
+  fi
 
   install -d /var/lib/umaos
   date -Iseconds > /var/lib/umaos/install-customization.done

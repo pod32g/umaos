@@ -1,4 +1,5 @@
-# UmaOS extra packages merged into releng package set.
+# Additional packages appended to the upstream releng packages.x86_64 during build.
+# See scripts/build-iso.sh for the merge logic.
 archinstall
 calamares
 xorg-xkbcomp
@@ -18,7 +19,9 @@ qt6-svg
 xcb-util-cursor
 konsole
 dolphin
-firefox
+fastfetch
+helium
+discord
 git
 yay
 nano
@@ -30,6 +33,8 @@ zip
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
+breeze-gtk
 kvantum
 papirus-icon-theme
 packagekit-qt6
+plymouth

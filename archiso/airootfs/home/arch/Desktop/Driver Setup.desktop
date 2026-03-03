@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Driver Setup
+Comment=Auto-detect and install hardware drivers
+Exec=bash -c 'sudo umao-driver-setup --yes; echo "Press Enter to close..."; read'
+Icon=preferences-system
+Terminal=true
+Categories=System;

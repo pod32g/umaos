@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Audio Doctor
+Comment=Diagnose and fix audio issues
+Exec=bash -c 'umao-audio-doctor; echo "Press Enter to close..."; read'
+Icon=audio-card
+Terminal=true
+Categories=System;

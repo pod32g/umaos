@@ -15,31 +15,43 @@ Presentation {
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#2f74cc" }
+                GradientStop { position: 0.0; color: "#12301a" }
+                GradientStop { position: 0.5; color: "#42a54b" }
                 GradientStop { position: 1.0; color: "#ff91c0" }
             }
         }
-        Text {
+        Column {
             anchors.centerIn: parent
-            text: "Welcome to UmaOS"
-            color: "#ffffff"
-            font.pixelSize: 40
-            font.bold: true
+            spacing: 12
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Welcome to UmaOS"
+                color: "#ffffff"
+                font.pixelSize: 40
+                font.bold: true
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "ウマ娘 プリティーダービー"
+                color: "#e8f5ea"
+                font.pixelSize: 22
+                opacity: 0.85
+            }
         }
     }
 
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#f7fbff"
+            color: "#f0f9f2"
         }
         Text {
             anchors.centerIn: parent
             width: parent.width * 0.8
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            text: "Easy install, KDE desktop, and a racing-idol inspired style." 
-            color: "#173764"
+            text: "Easy install, KDE desktop, and a racing-idol inspired style."
+            color: "#16302a"
             font.pixelSize: 28
         }
     }
@@ -47,7 +59,7 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#11192e"
+            color: "#0e1f14"
         }
         Image {
             anchors.centerIn: parent
@@ -62,7 +74,7 @@ Presentation {
     Slide {
         Rectangle {
             anchors.fill: parent
-            color: "#132b4f"
+            color: "#12301a"
         }
         Text {
             anchors.centerIn: parent
@@ -70,7 +82,7 @@ Presentation {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             text: "Theme assets and customization tools are included in UmaOS."
-            color: "#d9e8ff"
+            color: "#d9f0e0"
             font.pixelSize: 24
         }
     }

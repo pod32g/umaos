@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 
-# Show UmaOS ASCII art on interactive terminal startup.
+# Show UmaOS system info on interactive terminal startup.
+# Uses fastfetch when available; falls back to static ASCII art.
 
 case "$-" in
   *i*) ;;
@@ -11,7 +12,9 @@ esac
 
 ascii_file="/usr/share/umaos/umaascii.txt"
 
-if [ -r "$ascii_file" ]; then
+if command -v fastfetch >/dev/null 2>&1; then
+  fastfetch
+elif [ -r "$ascii_file" ]; then
   cat "$ascii_file"
   printf '\n'
 fi

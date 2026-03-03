@@ -1,0 +1,8 @@
+{
+  "KPlugin": {
+    "Id": "UmaMusumeRace",
+    "Name": "Uma Musume Race",
+    "Authors": [{ "Name": "AlphaCoders" }],
+    "License": "Proprietary"
+  }
+}

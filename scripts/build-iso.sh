@@ -16,6 +16,7 @@ ISO_LABEL="UMAOS_$(date +%Y%m)"
 
 REQUIRED_REPO_PKGS=(
   calamares
+  helium
   xorg-xkbcomp
   plasma6-wallpapers-smart-video-wallpaper-reborn
   yay
@@ -86,8 +87,20 @@ Server = file://$LOCAL_REPO_DIR
 PACCONF
   cat "$pacman_conf" >> "$patched_conf"
   mv "$patched_conf" "$pacman_conf"
+  chmod 644 "$pacman_conf"
 
-  log "Injected local repo '$LOCAL_REPO_NAME' into build pacman.conf"
+  # Save a clean copy (without local repo) to ship in the ISO so that
+  # yay / pacman work for regular users on the live and installed system.
+  # mkarchiso uses the profile-level pacman.conf for installing packages,
+  # but airootfs/etc/pacman.conf (if present) is what ends up in the image.
+  install -d "$BUILD_PROFILE/airootfs/etc"
+  grep -v "^\[$LOCAL_REPO_NAME\]" "$pacman_conf" \
+    | grep -v "^SigLevel = Optional TrustAll" \
+    | grep -v "^Server = file://$LOCAL_REPO_DIR" \
+    > "$BUILD_PROFILE/airootfs/etc/pacman.conf"
+  chmod 644 "$BUILD_PROFILE/airootfs/etc/pacman.conf"
+
+  log "Injected local repo '$LOCAL_REPO_NAME' into build pacman.conf (clean copy in airootfs)"
 }
 
 find_cursor_archives() {
@@ -331,7 +344,7 @@ import QtQuick 2.15
 Rectangle {
     id: root
     property int stage: 0
-    color: "#11192e"
+    color: "#0e1f14"
 
     Image {
         id: logo
@@ -349,7 +362,7 @@ Rectangle {
         anchors.top: logo.bottom
         anchors.topMargin: Math.max(24, parent.height * 0.03)
         text: "UmaOS"
-        color: "#f3f7ff"
+        color: "#e8f5ea"
         font.pixelSize: Math.max(20, parent.height * 0.034)
         font.bold: true
         opacity: 0.9
@@ -516,8 +529,8 @@ apply_grub_theme_block() {
       print "### UMAOS GRUB THEME START"
       print "insmod gfxterm"
       print "insmod png"
-      print "set menu_color_normal=white/black"
-      print "set menu_color_highlight=white/blue"
+      print "set menu_color_normal=light-green/black"
+      print "set menu_color_highlight=white/green"
       print "if background_image /boot/syslinux/splash.png; then"
       print "    true"
       print "fi"
@@ -551,11 +564,12 @@ configure_boot_branding() {
     done < <(find "$BUILD_PROFILE/efiboot/loader/entries" -maxdepth 1 -type f -name "*.conf" | sort)
   fi
 
-  # Apply custom GRUB background if the configured image exists.
+  # Log whether the GRUB background source image is available.
+  # Actual injection into grub.cfg happens in apply_grub_theme_block above.
   if [[ -f "$GRUB_BACKGROUND_SRC" ]]; then
-    log "Applied GRUB background: $GRUB_BACKGROUND_SRC"
+    log "GRUB background source found: $GRUB_BACKGROUND_SRC"
   else
-    log "No GRUB background override applied (missing $GRUB_BACKGROUND_SRC)."
+    log "No GRUB background override available (missing $GRUB_BACKGROUND_SRC)."
   fi
 
   # Apply custom Syslinux splash for BIOS boots.
@@ -574,7 +588,7 @@ configure_boot_branding() {
     sed -i.bak \
       -e 's|^MENU COLOR border.*|MENU COLOR border       37;40   #ffffffff #d0000000 std|' \
       -e 's|^MENU COLOR title.*|MENU COLOR title        1;37;40 #ffffffff #d0000000 std|' \
-      -e 's|^MENU COLOR sel.*|MENU COLOR sel          7;37;40 #ffffffff #e0304f78 all|' \
+      -e 's|^MENU COLOR sel.*|MENU COLOR sel          7;37;40 #ffffffff #e02a7a35 all|' \
       -e 's|^MENU COLOR unsel.*|MENU COLOR unsel        37;40   #ffffffff #b0000000 std|' \
       -e 's|^MENU COLOR help.*|MENU COLOR help         37;40   #ffffffff #c0000000 std|' \
       -e 's|^MENU COLOR timeout_msg.*|MENU COLOR timeout_msg  37;40   #ffffffff #00000000 std|' \
@@ -664,8 +678,6 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-grub-branding" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-driver-setup" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-audio-doctor" \
-  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-debug" \
-  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-debug-upload" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-installer-autostart" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-theme" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install-steam-root" \
@@ -674,7 +686,13 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-show-ascii" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
   "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
-  "$BUILD_PROFILE/airootfs/etc/skel/Desktop/Install Uma Musume.sh" 2>/dev/null || true
+  "$BUILD_PROFILE/airootfs/etc/skel/Desktop/Install Uma Musume.sh" \
+  "$BUILD_PROFILE/airootfs/home/arch/Desktop/UmaOS Update.desktop" \
+  "$BUILD_PROFILE/airootfs/home/arch/Desktop/Driver Setup.desktop" \
+  "$BUILD_PROFILE/airootfs/home/arch/Desktop/Audio Doctor.desktop" \
+  "$BUILD_PROFILE/airootfs/etc/skel/Desktop/UmaOS Update.desktop" \
+  "$BUILD_PROFILE/airootfs/etc/skel/Desktop/Driver Setup.desktop" \
+  "$BUILD_PROFILE/airootfs/etc/skel/Desktop/Audio Doctor.desktop"
 
 if [[ -f "$LOCAL_REPO_DB" ]]; then
   prepare_local_repo_pacman_conf
@@ -710,8 +728,6 @@ file_permissions+=(
   ["/usr/local/bin/umao-apply-grub-branding"]="0:0:755"
   ["/usr/local/bin/umao-driver-setup"]="0:0:755"
   ["/usr/local/bin/umao-audio-doctor"]="0:0:755"
-  ["/usr/local/bin/umao-debug"]="0:0:755"
-  ["/usr/local/bin/umao-debug-upload"]="0:0:755"
   ["/usr/local/bin/umao-installer-autostart"]="0:0:755"
   ["/usr/local/bin/umao-apply-theme"]="0:0:755"
   ["/usr/local/bin/umao-install-steam-root"]="0:0:755"
@@ -719,7 +735,6 @@ file_permissions+=(
   ["/usr/local/bin/umao-refresh-lsb-release"]="0:0:755"
   ["/usr/local/bin/umao-show-ascii"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
-  ["/home/arch/Desktop/UmaOS Installer.desktop"]="0:0:755"
   ["/home/arch/Desktop/Install Uma Musume.sh"]="0:0:755"
   ["/etc/skel/Desktop/Install Uma Musume.sh"]="0:0:755"
 )
