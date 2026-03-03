@@ -126,6 +126,23 @@ install_theme_to_boot() {
   install -d "$dst_theme"
   cp -a "$src_theme"/* "$dst_theme/"
   log "Installed GRUB theme to $dst_theme"
+
+  # Install a grub.d script that loads the theme fonts before grub-mkconfig
+  # generates menu entries.  Without this, fonts referenced in theme.txt
+  # won't render and GRUB falls back to its tiny built-in bitmap font.
+  install -d /etc/grub.d
+  cat > /etc/grub.d/05_umaos_fonts <<'GRUBEOF'
+#!/bin/sh
+set -e
+cat <<EOF
+# UmaOS: load custom theme fonts
+for font in /boot/grub/themes/umaos/*.pf2; do
+    if [ -f "\$font" ]; then loadfont "\$font"; fi
+done
+EOF
+GRUBEOF
+  chmod +x /etc/grub.d/05_umaos_fonts
+  log "Installed /etc/grub.d/05_umaos_fonts for grub-mkconfig font loading"
 }
 
 main() {

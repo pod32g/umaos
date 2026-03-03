@@ -7,13 +7,21 @@ desktop-color: "#0e1f14"
 title-text: ""
 terminal-font: "Unifont Regular 16"
 
+# ── Logo ──
++ image {
+    file = "logo.png"
+    top = 3%
+    left = 47%
+    width = 6%
+}
+
 # ── Title: "UmaOS" ──
 + label {
     text = "UmaOS"
     font = "UmaOS Bold 28"
     color = "#ffffff"
     align = "center"
-    top = 8%
+    top = 11%
     left = 0
     width = 100%
 }
@@ -21,10 +29,10 @@ terminal-font: "Unifont Regular 16"
 # ── Subtitle ──
 + label {
     text = "Uma Musume Pretty Derby"
-    font = "UmaOS Regular 14"
+    font = "UmaOS Regular 16"
     color = "#7ab882"
     align = "center"
-    top = 14%
+    top = 15%
     left = 0
     width = 100%
 }

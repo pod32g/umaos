@@ -1,0 +1,83 @@
+/* UmaOS Calamares Stylesheet
+   Green accent theme matching the GRUB/desktop branding. */
+
+/* ── Navigation buttons ── */
+
+/* "Next" / primary action button */
+#next_button {
+    background-color: #42a54b;
+    color: #ffffff;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 4px;
+    font-weight: bold;
+    min-width: 80px;
+}
+#next_button:hover {
+    background-color: #4db856;
+}
+#next_button:pressed {
+    background-color: #2e8838;
+}
+
+/* "Back" button — outlined style */
+#back_button {
+    background-color: transparent;
+    color: #42a54b;
+    border: 1px solid #42a54b;
+    padding: 8px 24px;
+    border-radius: 4px;
+    min-width: 80px;
+}
+#back_button:hover {
+    background-color: rgba(66, 165, 75, 0.08);
+}
+
+/* "Done" / "Restart" button on the finish page */
+#quit_button {
+    background-color: #42a54b;
+    color: #ffffff;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 4px;
+    font-weight: bold;
+    min-width: 80px;
+}
+#quit_button:hover {
+    background-color: #4db856;
+}
+
+/* ── Links ── */
+QLabel a {
+    color: #42a54b;
+}
+
+/* ── Progress bar ── */
+QProgressBar {
+    background-color: #e0f2e4;
+    border: none;
+    border-radius: 3px;
+    height: 8px;
+    text-align: center;
+}
+QProgressBar::chunk {
+    background-color: #42a54b;
+    border-radius: 3px;
+}
+
+/* ── Checkboxes ── */
+QCheckBox::indicator:checked {
+    background-color: #42a54b;
+    border: 1px solid #2e8838;
+    border-radius: 2px;
+}
+
+/* ── Combo boxes ── */
+QComboBox {
+    border: 1px solid #c0d8c4;
+    border-radius: 4px;
+    padding: 4px 8px;
+}
+QComboBox:focus {
+    border-color: #42a54b;
+}

@@ -169,6 +169,67 @@ def generate_menu_center(path, width=1, height=1):
     print(f"  Generated {path} ({width}x{height})")
 
 
+def generate_logo(path, size=64):
+    """Green rounded square with a white 'U' letterform for the GRUB theme header."""
+    # Rounded rectangle background
+    bg = hex_to_rgb("#42a54b")
+    bg_dark = hex_to_rgb("#2e8838")
+    radius = size // 6
+
+    pixels = []
+    for y in range(size):
+        ny = y / max(size - 1, 1)
+        for x in range(size):
+            # Rounded rect mask
+            dx = max(0, max(radius - x, x - (size - 1 - radius)))
+            dy = max(0, max(radius - y, y - (size - 1 - radius)))
+            corner_dist = math.sqrt(dx * dx + dy * dy)
+            if corner_dist > radius:
+                pixels.append((0, 0, 0, 0))
+                continue
+
+            # Green gradient background
+            r = lerp(bg[0], bg_dark[0], ny)
+            g = lerp(bg[1], bg_dark[1], ny)
+            b = lerp(bg[2], bg_dark[2], ny)
+
+            # Draw white "U" letterform
+            cx, cy = size / 2, size / 2
+            # U body: two vertical strokes + curved bottom
+            u_left = size * 0.30
+            u_right = size * 0.70
+            u_top = size * 0.22
+            u_bottom = size * 0.72
+            stroke_w = size * 0.13
+            u_mid_y = size * 0.55
+
+            in_u = False
+            # Left stroke
+            if u_left - stroke_w / 2 <= x <= u_left + stroke_w / 2 and u_top <= y <= u_mid_y:
+                in_u = True
+            # Right stroke
+            if u_right - stroke_w / 2 <= x <= u_right + stroke_w / 2 and u_top <= y <= u_mid_y:
+                in_u = True
+            # Bottom curve (semicircle)
+            if y >= u_mid_y:
+                curve_cx = size / 2
+                curve_cy = u_mid_y
+                curve_r_outer = (u_right - u_left) / 2 + stroke_w / 2
+                curve_r_inner = (u_right - u_left) / 2 - stroke_w / 2
+                d = math.sqrt((x - curve_cx) ** 2 + (y - curve_cy) ** 2)
+                if curve_r_inner <= d <= curve_r_outer and y >= u_mid_y:
+                    in_u = True
+
+            if in_u:
+                # Anti-alias the edges slightly
+                pixels.append((255, 255, 255, 240))
+            else:
+                pixels.append((r, g, b, 255))
+
+    write_rgba_png(path, size, size, pixels)
+    print(f"  Generated {path} ({size}x{size})")
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: generate-grub-theme-assets.py <output-dir>", file=sys.stderr)
@@ -182,6 +243,7 @@ def main():
     generate_select_center(os.path.join(out_dir, "select_c.png"))
     generate_accent_line(os.path.join(out_dir, "accent_line.png"))
     generate_menu_center(os.path.join(out_dir, "menu_c.png"))
+    generate_logo(os.path.join(out_dir, "logo.png"), size=64)
     print("Done.")
 
 
