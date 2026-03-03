@@ -109,6 +109,7 @@ if [[ -n "$configured_cursor" ]]; then
   fi
 fi
 
+require_file "/usr/share/icons/hicolor/scalable/apps/umaos-launcher.svg"
 require_file "/usr/share/wallpapers/UmaOS/contents/images/1920x1080.jpg"
 require_file "/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4"
 require_file "/usr/share/wallpapers/UmaOS/metadata.json"
@@ -159,6 +160,13 @@ if grep -Eq '^DefaultProfile=UmaOS\.profile$' "$ROOT/etc/xdg/konsolerc" \
   pass "Konsole default profile is set to UmaOS.profile for system/skel/live user"
 else
   fail "Konsole default profile is not consistently set to UmaOS.profile"
+fi
+
+if grep -q 'icon=umaos-launcher' "$ROOT/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc" \
+  && grep -q 'icon=umaos-launcher' "$ROOT/home/arch/.config/plasma-org.kde.plasma.desktop-appletsrc"; then
+  pass "Kickoff launcher icon set to umaos-launcher for skel and live user"
+else
+  fail "Kickoff launcher icon is not set to umaos-launcher"
 fi
 
 require_executable "/usr/local/bin/umao-install"

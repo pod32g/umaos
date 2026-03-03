@@ -44,7 +44,7 @@ plugin=org.kde.plasma.kickoff
 PreloadWeight=100
 
 [Containments][2][Applets][3][Configuration][General]
-icon=start-here-kde
+icon=umaos-launcher
 favoritesPortedToKAstats=true
 
 [Containments][2][Applets][4]
