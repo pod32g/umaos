@@ -162,11 +162,87 @@ def generate_accent_line(path, width=200, height=3):
     print(f"  Generated {path} ({width}x{height})")
 
 
-def generate_menu_center(path, width=1, height=1):
-    """Semi-transparent dark panel for the menu background."""
-    pixels = [(14, 31, 20, 120)]  # #0e1f14 with alpha
-    write_rgba_png(path, width, height, pixels)
-    print(f"  Generated {path} ({width}x{height})")
+def generate_9patch(prefix, radius=12, color=(14, 31, 20), alpha=120, border_color=None, border_alpha=40):
+    """Generate a full 9-patch image set for GRUB theme rounded rectangles.
+
+    Creates: {prefix}_nw.png, _n.png, _ne.png, _w.png, _c.png, _e.png,
+             _sw.png, _s.png, _se.png
+
+    The corner images are {radius}x{radius} with a quarter-circle mask.
+    Edge images are 1px strips.  Center is 1x1 solid fill.
+    An optional 1px border is drawn along the outer edge for subtle definition.
+    """
+    r, g, b = color
+    br, bg_, bb = border_color if border_color else (66, 165, 75)  # #42a54b
+
+    def corner_pixel(cx, cy):
+        """Return RGBA for a pixel at (cx, cy) within a radius×radius corner tile.
+        Origin is at the actual corner of the rounded rect."""
+        dist = math.sqrt(cx * cx + cy * cy)
+        if dist > radius:
+            return (0, 0, 0, 0)
+        # Subtle 1px border glow at the outer edge
+        edge = radius - dist
+        if edge < 1.2:
+            t = max(0.0, edge / 1.2)
+            a = int(border_alpha + (alpha - border_alpha) * t)
+            cr = int(br + (r - br) * t)
+            cg = int(bg_ + (g - bg_) * t)
+            cb = int(bb + (b - bb) * t)
+            return (cr, cg, cb, a)
+        return (r, g, b, alpha)
+
+    # ── Corners ──
+    # NW (top-left): origin at bottom-right of tile
+    pixels = []
+    for y in range(radius):
+        for x in range(radius):
+            pixels.append(corner_pixel(radius - 1 - x, radius - 1 - y))
+    write_rgba_png(prefix + "_nw.png", radius, radius, pixels)
+
+    # NE (top-right): origin at bottom-left
+    pixels = []
+    for y in range(radius):
+        for x in range(radius):
+            pixels.append(corner_pixel(x, radius - 1 - y))
+    write_rgba_png(prefix + "_ne.png", radius, radius, pixels)
+
+    # SW (bottom-left): origin at top-right
+    pixels = []
+    for y in range(radius):
+        for x in range(radius):
+            pixels.append(corner_pixel(radius - 1 - x, y))
+    write_rgba_png(prefix + "_sw.png", radius, radius, pixels)
+
+    # SE (bottom-right): origin at top-left
+    pixels = []
+    for y in range(radius):
+        for x in range(radius):
+            pixels.append(corner_pixel(x, y))
+    write_rgba_png(prefix + "_se.png", radius, radius, pixels)
+
+    # ── Edges ──
+    # North (top): 1px tall, with border on top edge
+    pixels = [(br, bg_, bb, border_alpha)]  # top border
+    write_rgba_png(prefix + "_n.png", 1, 1, pixels)
+
+    # South (bottom): 1px tall, with border on bottom edge
+    pixels = [(br, bg_, bb, border_alpha)]
+    write_rgba_png(prefix + "_s.png", 1, 1, pixels)
+
+    # West (left): 1px wide, with border on left edge
+    pixels = [(br, bg_, bb, border_alpha)]
+    write_rgba_png(prefix + "_w.png", 1, 1, pixels)
+
+    # East (right): 1px wide, with border on right edge
+    pixels = [(br, bg_, bb, border_alpha)]
+    write_rgba_png(prefix + "_e.png", 1, 1, pixels)
+
+    # ── Center ──
+    pixels = [(r, g, b, alpha)]
+    write_rgba_png(prefix + "_c.png", 1, 1, pixels)
+
+    print(f"  Generated 9-patch set: {os.path.basename(prefix)}_*.png ({radius}px radius)")
 
 
 def generate_logo(path, size=64):
@@ -240,9 +316,26 @@ def main():
     print(f"Generating GRUB theme assets in {out_dir}...")
 
     generate_background(os.path.join(out_dir, "background.png"))
-    generate_select_center(os.path.join(out_dir, "select_c.png"))
     generate_accent_line(os.path.join(out_dir, "accent_line.png"))
-    generate_menu_center(os.path.join(out_dir, "menu_c.png"))
+
+    # 9-patch rounded panels for menu background and selected item
+    generate_9patch(
+        os.path.join(out_dir, "menu"),
+        radius=12,
+        color=(14, 31, 20),       # #0e1f14
+        alpha=120,
+        border_color=(42, 90, 50), # subtle green border
+        border_alpha=50,
+    )
+    generate_9patch(
+        os.path.join(out_dir, "select"),
+        radius=6,
+        color=(66, 165, 75),      # #42a54b
+        alpha=160,
+        border_color=(78, 190, 90),
+        border_alpha=100,
+    )
+
     generate_logo(os.path.join(out_dir, "logo.png"), size=64)
     print("Done.")
 
