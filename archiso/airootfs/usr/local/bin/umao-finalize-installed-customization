@@ -245,7 +245,7 @@ sync_user_customization() {
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.icons/default"
 
   local src
-  for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
+  for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list plasma-org.kde.plasma.desktop-appletsrc plasmashellrc; do
     if [[ -f "/etc/skel/.config/$src" ]]; then
       install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$src" "$user_home/.config/$src"
     else
