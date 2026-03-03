@@ -811,8 +811,14 @@ configure_boot_branding() {
     log "No GRUB background override available (missing $GRUB_BACKGROUND_SRC)."
   fi
 
-  # Apply custom Syslinux splash for BIOS boots.
-  if [[ -f "$SYSLINUX_BACKGROUND_SRC" ]]; then
+  # Apply Syslinux splash background for BIOS boots.
+  # Prefer the GRUB theme gradient (dark emerald) for visual consistency
+  # across both UEFI and BIOS boot modes.  Fall back to the dedicated
+  # syslinux asset, then to the GRUB background image.
+  local grub_theme_bg="$ROOT_DIR/archiso/airootfs/usr/share/grub/themes/umaos/background.png"
+  if [[ -f "$grub_theme_bg" ]]; then
+    syslinux_src="$grub_theme_bg"
+  elif [[ -f "$SYSLINUX_BACKGROUND_SRC" ]]; then
     syslinux_src="$SYSLINUX_BACKGROUND_SRC"
   fi
   if [[ -f "$syslinux_src" && -f "$syslinux_splash" ]]; then
@@ -822,21 +828,25 @@ configure_boot_branding() {
     log "No Syslinux splash override applied (missing $syslinux_src or syslinux/splash.png)."
   fi
 
-  # Improve BIOS boot menu readability on bright backgrounds.
+  # Style the Syslinux menu for the dark emerald gradient background.
+  # Colors are ARGB (#AARRGGBB).  The dark background lets us use
+  # transparent item backgrounds so the gradient shows through, with a
+  # green highlight for the selected entry — matching the GRUB theme.
   if [[ -f "$syslinux_head" ]]; then
     sed -i.bak \
-      -e 's|^MENU COLOR border.*|MENU COLOR border       37;40   #ffffffff #d0000000 std|' \
-      -e 's|^MENU COLOR title.*|MENU COLOR title        1;37;40 #ffffffff #d0000000 std|' \
-      -e 's|^MENU COLOR sel.*|MENU COLOR sel          7;37;40 #ffffffff #e02a7a35 all|' \
-      -e 's|^MENU COLOR unsel.*|MENU COLOR unsel        37;40   #ffffffff #b0000000 std|' \
-      -e 's|^MENU COLOR help.*|MENU COLOR help         37;40   #ffffffff #c0000000 std|' \
-      -e 's|^MENU COLOR timeout_msg.*|MENU COLOR timeout_msg  37;40   #ffffffff #00000000 std|' \
-      -e 's|^MENU COLOR timeout .*|MENU COLOR timeout      1;37;40 #ffffffff #00000000 std|' \
-      -e 's|^MENU COLOR msg07.*|MENU COLOR msg07        37;40   #ffffffff #c0000000 std|' \
-      -e 's|^MENU COLOR tabmsg.*|MENU COLOR tabmsg       37;40   #ffffffff #00000000 std|' \
+      -e 's|^MENU TITLE.*|MENU TITLE UmaOS|' \
+      -e 's|^MENU COLOR border.*|MENU COLOR border       37;40   #40ffffff #00000000 std|' \
+      -e 's|^MENU COLOR title.*|MENU COLOR title        1;37;40 #ffffffff #00000000 std|' \
+      -e 's|^MENU COLOR sel.*|MENU COLOR sel          7;37;40 #ffffffff #c042a54b all|' \
+      -e 's|^MENU COLOR unsel.*|MENU COLOR unsel        37;40   #ff8ab892 #00000000 std|' \
+      -e 's|^MENU COLOR help.*|MENU COLOR help         37;40   #ff7ab882 #00000000 std|' \
+      -e 's|^MENU COLOR timeout_msg.*|MENU COLOR timeout_msg  37;40   #ff5a8a62 #00000000 std|' \
+      -e 's|^MENU COLOR timeout .*|MENU COLOR timeout      1;37;40 #ff42a54b #00000000 std|' \
+      -e 's|^MENU COLOR msg07.*|MENU COLOR msg07        37;40   #ff7ab882 #00000000 std|' \
+      -e 's|^MENU COLOR tabmsg.*|MENU COLOR tabmsg       37;40   #ff5a8a62 #00000000 std|' \
       "$syslinux_head"
     rm -f "$syslinux_head.bak"
-    log "Applied high-contrast Syslinux menu colors."
+    log "Applied UmaOS dark-theme Syslinux menu colors."
   fi
 }
 

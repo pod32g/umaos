@@ -344,6 +344,16 @@ main() {
     fi
   fi
 
+  # Add plymouth hook to mkinitcpio for boot splash.
+  if [[ -f /etc/mkinitcpio.conf ]] && ! grep -q 'plymouth' /etc/mkinitcpio.conf; then
+    sed -i 's/^HOOKS=(\(base udev\)/HOOKS=(\1 plymouth/' /etc/mkinitcpio.conf
+    log "Added plymouth hook to mkinitcpio.conf."
+    if command -v mkinitcpio >/dev/null 2>&1; then
+      mkinitcpio -P 2>&1 | tail -5 || log "WARNING: mkinitcpio rebuild returned errors."
+      log "Rebuilt initramfs with plymouth hook."
+    fi
+  fi
+
   install -d /var/lib/umaos
   date -Iseconds > /var/lib/umaos/install-customization.done
   echo "Umazing!"

@@ -54,6 +54,16 @@ write_grub_defaults() {
 
   log "Updated /etc/default/grub with UmaOS branding defaults"
 
+  # Enable Plymouth boot splash: ensure 'quiet splash' in cmdline defaults.
+  local cmdline_default="loglevel=3"
+  if grep -Eq '^GRUB_CMDLINE_LINUX_DEFAULT=' "$defaults_file"; then
+    cmdline_default="$(sed -n 's/^GRUB_CMDLINE_LINUX_DEFAULT=//p' "$defaults_file" | tr -d '"')"
+  fi
+  [[ "$cmdline_default" == *quiet* ]] || cmdline_default="$cmdline_default quiet"
+  [[ "$cmdline_default" == *splash* ]] || cmdline_default="$cmdline_default splash"
+  set_grub_var GRUB_CMDLINE_LINUX_DEFAULT "\"$cmdline_default\""
+  log "Set GRUB_CMDLINE_LINUX_DEFAULT=\"$cmdline_default\""
+
   # Also write a drop-in for grub-mkconfig builds that source /etc/default/grub.d
   # (e.g., Debian-patched GRUB). Standard Arch grub-mkconfig does not use this
   # directory, but the drop-in is harmless and helps non-standard setups.
@@ -66,6 +76,7 @@ GRUB_GFXPAYLOAD_LINUX=keep
 GRUB_TIMEOUT_STYLE=menu
 GRUB_COLOR_NORMAL="light-green/black"
 GRUB_COLOR_HIGHLIGHT="white/green"
+GRUB_CMDLINE_LINUX_DEFAULT="$cmdline_default"
 EOF
 
   if [[ -f "$theme_txt" ]]; then
