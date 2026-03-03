@@ -804,7 +804,7 @@ file_permissions+=(
   ["/usr/local/bin/umao-refresh-lsb-release"]="0:0:755"
   ["/usr/local/bin/umao-show-ascii"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
-  ["/home/arch/Desktop/Install Uma Musume.sh"]="0:0:755"
+  ["/home/arch/Desktop/Install Uma Musume.sh"]="1000:1000:755"
   ["/etc/skel/Desktop/Install Uma Musume.sh"]="0:0:755"
 )
 EOF

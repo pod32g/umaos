@@ -16,6 +16,14 @@ else
   echo "[customize_airootfs] Calamares config was NOT synced. Check build overlay." >&2
 fi
 
+# Fix ownership of the live-user home directory.
+# archiso copies airootfs files as root; Plasma and other apps require the
+# home directory to be owned by the actual user so they can read/write configs.
+if id arch >/dev/null 2>&1; then
+  chown -R arch:arch /home/arch
+  echo "[customize_airootfs] Fixed /home/arch ownership."
+fi
+
 # Set UmaOS as default Plymouth theme if Plymouth is installed.
 if command -v plymouth-set-default-theme >/dev/null 2>&1; then
   if [[ -f /usr/share/plymouth/themes/umaos/umaos.plymouth ]]; then
