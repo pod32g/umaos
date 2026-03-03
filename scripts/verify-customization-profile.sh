@@ -229,15 +229,15 @@ else
   fail "Umamusume flows are missing Proton GE setup integration"
 fi
 
-if grep -Eq '^x-scheme-handler/http=helium\.desktop$' "$ROOT/etc/skel/.config/mimeapps.list" \
-  && grep -Eq '^x-scheme-handler/https=helium\.desktop$' "$ROOT/etc/skel/.config/mimeapps.list"; then
+if grep -Eq '^x-scheme-handler/http=helium-browser\.desktop$' "$ROOT/etc/skel/.config/mimeapps.list" \
+  && grep -Eq '^x-scheme-handler/https=helium-browser\.desktop$' "$ROOT/etc/skel/.config/mimeapps.list"; then
   pass "Installed-user MIME defaults route web links to Helium"
 else
   fail "Missing Helium MIME defaults in /etc/skel/.config/mimeapps.list"
 fi
 
-if grep -Eq '^x-scheme-handler/http=helium\.desktop$' "$ROOT/home/arch/.config/mimeapps.list" \
-  && grep -Eq '^x-scheme-handler/https=helium\.desktop$' "$ROOT/home/arch/.config/mimeapps.list"; then
+if grep -Eq '^x-scheme-handler/http=helium-browser\.desktop$' "$ROOT/home/arch/.config/mimeapps.list" \
+  && grep -Eq '^x-scheme-handler/https=helium-browser\.desktop$' "$ROOT/home/arch/.config/mimeapps.list"; then
   pass "Live-user MIME defaults route web links to Helium"
 else
   fail "Missing Helium MIME defaults in /home/arch/.config/mimeapps.list"
