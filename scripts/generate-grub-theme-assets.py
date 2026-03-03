@@ -336,7 +336,13 @@ def main():
         border_alpha=100,
     )
 
-    generate_logo(os.path.join(out_dir, "logo.png"), size=64)
+    # Only generate a fallback logo if no pre-made logo exists (e.g. the
+    # resized URA horse logo committed to the theme directory).
+    logo_path = os.path.join(out_dir, "logo.png")
+    if os.path.exists(logo_path):
+        print(f"  Keeping existing {logo_path}")
+    else:
+        generate_logo(logo_path, size=64)
     print("Done.")
 
 
