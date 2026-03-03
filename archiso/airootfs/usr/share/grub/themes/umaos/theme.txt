@@ -1,0 +1,95 @@
+# UmaOS GRUB Theme
+# Dark emerald background with green-highlighted boot menu
+
+# ── Global ──
+desktop-image: "background.png"
+desktop-color: "#0e1f14"
+title-text: ""
+terminal-font: "Unifont Regular 16"
+
+# ── Title: "UmaOS" ──
++ label {
+    text = "UmaOS"
+    font = "UmaOS Bold 28"
+    color = "#ffffff"
+    align = "center"
+    top = 8%
+    left = 0
+    width = 100%
+}
+
+# ── Subtitle ──
++ label {
+    text = "Uma Musume Pretty Derby"
+    font = "UmaOS Regular 14"
+    color = "#7ab882"
+    align = "center"
+    top = 14%
+    left = 0
+    width = 100%
+}
+
+# ── Boot Menu ──
++ boot_menu {
+    left = 28%
+    top = 25%
+    width = 44%
+    height = 42%
+    item_font = "UmaOS Regular 16"
+    item_color = "#8ab892"
+    item_height = 36
+    item_padding = 8
+    item_spacing = 4
+    selected_item_font = "UmaOS Bold 16"
+    selected_item_color = "#ffffff"
+    selected_item_pixmap_style = "select_*.png"
+    icon_width = 0
+    icon_height = 0
+    scrollbar = true
+    scrollbar_width = 4
+    scrollbar_thumb_color = "#42a54b"
+    scrollbar_frame_color = "#1a3d24"
+    menu_pixmap_style = "menu_*.png"
+}
+
+# ── Countdown notification ──
++ label {
+    id = "__timeout__"
+    text = "Auto-boot in %d seconds"
+    font = "UmaOS Regular 14"
+    color = "#5a8a62"
+    align = "center"
+    top = 72%
+    left = 0
+    width = 100%
+}
+
+# ── Accent Line ──
++ image {
+    file = "accent_line.png"
+    top = 70%
+    left = 38%
+    width = 24%
+}
+
+# ── Keyboard Shortcuts Footer ──
++ label {
+    text = "Use arrow keys to navigate, Enter to select, e to edit, c for command line"
+    font = "UmaOS Regular 12"
+    color = "#4a7a52"
+    align = "center"
+    top = 93%
+    left = 0
+    width = 100%
+}
+
+# ── Version ──
++ label {
+    text = "GRUB -- UmaOS Rolling"
+    font = "UmaOS Regular 12"
+    color = "#3a6b42"
+    align = "right"
+    top = 97%
+    left = 0
+    width = 97%
+}

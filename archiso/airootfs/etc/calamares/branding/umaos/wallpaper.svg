@@ -1,12 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0" stop-color="#daf0de"/>
-      <stop offset="1" stop-color="#ffd6e9"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0e1f14"/>
+      <stop offset="40%" stop-color="#12301a"/>
+      <stop offset="100%" stop-color="#1a3d24"/>
     </linearGradient>
   </defs>
   <rect width="1920" height="1080" fill="url(#bg)"/>
-  <circle cx="320" cy="220" r="280" fill="#42a54b" opacity="0.22"/>
-  <circle cx="1600" cy="880" r="340" fill="#ff91c0" opacity="0.24"/>
-  <text x="130" y="960" fill="#16302a" font-size="120" font-family="Noto Sans">UmaOS</text>
+  <circle cx="1500" cy="160" r="500" fill="#42a54b" opacity="0.06"/>
+  <circle cx="340" cy="920" r="450" fill="#ff91c0" opacity="0.04"/>
+  <text x="960" y="560" text-anchor="middle" fill="#e8f5ea" font-size="64" font-family="Noto Sans, sans-serif" font-weight="bold" opacity="0.12">UmaOS</text>
 </svg>

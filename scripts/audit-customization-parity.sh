@@ -149,6 +149,8 @@ check_contains "$ROOT_DIR/scripts/build-iso.sh" 'install_uma_ksplash_theme' "Bui
 check_contains "$bootloader" '^efiBootLoader:[[:space:]]*"grub"$' "Installed default UEFI bootloader is GRUB"
 check_contains "$postboot" 'umao-apply-grub-branding' "Installed postboot stage applies GRUB branding"
 check_contains "$AIROOTFS/usr/local/bin/umao-apply-grub-branding" 'set_grub_var GRUB_BACKGROUND' "Installed GRUB branding updates /etc/default/grub directly"
+check_contains "$AIROOTFS/usr/local/bin/umao-apply-grub-branding" 'GRUB_THEME' "Installed GRUB branding sets custom theme"
+check_contains "$ROOT_DIR/scripts/build-iso.sh" 'install_grub_theme' "Live ISO build installs custom GRUB theme"
 check_contains "$finalizer" 'ensure_graphical_boot' "Installed finalizer enforces graphical target + sddm symlinks"
 check_contains "$finalizer" 'DisplayServer=x11' "Installed finalizer pins SDDM display server to X11"
 check_contains "$users_conf" '^sudoersConfigureWithGroup:[[:space:]]*true$' "Calamares users module enables wheel sudoers policy"

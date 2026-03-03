@@ -97,7 +97,7 @@ if [[ "$uefi_mode" == "systemd-boot" ]]; then
 fi
 
 if [[ -f "$grub_cfg" ]]; then
-  check_contains "$grub_cfg" 'background_image /boot/syslinux/splash.png' "GRUB background injection present"
+  check_contains "$grub_cfg" 'themes/umaos/theme.txt' "GRUB custom theme reference present"
   check_contains "$grub_cfg" '### UMAOS GRUB THEME START' "GRUB theme block injected"
   check_contains "$grub_cfg" 'terminal_output gfxterm' "GRUB uses graphical terminal output"
   check_contains "$grub_cfg" 'UmaOS install medium' "GRUB menu title branded"
@@ -105,7 +105,7 @@ if [[ -f "$grub_cfg" ]]; then
 fi
 
 if [[ -f "$loopback_cfg" ]]; then
-  check_contains "$loopback_cfg" 'background_image /boot/syslinux/splash.png' "Loopback GRUB background injection present"
+  check_contains "$loopback_cfg" 'themes/umaos/theme.txt' "Loopback GRUB custom theme reference present"
   check_contains "$loopback_cfg" '### UMAOS GRUB THEME START' "Loopback GRUB theme block injected"
   check_contains "$loopback_cfg" 'UmaOS install medium' "Loopback GRUB menu title branded"
   check_not_contains "$loopback_cfg" 'Arch Linux install medium' "Loopback GRUB Arch branding removed"

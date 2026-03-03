@@ -6,5 +6,8 @@
     </linearGradient>
   </defs>
   <rect width="960" height="160" fill="url(#g)"/>
-  <text x="56" y="100" fill="#ffffff" font-size="64" font-family="Noto Sans">UmaOS Installer</text>
+  <rect x="40" y="55" width="52" height="52" rx="10" fill="rgba(255,255,255,0.15)"/>
+  <text x="66" y="92" text-anchor="middle" fill="#ffffff" font-size="28" font-family="Noto Sans, sans-serif" font-weight="800">U</text>
+  <text x="108" y="94" fill="#ffffff" font-size="48" font-family="Noto Sans, sans-serif" font-weight="bold">UmaOS Installer</text>
+  <text x="108" y="118" fill="#e8f5ea" font-size="14" font-family="Noto Sans, sans-serif" opacity="0.7">Uma Musume Pretty Derby</text>
 </svg>

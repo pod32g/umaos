@@ -475,6 +475,84 @@ DEFAULTSEOF
   log "Installed custom Plasma KSplash theme using $URA_LOGO_SRC."
 }
 
+install_grub_theme() {
+  local theme_name="umaos"
+  local theme_src="$ROOT_DIR/archiso/airootfs/usr/share/grub/themes/$theme_name"
+  local theme_txt="$theme_src/theme.txt"
+  local iso_theme_dir="$BUILD_PROFILE/grub/themes/$theme_name"
+  local installed_theme_dir="$BUILD_PROFILE/airootfs/usr/share/grub/themes/$theme_name"
+  local gen_script="$ROOT_DIR/scripts/generate-grub-theme-assets.py"
+
+  if [[ ! -f "$theme_txt" ]]; then
+    log "No GRUB theme.txt found at $theme_txt; skipping custom GRUB theme."
+    return 0
+  fi
+
+  # Generate PNG assets (background, selected-item highlight, accent line, menu bg)
+  if [[ -x "$gen_script" ]] || [[ -f "$gen_script" ]]; then
+    log "Generating GRUB theme PNG assets..."
+    python3 "$gen_script" "$theme_src"
+  else
+    log "WARNING: GRUB theme asset generator not found at $gen_script."
+  fi
+
+  # Generate .pf2 fonts from system fonts for the theme.
+  # Try Noto Sans first (best coverage), fall back to DejaVu Sans.
+  local font_regular="" font_bold=""
+  for candidate in \
+    /usr/share/fonts/noto/NotoSans-Regular.ttf \
+    /usr/share/fonts/noto/NotoSans[wght].ttf \
+    /usr/share/fonts/TTF/NotoSans-Regular.ttf \
+    /usr/share/fonts/TTF/DejaVuSans.ttf \
+    /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf; do
+    if [[ -f "$candidate" ]]; then
+      font_regular="$candidate"
+      break
+    fi
+  done
+  for candidate in \
+    /usr/share/fonts/noto/NotoSans-Bold.ttf \
+    /usr/share/fonts/TTF/NotoSans-Bold.ttf \
+    /usr/share/fonts/TTF/DejaVuSans-Bold.ttf \
+    /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf; do
+    if [[ -f "$candidate" ]]; then
+      font_bold="$candidate"
+      break
+    fi
+  done
+
+  if command -v grub-mkfont >/dev/null 2>&1; then
+    if [[ -n "$font_regular" ]]; then
+      for size in 12 14 16; do
+        grub-mkfont -n "UmaOS Regular" -s "$size" \
+          -o "$theme_src/UmaOS_Regular_${size}.pf2" "$font_regular"
+        log "Generated UmaOS Regular ${size}pt font"
+      done
+    fi
+    if [[ -n "$font_bold" ]]; then
+      for size in 16 28; do
+        grub-mkfont -n "UmaOS Bold" -s "$size" \
+          -o "$theme_src/UmaOS_Bold_${size}.pf2" "$font_bold"
+        log "Generated UmaOS Bold ${size}pt font"
+      done
+    fi
+  else
+    log "WARNING: grub-mkfont not found; GRUB theme will use default font."
+  fi
+
+  # Copy theme to ISO's GRUB directory (for live boot)
+  rm -rf "$iso_theme_dir"
+  mkdir -p "$iso_theme_dir"
+  cp -a "$theme_src"/* "$iso_theme_dir/"
+  log "Installed GRUB theme for live ISO at $iso_theme_dir"
+
+  # Ensure the installed-system theme dir has all assets too
+  rm -rf "$installed_theme_dir"
+  mkdir -p "$installed_theme_dir"
+  cp -a "$theme_src"/* "$installed_theme_dir/"
+  log "Installed GRUB theme for installed system at $installed_theme_dir"
+}
+
 sync_calamares_defaults() {
   local cal_root="$BUILD_PROFILE/airootfs/etc/calamares"
   local defaults_root="$cal_root/umaos-defaults"
@@ -503,6 +581,13 @@ sync_calamares_defaults() {
   for module in "${required_modules[@]}"; do
     [[ -f "$cal_root/modules/$module.conf" ]] || die "Missing required Calamares module config: $module.conf"
     cp -f "$cal_root/modules/$module.conf" "$defaults_root/modules/$module.conf"
+  done
+
+  # Copy optional module configs (non-fatal if missing)
+  for module in finished; do
+    if [[ -f "$cal_root/modules/$module.conf" ]]; then
+      cp -f "$cal_root/modules/$module.conf" "$defaults_root/modules/$module.conf"
+    fi
   done
 
   cp -a "$cal_root/branding/umaos" "$defaults_root/branding/"
@@ -676,10 +761,17 @@ apply_grub_theme_block() {
       print "### UMAOS GRUB THEME START"
       print "insmod gfxterm"
       print "insmod png"
+      print "insmod all_video"
+      print "set gfxmode=auto"
+      print "set gfxpayload=keep"
       print "set menu_color_normal=light-green/black"
       print "set menu_color_highlight=white/green"
-      print "if background_image /boot/syslinux/splash.png; then"
-      print "    true"
+      print "# Use full GRUB theme if available, else fall back to background image"
+      print "if [ -d /boot/grub/themes/umaos ]; then"
+      print "    set theme=/boot/grub/themes/umaos/theme.txt"
+      print "    export theme"
+      print "elif [ -f /boot/syslinux/splash.png ]; then"
+      print "    background_image /boot/syslinux/splash.png"
       print "fi"
       print "### UMAOS GRUB THEME END"
       print ""
@@ -803,6 +895,7 @@ install_custom_cursor_themes
 ensure_default_cursor_theme
 install_wallhaven_wallpapers
 install_uma_ksplash_theme
+install_grub_theme
 if [[ "$INCLUDE_WALLHAVEN" == "1" && -f "$WALLHAVEN_MANIFEST" ]]; then
   EXPECTED_WALLHAVEN_COUNT="$(tail -n +2 "$WALLHAVEN_MANIFEST" | wc -l | tr -d '[:space:]')"
 fi

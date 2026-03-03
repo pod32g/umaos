@@ -36,6 +36,8 @@ write_grub_defaults() {
     fi
   }
 
+  local theme_txt="/usr/share/grub/themes/umaos/theme.txt"
+
   set_grub_var GRUB_DISTRIBUTOR '"UmaOS"'
   set_grub_var GRUB_BACKGROUND "\"$background\""
   set_grub_var GRUB_GFXMODE 'auto'
@@ -43,6 +45,12 @@ write_grub_defaults() {
   set_grub_var GRUB_TIMEOUT_STYLE 'menu'
   set_grub_var GRUB_COLOR_NORMAL '"light-green/black"'
   set_grub_var GRUB_COLOR_HIGHLIGHT '"white/green"'
+
+  # Apply the full custom GRUB theme if installed.
+  if [[ -f "$theme_txt" ]]; then
+    set_grub_var GRUB_THEME "\"$theme_txt\""
+    log "Set GRUB_THEME=$theme_txt"
+  fi
 
   log "Updated /etc/default/grub with UmaOS branding defaults"
 
@@ -59,6 +67,11 @@ GRUB_TIMEOUT_STYLE=menu
 GRUB_COLOR_NORMAL="light-green/black"
 GRUB_COLOR_HIGHLIGHT="white/green"
 EOF
+
+  if [[ -f "$theme_txt" ]]; then
+    printf 'GRUB_THEME="%s"\n' "$theme_txt" >> /etc/default/grub.d/50-umaos-theme.cfg
+  fi
+
   log "Wrote /etc/default/grub.d/50-umaos-theme.cfg (compatibility drop-in)"
 }
 
@@ -90,6 +103,20 @@ rebuild_grub_config() {
   rm -f "$grub_log"
 }
 
+install_theme_to_boot() {
+  local src_theme="/usr/share/grub/themes/umaos"
+  local dst_theme="/boot/grub/themes/umaos"
+
+  if [[ ! -d "$src_theme" ]]; then
+    log "No GRUB theme source at $src_theme; skipping theme install to /boot."
+    return 0
+  fi
+
+  install -d "$dst_theme"
+  cp -a "$src_theme"/* "$dst_theme/"
+  log "Installed GRUB theme to $dst_theme"
+}
+
 main() {
   local source_bg=""
   local target_bg="/boot/grub/umaos-background.png"
@@ -107,6 +134,7 @@ main() {
   install -d /boot/grub
   cp -f "$source_bg" "$target_bg"
   log "Installed GRUB background: $target_bg"
+  install_theme_to_boot
   write_grub_defaults "$target_bg"
   rebuild_grub_config
 }
