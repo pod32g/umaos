@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ascii_file="/usr/share/umaos/neofetch.txt"
+[[ -r "$ascii_file" ]] || ascii_file="/usr/share/umaos/umaascii.txt"
+
+user_provided_source=0
+for arg in "$@"; do
+  case "$arg" in
+    --source|--source=*|--ascii_distro|--ascii_distro=*)
+      user_provided_source=1
+      break
+      ;;
+  esac
+done
+
+if [[ -x /usr/bin/neofetch ]]; then
+  if ((user_provided_source)); then
+    exec /usr/bin/neofetch "$@"
+  fi
+  exec /usr/bin/neofetch "$@" --source "$ascii_file"
+fi
+
+if [[ -x /usr/bin/fastfetch ]]; then
+  if ((user_provided_source)); then
+    exec /usr/bin/fastfetch "$@"
+  fi
+  exec /usr/bin/fastfetch "$@" --logo-type file --logo "$ascii_file"
+fi
+
+if [[ -r "$ascii_file" ]]; then
+  cat "$ascii_file"
+fi
+
+echo "neofetch is not installed. Install neofetch or fastfetch for full system info output." >&2
+exit 127

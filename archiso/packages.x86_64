@@ -20,7 +20,8 @@ xcb-util-cursor
 konsole
 dolphin
 fastfetch
-helium
+helium-browser-bin
+flatpak
 discord
 git
 yay

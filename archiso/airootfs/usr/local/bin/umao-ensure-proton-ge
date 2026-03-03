@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROTONUP_QT_APP_ID="net.davidotek.pupgui2"
+GE_PATTERN="GE-Proton*"
+
+log() {
+  printf '[UmaOS Proton GE] %s\n' "$*"
+}
+
+detect_ge_directories() {
+  printf '%s\n' \
+    "$HOME/.steam/root/compatibilitytools.d" \
+    "$HOME/.local/share/Steam/compatibilitytools.d" \
+    "$HOME/.var/app/com.valvesoftware.Steam/data/Steam/compatibilitytools.d"
+}
+
+proton_ge_installed() {
+  local dir
+  while IFS= read -r dir; do
+    [[ -d "$dir" ]] || continue
+    if compgen -G "$dir/$GE_PATTERN" >/dev/null 2>&1; then
+      return 0
+    fi
+  done < <(detect_ge_directories)
+  return 1
+}
+
+protonup_qt_installed() {
+  flatpak info --system "$PROTONUP_QT_APP_ID" >/dev/null 2>&1 \
+    || flatpak info --user "$PROTONUP_QT_APP_ID" >/dev/null 2>&1
+}
+
+launch_protonup_qt() {
+  flatpak run "$PROTONUP_QT_APP_ID" >/dev/null 2>&1 &
+  sleep 1
+}
+
+show_install_prompt() {
+  local msg
+  msg=$'UmaOS requires Proton GE for Umamusume.\n\nIn ProtonUp-Qt:\n1) Click "Add Version"\n2) Select "GE-Proton"\n3) Install it for Steam\n\nAfter install, close ProtonUp-Qt and press OK.'
+
+  if command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "UmaOS Proton GE Setup" --msgbox "$msg"
+    return 0
+  fi
+
+  if command -v zenity >/dev/null 2>&1; then
+    zenity --info --title="UmaOS Proton GE Setup" --text="$msg"
+    return 0
+  fi
+
+  printf '%s\n' "$msg"
+  read -r -p "Press Enter after installing GE-Proton..."
+}
+
+main() {
+  if proton_ge_installed; then
+    log "Detected existing GE-Proton installation."
+    return 0
+  fi
+
+  if ! command -v flatpak >/dev/null 2>&1; then
+    log "Flatpak not found. Run umao-install-steam-root first."
+    return 1
+  fi
+
+  if ! protonup_qt_installed; then
+    log "ProtonUp-Qt is not installed. Run umao-install-steam-root first."
+    return 1
+  fi
+
+  if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+    log "No graphical session detected; cannot launch ProtonUp-Qt."
+    return 1
+  fi
+
+  log "Launching ProtonUp-Qt for GE-Proton installation..."
+  launch_protonup_qt
+  show_install_prompt
+
+  if proton_ge_installed; then
+    log "GE-Proton detected after ProtonUp-Qt flow."
+    echo "Umazing!"
+    return 0
+  fi
+
+  log "GE-Proton still not detected. Install it in ProtonUp-Qt and retry."
+  return 1
+}
+
+main "$@"

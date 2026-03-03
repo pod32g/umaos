@@ -77,6 +77,27 @@ EOF
   rm -f /etc/sddm.conf.d/umaos-live.conf
 
   install -d /etc/xdg
+
+  cat > /etc/xdg/mimeapps.list <<'EOF'
+[Default Applications]
+x-scheme-handler/http=helium.desktop
+x-scheme-handler/https=helium.desktop
+x-scheme-handler/about=helium.desktop
+x-scheme-handler/unknown=helium.desktop
+text/html=helium.desktop
+application/xhtml+xml=helium.desktop
+application/x-extension-htm=helium.desktop
+application/x-extension-html=helium.desktop
+application/x-extension-shtml=helium.desktop
+application/x-extension-xhtml=helium.desktop
+application/x-extension-xht=helium.desktop
+EOF
+
+  cat > /etc/xdg/konsolerc <<'EOF'
+[Desktop Entry]
+DefaultProfile=UmaOS.profile
+EOF
+
   # Write full color values so KDE picks up the theme without needing
   # plasma-apply-colorscheme at first login.
   if [[ -f /usr/share/color-schemes/UmaSkyPink.colors ]]; then
@@ -142,6 +163,28 @@ sanitize_sddm_configuration() {
   fi
 }
 
+ensure_admin_privileges() {
+  local user_name="$1"
+
+  if ! getent group wheel >/dev/null 2>&1; then
+    groupadd wheel
+  fi
+
+  # Ensure wheel can sudo in installed systems even if Calamares sudoers setup was skipped.
+  install -d /etc/sudoers.d
+  cat > /etc/sudoers.d/10-umaos-wheel <<'EOF'
+%wheel ALL=(ALL:ALL) ALL
+EOF
+  chmod 0440 /etc/sudoers.d/10-umaos-wheel
+
+  if id -nG "$user_name" 2>/dev/null | tr ' ' '\n' | grep -qx wheel; then
+    return 0
+  fi
+
+  usermod -aG wheel "$user_name"
+  log "Added user '$user_name' to wheel for sudo access."
+}
+
 ensure_wallpaper_metadata_json() {
   local wallpapers_root="/usr/share/wallpapers"
   local dir
@@ -202,7 +245,7 @@ sync_user_customization() {
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.icons/default"
 
   local src
-  for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc; do
+  for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
     if [[ -f "/etc/skel/.config/$src" ]]; then
       install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$src" "$user_home/.config/$src"
     else
@@ -286,6 +329,7 @@ main() {
     (( uid >= 1000 && uid < 60000 )) || continue
     [[ "$home" != "/" && -n "$home" ]] || continue
     [[ "$shell" != "/usr/bin/nologin" && "$shell" != "/bin/false" ]] || continue
+    ensure_admin_privileges "$name"
     sync_user_customization "$name" "$home" "$uid" "$gid" "$cursor_theme"
     log "Applied UmaOS customization for user '$name'."
   done < /etc/passwd

@@ -113,8 +113,20 @@ require_file "/usr/share/wallpapers/UmaOS/contents/images/1920x1080.jpg"
 require_file "/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4"
 require_file "/usr/share/wallpapers/UmaOS/metadata.json"
 require_file "/usr/share/wallpapers/UmaBoot/metadata.json"
+require_file "/usr/share/umaos/themes/konsole/goldship.webp"
+require_file "/usr/share/konsole/UmaOS-GoldShip.colorscheme"
+require_file "/usr/share/konsole/UmaOS.profile"
+require_file "/etc/xdg/konsolerc"
+require_file "/etc/skel/.config/konsolerc"
+require_file "/home/arch/.config/konsolerc"
 require_file "/usr/local/bin/umao-apply-theme"
+require_file "/usr/local/bin/umao-finalize-installed-customization"
+require_file "/usr/share/umaos/neofetch.txt"
 require_file "/etc/skel/.config/ksplashrc"
+require_file "/etc/skel/.config/mimeapps.list"
+require_file "/home/arch/.config/mimeapps.list"
+require_file "/etc/calamares/modules/users.conf"
+require_file "/etc/calamares/umaos-defaults/modules/users.conf"
 
 ksplash_theme="$(awk -F= '/^Theme=/{print $2; exit}' "$ROOT/etc/skel/.config/ksplashrc" 2>/dev/null | tr -d '\r' || true)"
 if [[ -n "$ksplash_theme" ]]; then
@@ -129,15 +141,99 @@ else
   fail "Could not parse KSplash theme from /etc/skel/.config/ksplashrc"
 fi
 
+if grep -Eq '^sudoersConfigureWithGroup:[[:space:]]*true$' "$ROOT/etc/calamares/modules/users.conf"; then
+  pass "Calamares users module config enables wheel sudoers policy"
+else
+  fail "Calamares users module has sudoersConfigureWithGroup disabled"
+fi
+
+if grep -Eq '^sudoersConfigureWithGroup:[[:space:]]*true$' "$ROOT/etc/calamares/umaos-defaults/modules/users.conf"; then
+  pass "Calamares synced defaults keep wheel sudoers policy enabled"
+else
+  fail "Calamares synced defaults have sudoersConfigureWithGroup disabled"
+fi
+
+if grep -Eq '^DefaultProfile=UmaOS\.profile$' "$ROOT/etc/xdg/konsolerc" \
+  && grep -Eq '^DefaultProfile=UmaOS\.profile$' "$ROOT/etc/skel/.config/konsolerc" \
+  && grep -Eq '^DefaultProfile=UmaOS\.profile$' "$ROOT/home/arch/.config/konsolerc"; then
+  pass "Konsole default profile is set to UmaOS.profile for system/skel/live user"
+else
+  fail "Konsole default profile is not consistently set to UmaOS.profile"
+fi
+
 require_executable "/usr/local/bin/umao-install"
 require_executable "/usr/local/bin/umao-installer-autostart"
 require_executable "/usr/local/bin/umao-first-login-umamusume"
 require_executable "/usr/local/bin/umao-install-steam-root"
+require_executable "/usr/local/bin/umao-ensure-proton-ge"
+require_executable "/usr/local/bin/neofetch"
+
+if grep -q '/usr/share/umaos/neofetch.txt' "$ROOT/usr/local/bin/neofetch" \
+  && grep -q -- '--source' "$ROOT/usr/local/bin/neofetch"; then
+  pass "neofetch wrapper defaults to UmaOS neofetch.txt ASCII source"
+else
+  fail "neofetch wrapper does not set UmaOS neofetch.txt as default source"
+fi
+
+if grep -q 'chmod 0644 "\$conf"' "$ROOT/usr/local/bin/umao-install-steam-root"; then
+  pass "Steam root helper restores pacman.conf world-readable permissions"
+else
+  fail "Steam root helper does not restore pacman.conf permissions; yay may fail for non-root users"
+fi
+
+if grep -q 'PROTONUP_QT_APP_ID="net.davidotek.pupgui2"' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'flatpak install --system -y' "$ROOT/usr/local/bin/umao-install-steam-root"; then
+  pass "Steam root helper installs ProtonUp-Qt from Flathub"
+else
+  fail "Steam root helper is missing ProtonUp-Qt Flathub installation logic"
+fi
+
+if grep -q 'GE-Proton' "$ROOT/usr/local/bin/umao-ensure-proton-ge" \
+  && grep -q 'flatpak run "\$PROTONUP_QT_APP_ID"' "$ROOT/usr/local/bin/umao-ensure-proton-ge"; then
+  pass "Proton GE helper launches ProtonUp-Qt and validates GE-Proton presence"
+else
+  fail "Proton GE helper is missing ProtonUp-Qt launch or GE-Proton detection logic"
+fi
+
+if grep -q 'lib32-vulkan-icd-loader' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'lib32-mesa' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'lib32-libxrandr' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'lib32-libxinerama' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'lib32-libxcursor' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'lib32-openal' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'lib32-alsa-plugins' "$ROOT/usr/local/bin/umao-install-steam-root" \
+  && grep -q 'lib32-gnutls' "$ROOT/usr/local/bin/umao-install-steam-root"; then
+  pass "Steam root helper includes extended 32-bit Proton runtime dependencies"
+else
+  fail "Steam root helper is missing extended 32-bit Proton runtime dependency install logic"
+fi
 
 check_desktop_exec_target "/etc/skel/.config/autostart/umaos-first-login.desktop"
 check_desktop_exec_target "/etc/skel/.config/autostart/umao-umamusume-first-login.desktop"
 check_desktop_exec_target "/home/arch/.config/autostart/umaos-installer-autostart.desktop"
 check_executable_file "/home/arch/Desktop/Install Uma Musume.sh"
+
+if grep -q '/usr/local/bin/umao-ensure-proton-ge' "$ROOT/etc/skel/Desktop/Install Uma Musume.sh" \
+  && grep -q '/usr/local/bin/umao-ensure-proton-ge' "$ROOT/home/arch/Desktop/Install Uma Musume.sh" \
+  && grep -q 'ensure_proton_ge' "$ROOT/usr/local/bin/umao-first-login-umamusume"; then
+  pass "Umamusume launchers and first-login flow require Proton GE setup"
+else
+  fail "Umamusume flows are missing Proton GE setup integration"
+fi
+
+if grep -Eq '^x-scheme-handler/http=helium\.desktop$' "$ROOT/etc/skel/.config/mimeapps.list" \
+  && grep -Eq '^x-scheme-handler/https=helium\.desktop$' "$ROOT/etc/skel/.config/mimeapps.list"; then
+  pass "Installed-user MIME defaults route web links to Helium"
+else
+  fail "Missing Helium MIME defaults in /etc/skel/.config/mimeapps.list"
+fi
+
+if grep -Eq '^x-scheme-handler/http=helium\.desktop$' "$ROOT/home/arch/.config/mimeapps.list" \
+  && grep -Eq '^x-scheme-handler/https=helium\.desktop$' "$ROOT/home/arch/.config/mimeapps.list"; then
+  pass "Live-user MIME defaults route web links to Helium"
+else
+  fail "Missing Helium MIME defaults in /home/arch/.config/mimeapps.list"
+fi
 
 if [[ -n "$PKG_FILE" && -f "$PKG_FILE" ]]; then
   if grep -Fxq 'plasma6-wallpapers-smart-video-wallpaper-reborn' "$PKG_FILE"; then
@@ -168,6 +264,18 @@ if [[ -n "$PKG_FILE" && -f "$PKG_FILE" ]]; then
     pass "AUR helper package listed in $(basename "$PKG_FILE"): yay"
   else
     fail "Missing yay in $(basename "$PKG_FILE"); UmaOS should ship with a preinstalled AUR helper"
+  fi
+
+  if grep -Fxq 'flatpak' "$PKG_FILE"; then
+    pass "Flatpak runtime listed in $(basename "$PKG_FILE")"
+  else
+    fail "Missing flatpak in $(basename "$PKG_FILE"); ProtonUp-Qt Flathub integration requires Flatpak"
+  fi
+
+  if grep -Fxq 'helium-browser-bin' "$PKG_FILE"; then
+    pass "Default browser package listed in $(basename "$PKG_FILE"): helium-browser-bin"
+  else
+    fail "Missing helium-browser-bin in $(basename "$PKG_FILE"); UmaOS default browser should be Helium"
   fi
 fi
 

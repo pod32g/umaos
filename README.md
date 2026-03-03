@@ -94,15 +94,23 @@ UmaOS prefers official Arch repos.
 
 - Default behavior: fail build if required packages are unavailable in official repos.
 - Optional fallback: set `UMAOS_ALLOW_AUR=1` to build missing packages from AUR into a local repo used by `mkarchiso`.
+- AUR fallback auto-imports `validpgpkeys` from each PKGBUILD before `makepkg` runs.
 - Current AUR-backed requirements:
   - `plasma6-wallpapers-smart-video-wallpaper-reborn` (video wallpaper plugin)
   - `yay` (AUR helper included in live and installed UmaOS)
+  - `helium-browser-bin` (default browser)
 
 Example:
 
 ```bash
 UMAOS_ALLOW_AUR=1 ./scripts/check-prereqs.sh
 UMAOS_ALLOW_AUR=1 ./scripts/build-iso.sh
+```
+
+If key retrieval is blocked by network policy, import manually for the builder user:
+
+```bash
+gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys <KEYID>
 ```
 
 ## Installer flow
@@ -114,8 +122,12 @@ In the live KDE session:
 - Calamares auto-launches once at login.
 - Users can relaunch from `Install UmaOS` desktop icon or app menu entry.
 - Desktop includes `Install Uma Musume.sh` to install the game via Steam (`steam://install/3224770`).
+- Default browser is Helium (`helium-browser-bin`), with MIME handlers preconfigured to `helium.desktop`.
 - On first login of an installed system, UmaOS now attempts to:
-  - install Steam automatically (enabling `multilib` if needed), then
+  - install Steam automatically (enabling `multilib` if needed),
+  - install ProtonUp-Qt from Flathub (`net.davidotek.pupgui2`),
+  - guide Proton GE installation using ProtonUp-Qt (required for Umamusume), then
+  - install Proton runtime graphics dependencies (including 32-bit Vulkan userspace), then
   - open `steam://install/3224770` for Umamusume.
 - Default wallpaper target is video: `/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4`.
 - In virtual machines, video wallpaper is skipped by default (use `umao-apply-theme --video` to force it).
@@ -126,6 +138,7 @@ In the live KDE session:
 - Before launching Calamares, `umao-install` regenerates `unpackfs.conf` from detected live-media paths (`umao-prepare-calamares`) to avoid source-path install failures.
 - Successful `pacman` package transactions print `Umazing!` via an ALPM post-transaction hook.
 - `yay` is preinstalled as the AUR helper (`yay -S <package>`).
+- Use `yay` as your regular user (not root). UmaOS installer config grants sudo via `wheel` by default.
 
 Installer command contract:
 
@@ -140,6 +153,7 @@ umao-audio-doctor       # print audio diagnostics
 sudo umao-audio-doctor --apply-thinkpad-p1-legacy
 umao-debug              # collect a full diagnostics bundle (.tar.gz)
 umao-debug-upload --host <ip> --user <user> [--password <pass>]  # upload bundle
+/usr/local/bin/umao-ensure-proton-ge  # launch ProtonUp-Qt flow and verify GE-Proton exists
 ```
 
 Calamares integration:

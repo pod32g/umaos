@@ -20,6 +20,7 @@ REQUIRED_REPO_PKGS=(
   xorg-xkbcomp
   plasma6-wallpapers-smart-video-wallpaper-reborn
   yay
+  helium-browser-bin
 )
 MISSING_REQUIRED_PKGS=()
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
@@ -60,6 +61,29 @@ require_cmd() {
 package_available_official() {
   local pkg="$1"
   pacman -Si "$pkg" >/dev/null 2>&1
+}
+
+extract_valid_pgp_keys() {
+  local pkgbuild="$1"
+  [[ -f "$pkgbuild" ]] || return 0
+
+  awk '
+    BEGIN { in_keys=0 }
+    {
+      if ($0 ~ /^[[:space:]]*validpgpkeys[[:space:]]*=\(/) {
+        in_keys=1
+      }
+      if (in_keys) {
+        print
+      }
+      if (in_keys && $0 ~ /\)/) {
+        in_keys=0
+      }
+    }
+  ' "$pkgbuild" \
+    | grep -Eo '[A-Fa-f0-9]{8,40}' \
+    | tr '[:lower:]' '[:upper:]' \
+    | sort -u || true
 }
 
 find_missing_required_packages() {
@@ -416,6 +440,15 @@ build_missing_required_from_aur() {
   local copied_count
   local has_requested_pkg
   local cached_pkg
+  local key
+  local imported
+  local ks
+  local -a pgpkeys=()
+  local -a keyservers=(
+    "hkps://keyserver.ubuntu.com"
+    "hkps://keys.openpgp.org"
+    "hkps://pgp.surf.nl"
+  )
   local built_pkg_files=()
 
   require_cmd git
@@ -449,10 +482,46 @@ build_missing_required_from_aur() {
     pkg_src="$AUR_SRC_DIR/$pkg"
 
     if [[ "$EUID" -eq 0 ]]; then
-      sudo -u "$builder_user" bash -lc "rm -rf '$pkg_src' && git clone --depth=1 'https://aur.archlinux.org/$pkg.git' '$pkg_src'"
+      sudo -u "$builder_user" -H bash -lc "rm -rf '$pkg_src' && git clone --depth=1 'https://aur.archlinux.org/$pkg.git' '$pkg_src'"
     else
       rm -rf "$pkg_src"
       git clone --depth=1 "https://aur.archlinux.org/$pkg.git" "$pkg_src"
+    fi
+
+    # Import PKGBUILD signing keys into the builder user's keyring so
+    # makepkg signature verification succeeds on clean environments.
+    if [[ -f "$pkg_src/PKGBUILD" ]]; then
+      mapfile -t pgpkeys < <(extract_valid_pgp_keys "$pkg_src/PKGBUILD")
+      for key in "${pgpkeys[@]}"; do
+        if [[ "$EUID" -eq 0 ]]; then
+          if sudo -u "$builder_user" -H gpg --list-keys "$key" >/dev/null 2>&1; then
+            continue
+          fi
+        else
+          if gpg --list-keys "$key" >/dev/null 2>&1; then
+            continue
+          fi
+        fi
+
+        imported=0
+        for ks in "${keyservers[@]}"; do
+          if [[ "$EUID" -eq 0 ]]; then
+            if sudo -u "$builder_user" -H gpg --keyserver "$ks" --recv-keys "$key" >/dev/null 2>&1; then
+              imported=1
+              break
+            fi
+          else
+            if gpg --keyserver "$ks" --recv-keys "$key" >/dev/null 2>&1; then
+              imported=1
+              break
+            fi
+          fi
+        done
+
+        if ((imported == 0)); then
+          die "Failed to import required PGP key $key for $pkg. Import manually and retry."
+        fi
+      done
     fi
 
     if [[ "$pkg" == "calamares" && -f "$pkg_src/PKGBUILD" ]]; then
@@ -466,7 +535,7 @@ build_missing_required_from_aur() {
     fi
 
     if [[ "$EUID" -eq 0 ]]; then
-      sudo -u "$builder_user" bash -lc "cd '$pkg_src' && makepkg -s --needed --noconfirm"
+      sudo -u "$builder_user" -H bash -lc "cd '$pkg_src' && makepkg -s --needed --noconfirm"
     else
       (cd "$pkg_src" && makepkg -s --needed --noconfirm)
     fi

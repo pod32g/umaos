@@ -9,7 +9,7 @@
     "sddm",
     "konsole",
     "dolphin",
-    "firefox"
+    "helium-browser-bin"
   ],
   "services": [
     "NetworkManager",

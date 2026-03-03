@@ -8,12 +8,8 @@ log() {
   printf '[UmaOS Umamusume] %s\n' "$*"
 }
 
-install_steam_if_missing() {
-  if command -v steam >/dev/null 2>&1; then
-    return 0
-  fi
-
-  log "Steam is not installed. Installing Steam first..."
+ensure_steam_runtime() {
+  log "Ensuring Steam and Proton runtime dependencies..."
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     /usr/local/bin/umao-install-steam-root
     return 0
@@ -31,6 +27,15 @@ install_steam_if_missing() {
   fi
 
   log "Cannot install Steam automatically (sudo not available)."
+  exit 1
+}
+
+ensure_proton_ge() {
+  log "Ensuring Proton GE is installed via ProtonUp-Qt..."
+  if /usr/local/bin/umao-ensure-proton-ge; then
+    return 0
+  fi
+  log "Proton GE setup is incomplete. Run this launcher again after installing GE-Proton."
   exit 1
 }
 
@@ -53,7 +58,8 @@ open_steam_install() {
 }
 
 log "Preparing ${GAME_NAME} installer..."
-install_steam_if_missing
+ensure_steam_runtime
+ensure_proton_ge
 if open_steam_install; then
   log "Steam install page launched for ${GAME_NAME}."
   log "Sign in to Steam and complete the installation."

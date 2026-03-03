@@ -22,12 +22,8 @@ if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
   exit 0
 fi
 
-install_steam_if_missing() {
-  if command -v steam >/dev/null 2>&1; then
-    return 0
-  fi
-
-  log "Steam not found. Attempting installation..."
+ensure_steam_runtime() {
+  log "Ensuring Steam and Proton runtime dependencies..."
 
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     /usr/local/bin/umao-install-steam-root >>"$LOG_FILE" 2>&1
@@ -51,6 +47,15 @@ install_steam_if_missing() {
   return 1
 }
 
+ensure_proton_ge() {
+  log "Ensuring Proton GE is installed via ProtonUp-Qt..."
+  if /usr/local/bin/umao-ensure-proton-ge >>"$LOG_FILE" 2>&1; then
+    return 0
+  fi
+  log "Proton GE setup is incomplete."
+  return 1
+}
+
 launch_game_install() {
   local url="steam://install/${APP_ID}"
 
@@ -70,9 +75,9 @@ launch_game_install() {
 
 log "Running first-login bootstrap for ${GAME_NAME}."
 
-if install_steam_if_missing && launch_game_install; then
+if ensure_steam_runtime && ensure_proton_ge && launch_game_install; then
   touch "$MARKER_FILE"
-  log "Steam ensured and ${GAME_NAME} install URL launched."
+  log "Steam, Proton GE, and ${GAME_NAME} install URL are ready."
   echo "Umazing!"
   exit 0
 fi

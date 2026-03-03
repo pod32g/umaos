@@ -5,15 +5,13 @@ log() {
   printf '[UmaOS Steam Root] %s\n' "$*"
 }
 
+PROTONUP_QT_APP_ID="net.davidotek.pupgui2"
+FLATHUB_REMOTE_NAME="flathub"
+FLATHUB_REMOTE_URL="https://flathub.org/repo/flathub.flatpakrepo"
+
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
   log "This helper must run as root."
   exit 1
-fi
-
-if command -v steam >/dev/null 2>&1; then
-  log "Steam is already installed."
-  echo "Umazing!"
-  exit 0
 fi
 
 enable_multilib() {
@@ -68,15 +66,102 @@ enable_multilib() {
 
   cp -f "$conf" "$bak"
   mv "$tmp" "$conf"
-  chmod 644 "$conf"
+  # pacman.conf must remain world-readable for tools like yay running as non-root.
+  chown root:root "$conf"
+  chmod 0644 "$conf"
   log "Backed up original pacman.conf to $bak"
+}
+
+detect_gpu_vendor() {
+  if ! command -v lspci >/dev/null 2>&1; then
+    echo "unknown"
+    return 0
+  fi
+
+  local gpu
+  gpu="$(lspci -nnk 2>/dev/null | grep -Ei 'VGA compatible controller|3D controller|Display controller' || true)"
+
+  if grep -Eqi 'intel' <<<"$gpu"; then
+    echo "intel"
+    return 0
+  fi
+  if grep -Eqi 'amd|ati' <<<"$gpu"; then
+    echo "amd"
+    return 0
+  fi
+  if grep -Eqi 'nvidia' <<<"$gpu"; then
+    echo "nvidia"
+    return 0
+  fi
+  echo "unknown"
+}
+
+build_runtime_pkg_plan() {
+  local vendor="$1"
+  local -a pkgs=(
+    steam
+    flatpak
+    mesa
+    lib32-mesa
+    vulkan-icd-loader
+    lib32-vulkan-icd-loader
+    lib32-libxrandr
+    lib32-libxinerama
+    lib32-libxcursor
+    lib32-openal
+    lib32-alsa-plugins
+    lib32-gnutls
+    lib32-libpulse
+  )
+
+  case "$vendor" in
+    intel)
+      pkgs+=(vulkan-intel lib32-vulkan-intel intel-media-driver)
+      ;;
+    amd)
+      pkgs+=(vulkan-radeon lib32-vulkan-radeon libva-mesa-driver)
+      ;;
+    nvidia)
+      # Keep NVIDIA conservative to avoid forcing a mismatched driver stack.
+      if pacman -Qq nvidia-utils >/dev/null 2>&1; then
+        pkgs+=(nvidia-utils lib32-nvidia-utils)
+      else
+        log "NVIDIA GPU detected; nvidia-utils not installed yet. Skipping NVIDIA Vulkan userspace auto-install."
+      fi
+      ;;
+  esac
+
+  printf '%s\n' "${pkgs[@]}"
+}
+
+ensure_protonup_qt_flatpak() {
+  if ! command -v flatpak >/dev/null 2>&1; then
+    log "Flatpak command not found after package installation."
+    return 1
+  fi
+
+  log "Ensuring Flathub remote is configured for system installs..."
+  flatpak remote-add --if-not-exists --system "$FLATHUB_REMOTE_NAME" "$FLATHUB_REMOTE_URL"
+
+  if flatpak info --system "$PROTONUP_QT_APP_ID" >/dev/null 2>&1; then
+    log "ProtonUp-Qt Flatpak already installed."
+    return 0
+  fi
+
+  log "Installing ProtonUp-Qt from Flathub..."
+  flatpak install --system -y "$FLATHUB_REMOTE_NAME" "$PROTONUP_QT_APP_ID"
 }
 
 log "Ensuring multilib is enabled..."
 enable_multilib
 
-log "Upgrading system and installing Steam..."
-pacman -Syu --noconfirm --needed steam
+gpu_vendor="$(detect_gpu_vendor)"
+mapfile -t runtime_pkgs < <(build_runtime_pkg_plan "$gpu_vendor")
 
-log "Steam installation complete."
+log "Detected GPU vendor: $gpu_vendor"
+log "Refreshing package database and installing Steam + Proton runtime stack..."
+pacman -Sy --noconfirm --needed "${runtime_pkgs[@]}"
+ensure_protonup_qt_flatpak
+
+log "Steam/runtime installation complete."
 echo "Umazing!"
