@@ -132,7 +132,7 @@ check_any_contains "Cursor default alias strategy present" 'DEFAULT_CURSOR_THEME
 require_file "$AIROOTFS/usr/share/wallpapers/UmaOS/metadata.desktop"
 require_file "$AIROOTFS/usr/share/wallpapers/UmaOS/metadata.json"
 require_file "$AIROOTFS/usr/share/wallpapers/UmaBoot/metadata.json"
-require_file "$AIROOTFS/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg"
+require_file "$AIROOTFS/usr/share/wallpapers/UmaOS/contents/images/1920x1080.jpg"
 require_file "$AIROOTFS/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4"
 require_file "$AIROOTFS/usr/share/umaos/themes/konsole/goldship.webp"
 check_contains "$AIROOTFS/etc/skel/.config/autostart/umaos-first-login.desktop" 'Exec=/usr/local/bin/umao-apply-theme --once' "Installed user autostart reapplies theme once"
@@ -189,6 +189,18 @@ check_contains "$AIROOTFS/etc/skel/Desktop/Install Uma Musume.sh" 'umao-ensure-p
 check_contains "$AIROOTFS/usr/local/bin/umao-first-login-umamusume" 'ensure_proton_ge' "First-login game bootstrap enforces Proton GE setup"
 check_contains "$finalizer" 'Install Uma Musume\.sh' "Installed user desktop gets game installer launcher"
 check_contains "$AIROOTFS/etc/skel/.config/autostart/umao-umamusume-first-login.desktop" 'umao-first-login-umamusume' "Installed user autostart includes Steam/game bootstrap"
+
+# KDE Panel pre-seed parity
+require_file "$AIROOTFS/usr/share/icons/hicolor/scalable/apps/umaos-launcher.svg"
+check_contains "$AIROOTFS/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc" 'icon=umaos-launcher' "Installed user Kickoff launcher uses umaos-launcher icon"
+check_contains "$AIROOTFS/home/arch/.config/plasma-org.kde.plasma.desktop-appletsrc" 'icon=umaos-launcher' "Live user Kickoff launcher uses umaos-launcher icon"
+check_contains "$AIROOTFS/etc/skel/.config/plasma-org.kde.plasma.desktop-appletsrc" 'panelOpacity=2' "Installed user panel opacity set to translucent"
+check_contains "$AIROOTFS/home/arch/.config/plasma-org.kde.plasma.desktop-appletsrc" 'panelOpacity=2' "Live user panel opacity set to translucent"
+check_contains "$AIROOTFS/etc/skel/.config/plasmashellrc" 'floating=1' "Installed user panel set to floating mode"
+check_contains "$AIROOTFS/home/arch/.config/plasmashellrc" 'floating=1' "Live user panel set to floating mode"
+check_contains "$finalizer" 'plasma-org\.kde\.plasma\.desktop-appletsrc' "Installed finalizer syncs panel config to new users"
+check_contains "$finalizer" 'plasmashellrc' "Installed finalizer syncs plasmashell config to new users"
+check_contains "$AIROOTFS/root/customize_airootfs.sh" 'chown -R arch:arch /home/arch' "Live user home ownership is fixed in customize_airootfs"
 
 # Live-only behavior isolation checks
 check_contains "$welcome_sh" '/run/archiso' "Welcome message distinguishes live vs installed sessions"
