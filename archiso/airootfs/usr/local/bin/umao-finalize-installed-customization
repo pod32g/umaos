@@ -109,6 +109,7 @@ EOF
 Theme=UmaOS-Papirus
 
 [KDE]
+LookAndFeelPackage=com.umaos.desktop
 widgetStyle=Breeze
 EOF
   else
@@ -120,6 +121,7 @@ ColorScheme=UmaSkyPink
 Theme=UmaOS-Papirus
 
 [KDE]
+LookAndFeelPackage=com.umaos.desktop
 widgetStyle=Breeze
 EOF
   fi

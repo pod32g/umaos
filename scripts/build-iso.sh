@@ -394,6 +394,84 @@ Rectangle {
 }
 EOF
 
+  # ── Layout.js: defines the default panel for first-login ──
+  local layouts_dir="$theme_root/contents/layouts"
+  mkdir -p "$layouts_dir"
+
+  cat > "$layouts_dir/org.kde.plasma.desktop-layout.js" <<'LAYOUTEOF'
+// UmaOS default panel layout — translucent floating bottom panel
+var panel = new Panel
+panel.location = "bottom"
+panel.height = 2 * Math.ceil(gridUnit * 2.5 / 2)
+
+// Restrict panel width on ultra-wide monitors
+var maximumAspectRatio = 21/9;
+if (panel.formFactor === "horizontal") {
+    var geo = screenGeometry(panel.screen);
+    var maximumWidth = Math.ceil(geo.height * maximumAspectRatio);
+    if (geo.width > maximumWidth) {
+        panel.alignment = "center";
+        panel.minimumLength = maximumWidth;
+        panel.maximumLength = maximumWidth;
+    }
+}
+
+// Kickoff launcher with custom UmaOS icon
+var kickoff = panel.addWidget("org.kde.plasma.kickoff")
+kickoff.currentConfigGroup = ["Configuration", "General"]
+kickoff.writeConfig("icon", "umaos-launcher")
+kickoff.writeConfig("favoritesPortedToKAstats", true)
+
+// Pinned application launchers
+var tasks = panel.addWidget("org.kde.plasma.icontasks")
+tasks.currentConfigGroup = ["Configuration", "General"]
+tasks.writeConfig("launchers", [
+    "applications:systemsettings.desktop",
+    "applications:org.kde.dolphin.desktop",
+    "applications:org.kde.konsole.desktop",
+    "applications:helium.desktop"
+].join(","))
+
+// Separator before system tray
+panel.addWidget("org.kde.plasma.marginsseparator")
+
+// System tray
+panel.addWidget("org.kde.plasma.systemtray")
+
+// Digital clock with date
+var clock = panel.addWidget("org.kde.plasma.digitalclock")
+clock.currentConfigGroup = ["Configuration", "Appearance"]
+clock.writeConfig("showDate", true)
+clock.writeConfig("dateFormat", "shortDate")
+
+// Panel appearance: translucent and floating
+// panelOpacity: 0=adaptive, 1=opaque, 2=translucent
+panel.currentConfigGroup = ["General"]
+panel.writeConfig("panelOpacity", 2)
+LAYOUTEOF
+
+  # ── Defaults: maps config keys Plasma reads when applying this global theme ──
+  cat > "$theme_root/contents/defaults" <<'DEFAULTSEOF'
+[kdeglobals][General]
+ColorScheme=UmaSkyPink
+
+[kdeglobals][Icons]
+Theme=UmaOS-Papirus
+
+[kdeglobals][KDE]
+widgetStyle=Breeze
+LookAndFeelPackage=com.umaos.desktop
+
+[KSplash]
+Theme=com.umaos.desktop
+
+[plasmarc][Theme]
+name=default
+
+[Wallpaper]
+Image=UmaOS
+DEFAULTSEOF
+
   log "Installed custom Plasma KSplash theme using $URA_LOGO_SRC."
 }
 

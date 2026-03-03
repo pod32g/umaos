@@ -243,6 +243,7 @@ if [[ -n "$kwriteconfig_cmd" ]]; then
   "$kwriteconfig_cmd" --file kdeglobals --group General --key ColorScheme UmaSkyPink
   "$kwriteconfig_cmd" --file kdeglobals --group Icons --key Theme UmaOS-Papirus
   "$kwriteconfig_cmd" --file kdeglobals --group KDE --key widgetStyle Breeze
+  "$kwriteconfig_cmd" --file kdeglobals --group KDE --key LookAndFeelPackage com.umaos.desktop
   "$kwriteconfig_cmd" --file ksplashrc --group KSplash --key Theme com.umaos.desktop
   "$kwriteconfig_cmd" --file kcminputrc --group Mouse --key cursorTheme "$cursor_theme"
   "$kwriteconfig_cmd" --file kcminputrc --group Mouse --key cursorThemeName "$cursor_theme"
@@ -251,6 +252,85 @@ if [[ -n "$kwriteconfig_cmd" ]]; then
 [Icon Theme]
 Inherits=${cursor_theme}
 EOF
+fi
+
+# ── Panel customization: floating, translucent, and UmaOS launcher icon ──
+# Plasma's layout.js sets widget config but cannot set floating (a PanelView
+# property in plasmashellrc) or reliably set panelOpacity.  Patch them here
+# after Plasma has generated its initial config.
+apply_panel_properties() {
+  local appletsrc="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+  local shellrc="$HOME/.config/plasmashellrc"
+  [[ -f "$appletsrc" ]] || return 0
+
+  # Find the panel containment ID (the one with plugin=org.kde.panel)
+  local panel_id=""
+  local in_containment=""
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^\[Containments\]\[([0-9]+)\]$ ]]; then
+      in_containment="${BASH_REMATCH[1]}"
+    elif [[ -n "$in_containment" && "$line" == "plugin=org.kde.panel" ]]; then
+      panel_id="$in_containment"
+      break
+    elif [[ "$line" =~ ^\[ ]]; then
+      in_containment=""
+    fi
+  done < "$appletsrc"
+
+  [[ -n "$panel_id" ]] || return 0
+
+  # Set panelOpacity=2 (translucent) in the containment's [General] group
+  if ! grep -q "^\[Containments\]\[${panel_id}\]\[General\]" "$appletsrc" 2>/dev/null; then
+    printf '\n[Containments][%s][General]\npanelOpacity=2\n' "$panel_id" >> "$appletsrc"
+  elif ! grep -q '^panelOpacity=' <(sed -n "/^\[Containments\]\[${panel_id}\]\[General\]/,/^\[/p" "$appletsrc"); then
+    sed -i "/^\[Containments\]\[${panel_id}\]\[General\]/a panelOpacity=2" "$appletsrc"
+  fi
+
+  # Set floating=1 in plasmashellrc [PlasmaViews][Panel <id>]
+  local panel_section="PlasmaViews][Panel ${panel_id}"
+  if [[ -f "$shellrc" ]]; then
+    if ! grep -q "^\[${panel_section}\]" "$shellrc" 2>/dev/null; then
+      printf '\n[%s]\nfloating=1\nThickness=44\n' "$panel_section" >> "$shellrc"
+    elif ! grep -q '^floating=' <(sed -n "/^\[${panel_section}\]/,/^\[/p" "$shellrc"); then
+      sed -i "/^\[${panel_section}\]/a floating=1" "$shellrc"
+    fi
+  else
+    printf '[%s]\nfloating=1\nThickness=44\n' "$panel_section" > "$shellrc"
+  fi
+
+  # Ensure the Kickoff applet uses our custom icon
+  local kickoff_section=""
+  local in_section=""
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^\[Containments\]\[${panel_id}\]\[Applets\]\[([0-9]+)\]$ ]]; then
+      in_section="${BASH_REMATCH[0]}"
+    elif [[ -n "$in_section" && "$line" == "plugin=org.kde.plasma.kickoff" ]]; then
+      kickoff_section="$in_section"
+      break
+    elif [[ "$line" =~ ^\[ ]]; then
+      in_section=""
+    fi
+  done < "$appletsrc"
+
+  if [[ -n "$kickoff_section" ]]; then
+    local cfg_section="${kickoff_section}[Configuration][General]"
+    # Remove brackets for sed matching
+    local cfg_escaped="${cfg_section//\[/\\[}"
+    cfg_escaped="${cfg_escaped//\]/\\]}"
+    if grep -q "^${cfg_escaped}$" "$appletsrc" 2>/dev/null; then
+      if grep -q '^icon=' <(sed -n "/^${cfg_escaped}$/,/^\[/p" "$appletsrc"); then
+        sed -i "/^${cfg_escaped}$/,/^\[/ s/^icon=.*/icon=umaos-launcher/" "$appletsrc"
+      else
+        sed -i "/^${cfg_escaped}$/a icon=umaos-launcher" "$appletsrc"
+      fi
+    else
+      printf '\n%s\nicon=umaos-launcher\n' "$cfg_section" >> "$appletsrc"
+    fi
+  fi
+}
+
+if ((has_graphical_session == 1)); then
+  apply_panel_properties
 fi
 
 if ((has_graphical_session == 1)); then
