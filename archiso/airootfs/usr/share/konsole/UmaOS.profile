@@ -1,5 +1,5 @@
 [Appearance]
-ColorScheme=UmaOS
+ColorScheme=UmaOS-GoldShip
 BackgroundImage=/usr/share/umaos/goldship.png
 BackgroundImageOpacity=0.3
 

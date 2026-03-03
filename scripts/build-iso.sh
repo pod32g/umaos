@@ -429,7 +429,7 @@ tasks.writeConfig("launchers", [
     "applications:systemsettings.desktop",
     "applications:org.kde.dolphin.desktop",
     "applications:org.kde.konsole.desktop",
-    "applications:helium.desktop"
+    "applications:helium-browser.desktop"
 ].join(","))
 
 // Separator before system tray
