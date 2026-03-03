@@ -109,7 +109,7 @@ if [[ -n "$configured_cursor" ]]; then
   fi
 fi
 
-require_file "/usr/share/wallpapers/UmaOS/contents/images/1920x1080.svg"
+require_file "/usr/share/wallpapers/UmaOS/contents/images/1920x1080.jpg"
 require_file "/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4"
 require_file "/usr/share/wallpapers/UmaOS/metadata.json"
 require_file "/usr/share/wallpapers/UmaBoot/metadata.json"
