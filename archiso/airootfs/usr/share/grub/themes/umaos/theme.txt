@@ -1,5 +1,6 @@
 # UmaOS GRUB Theme
 # Dark emerald background with green-highlighted boot menu
+# Designed for 1920×1080; scales gracefully to other resolutions.
 
 # ── Global ──
 desktop-image: "background.png"
@@ -40,13 +41,13 @@ terminal-font: "Unifont Regular 16"
 # ── Boot Menu ──
 + boot_menu {
     left = 28%
-    top = 25%
+    top = 22%
     width = 44%
-    height = 42%
+    height = 38%
     item_font = "UmaOS Regular 16"
     item_color = "#8ab892"
-    item_height = 36
-    item_padding = 8
+    item_height = 42
+    item_padding = 12
     item_spacing = 4
     selected_item_font = "UmaOS Bold 16"
     selected_item_color = "#ffffff"
@@ -60,6 +61,14 @@ terminal-font: "Unifont Regular 16"
     menu_pixmap_style = "menu_*.png"
 }
 
+# ── Accent Line ──
++ image {
+    file = "accent_line.png"
+    top = 63%
+    left = 38%
+    width = 24%
+}
+
 # ── Countdown notification ──
 + label {
     id = "__timeout__"
@@ -67,17 +76,9 @@ terminal-font: "Unifont Regular 16"
     font = "UmaOS Regular 14"
     color = "#5a8a62"
     align = "center"
-    top = 72%
+    top = 66%
     left = 0
     width = 100%
-}
-
-# ── Accent Line ──
-+ image {
-    file = "accent_line.png"
-    top = 70%
-    left = 38%
-    width = 24%
 }
 
 # ── Keyboard Shortcuts Footer ──

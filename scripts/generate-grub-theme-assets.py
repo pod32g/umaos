@@ -2,8 +2,10 @@
 """Generate GRUB theme PNG assets for UmaOS.
 
 Creates:
-  background.png  — 640x480 dark emerald gradient with subtle glow
-  select_c.png    — 1x32 green bar (center slice for selected-item 9-patch)
+  background.png  — 1920x1080 dark emerald gradient with glows + vignette
+  accent_line.png — green-to-pink gradient accent line
+  menu_*.png      — 9-patch set for menu panel (24px rounded corners)
+  select_*.png    — 9-patch set for selected item (12px rounded corners)
 
 Uses only the Python standard library (struct + zlib for minimal PNG writing).
 """
@@ -16,7 +18,7 @@ import zlib
 
 
 def write_png(path, width, height, pixels):
-    """Write an RGB PNG from a flat list of (r, g, b) tuples per row."""
+    """Write an RGB PNG from a flat list of (r, g, b) tuples."""
     raw = bytearray()
     idx = 0
     for _y in range(height):
@@ -34,14 +36,13 @@ def write_png(path, width, height, pixels):
 
     with open(path, "wb") as f:
         f.write(b"\x89PNG\r\n\x1a\n")
-        # IHDR: width, height, bit_depth=8, color_type=2 (RGB)
         f.write(chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)))
         f.write(chunk(b"IDAT", compressed))
         f.write(chunk(b"IEND", b""))
 
 
 def write_rgba_png(path, width, height, pixels):
-    """Write an RGBA PNG from a flat list of (r, g, b, a) tuples per row."""
+    """Write an RGBA PNG from a flat list of (r, g, b, a) tuples."""
     raw = bytearray()
     idx = 0
     for _y in range(height):
@@ -59,7 +60,6 @@ def write_rgba_png(path, width, height, pixels):
 
     with open(path, "wb") as f:
         f.write(b"\x89PNG\r\n\x1a\n")
-        # IHDR: width, height, bit_depth=8, color_type=6 (RGBA)
         f.write(chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)))
         f.write(chunk(b"IDAT", compressed))
         f.write(chunk(b"IEND", b""))
@@ -74,8 +74,12 @@ def hex_to_rgb(h):
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
 
-def generate_background(path, width=640, height=480):
-    """Dark emerald gradient with subtle green and pink glows."""
+def generate_background(path, width=1920, height=1080):
+    """1920x1080 dark emerald gradient with green and pink glows.
+
+    Rendered at full HD so GRUB doesn't need to scale it.  This avoids
+    blurring and keeps the glow effects crisp.
+    """
     top = hex_to_rgb("#0e1f14")
     bottom = hex_to_rgb("#12301a")
     green_glow = hex_to_rgb("#42a54b")
@@ -123,28 +127,8 @@ def generate_background(path, width=640, height=480):
     print(f"  Generated {path} ({width}x{height})")
 
 
-def generate_select_center(path, width=1, height=32):
-    """Green semi-transparent bar for selected boot menu item."""
-    pixels = []
-    for y in range(height):
-        for x in range(width):
-            # Slight vertical gradient for depth
-            ny = y / max(height - 1, 1)
-            base_a = 160
-            # Subtle lighter top edge
-            if ny < 0.1:
-                a = base_a + 30
-            elif ny > 0.9:
-                a = base_a - 20
-            else:
-                a = base_a
-            pixels.append((66, 165, 75, min(255, a)))  # #42a54b
-    write_rgba_png(path, width, height, pixels)
-    print(f"  Generated {path} ({width}x{height})")
-
-
-def generate_accent_line(path, width=200, height=3):
-    """Green-to-pink gradient accent line."""
+def generate_accent_line(path, width=460, height=3):
+    """Green-to-pink gradient accent line (wider for 1080p)."""
     green = hex_to_rgb("#42a54b")
     pink = hex_to_rgb("#ff91c0")
     pixels = []
@@ -155,36 +139,35 @@ def generate_accent_line(path, width=200, height=3):
             g = lerp(green[1], pink[1], t)
             b = lerp(green[2], pink[2], t)
             # Fade edges to transparent
-            edge = min(x, width - 1 - x) / min(20, width // 2)
+            edge = min(x, width - 1 - x) / min(30, width // 2)
             a = int(min(1.0, edge) * 200)
             pixels.append((r, g, b, a))
     write_rgba_png(path, width, height, pixels)
     print(f"  Generated {path} ({width}x{height})")
 
 
-def generate_9patch(prefix, radius=12, color=(14, 31, 20), alpha=120, border_color=None, border_alpha=40):
-    """Generate a full 9-patch image set for GRUB theme rounded rectangles.
+def generate_9patch(prefix, radius, color, alpha,
+                    border_color=None, border_alpha=40):
+    """Generate a full 9-patch image set for GRUB rounded rectangles.
 
-    Creates: {prefix}_nw.png, _n.png, _ne.png, _w.png, _c.png, _e.png,
-             _sw.png, _s.png, _se.png
+    Creates: {prefix}_{nw,n,ne,w,c,e,sw,s,se}.png
 
-    The corner images are {radius}x{radius} with a quarter-circle mask.
-    Edge images are 1px strips.  Center is 1x1 solid fill.
-    An optional 1px border is drawn along the outer edge for subtle definition.
+    Corner tiles are radius×radius with a quarter-circle alpha mask.
+    Edge tiles are 2px strips (wider than 1px for better GRUB compat).
+    Center is a 2×2 solid fill.
     """
     r, g, b = color
-    br, bg_, bb = border_color if border_color else (66, 165, 75)  # #42a54b
+    br, bg_, bb = border_color if border_color else (66, 165, 75)
 
     def corner_pixel(cx, cy):
-        """Return RGBA for a pixel at (cx, cy) within a radius×radius corner tile.
-        Origin is at the actual corner of the rounded rect."""
+        """RGBA for a pixel at (cx, cy) within a corner tile."""
         dist = math.sqrt(cx * cx + cy * cy)
         if dist > radius:
             return (0, 0, 0, 0)
-        # Subtle 1px border glow at the outer edge
+        # Anti-aliased edge (1px soft border)
         edge = radius - dist
-        if edge < 1.2:
-            t = max(0.0, edge / 1.2)
+        if edge < 1.5:
+            t = max(0.0, edge / 1.5)
             a = int(border_alpha + (alpha - border_alpha) * t)
             cr = int(br + (r - br) * t)
             cg = int(bg_ + (g - bg_) * t)
@@ -221,33 +204,46 @@ def generate_9patch(prefix, radius=12, color=(14, 31, 20), alpha=120, border_col
             pixels.append(corner_pixel(x, y))
     write_rgba_png(prefix + "_se.png", radius, radius, pixels)
 
-    # ── Edges ──
-    # North (top): 1px tall, with border on top edge
-    pixels = [(br, bg_, bb, border_alpha)]  # top border
-    write_rgba_png(prefix + "_n.png", 1, 1, pixels)
+    # ── Edges (2px wide/tall for better GRUB compatibility) ──
+    # North: 2px tall strip (border top row + fill bottom row)
+    pixels = [
+        (br, bg_, bb, border_alpha), (br, bg_, bb, border_alpha),
+        (r, g, b, alpha), (r, g, b, alpha),
+    ]
+    write_rgba_png(prefix + "_n.png", 2, 2, pixels)
 
-    # South (bottom): 1px tall, with border on bottom edge
-    pixels = [(br, bg_, bb, border_alpha)]
-    write_rgba_png(prefix + "_s.png", 1, 1, pixels)
+    # South: 2px tall strip (fill top row + border bottom row)
+    pixels = [
+        (r, g, b, alpha), (r, g, b, alpha),
+        (br, bg_, bb, border_alpha), (br, bg_, bb, border_alpha),
+    ]
+    write_rgba_png(prefix + "_s.png", 2, 2, pixels)
 
-    # West (left): 1px wide, with border on left edge
-    pixels = [(br, bg_, bb, border_alpha)]
-    write_rgba_png(prefix + "_w.png", 1, 1, pixels)
+    # West: 2px wide strip (border left col + fill right col)
+    pixels = [
+        (br, bg_, bb, border_alpha), (r, g, b, alpha),
+        (br, bg_, bb, border_alpha), (r, g, b, alpha),
+    ]
+    write_rgba_png(prefix + "_w.png", 2, 2, pixels)
 
-    # East (right): 1px wide, with border on right edge
-    pixels = [(br, bg_, bb, border_alpha)]
-    write_rgba_png(prefix + "_e.png", 1, 1, pixels)
+    # East: 2px wide strip (fill left col + border right col)
+    pixels = [
+        (r, g, b, alpha), (br, bg_, bb, border_alpha),
+        (r, g, b, alpha), (br, bg_, bb, border_alpha),
+    ]
+    write_rgba_png(prefix + "_e.png", 2, 2, pixels)
 
-    # ── Center ──
-    pixels = [(r, g, b, alpha)]
-    write_rgba_png(prefix + "_c.png", 1, 1, pixels)
+    # ── Center (2×2 solid fill) ──
+    pixels = [(r, g, b, alpha)] * 4
+    write_rgba_png(prefix + "_c.png", 2, 2, pixels)
 
-    print(f"  Generated 9-patch set: {os.path.basename(prefix)}_*.png ({radius}px radius)")
+    print(f"  Generated 9-patch set: {os.path.basename(prefix)}_*.png "
+          f"({radius}px radius)")
 
 
 def generate_logo(path, size=64):
-    """Green rounded square with a white 'U' letterform for the GRUB theme header."""
-    # Rounded rectangle background
+    """Fallback green rounded square with white 'U'.  Only used when no
+    pre-made logo.png exists (the real URA horse logo takes priority)."""
     bg = hex_to_rgb("#42a54b")
     bg_dark = hex_to_rgb("#2e8838")
     radius = size // 6
@@ -256,7 +252,6 @@ def generate_logo(path, size=64):
     for y in range(size):
         ny = y / max(size - 1, 1)
         for x in range(size):
-            # Rounded rect mask
             dx = max(0, max(radius - x, x - (size - 1 - radius)))
             dy = max(0, max(radius - y, y - (size - 1 - radius)))
             corner_dist = math.sqrt(dx * dx + dy * dy)
@@ -264,40 +259,31 @@ def generate_logo(path, size=64):
                 pixels.append((0, 0, 0, 0))
                 continue
 
-            # Green gradient background
             r = lerp(bg[0], bg_dark[0], ny)
             g = lerp(bg[1], bg_dark[1], ny)
             b = lerp(bg[2], bg_dark[2], ny)
 
-            # Draw white "U" letterform
             cx, cy = size / 2, size / 2
-            # U body: two vertical strokes + curved bottom
             u_left = size * 0.30
             u_right = size * 0.70
             u_top = size * 0.22
-            u_bottom = size * 0.72
             stroke_w = size * 0.13
             u_mid_y = size * 0.55
 
             in_u = False
-            # Left stroke
             if u_left - stroke_w / 2 <= x <= u_left + stroke_w / 2 and u_top <= y <= u_mid_y:
                 in_u = True
-            # Right stroke
             if u_right - stroke_w / 2 <= x <= u_right + stroke_w / 2 and u_top <= y <= u_mid_y:
                 in_u = True
-            # Bottom curve (semicircle)
             if y >= u_mid_y:
                 curve_cx = size / 2
-                curve_cy = u_mid_y
                 curve_r_outer = (u_right - u_left) / 2 + stroke_w / 2
                 curve_r_inner = (u_right - u_left) / 2 - stroke_w / 2
-                d = math.sqrt((x - curve_cx) ** 2 + (y - curve_cy) ** 2)
-                if curve_r_inner <= d <= curve_r_outer and y >= u_mid_y:
+                d = math.sqrt((x - curve_cx) ** 2 + (y - u_mid_y) ** 2)
+                if curve_r_inner <= d <= curve_r_outer:
                     in_u = True
 
             if in_u:
-                # Anti-alias the edges slightly
                 pixels.append((255, 255, 255, 240))
             else:
                 pixels.append((r, g, b, 255))
@@ -318,31 +304,34 @@ def main():
     generate_background(os.path.join(out_dir, "background.png"))
     generate_accent_line(os.path.join(out_dir, "accent_line.png"))
 
-    # 9-patch rounded panels for menu background and selected item
+    # 9-patch rounded panels — larger radii for visible rounding at 1080p
+    #
+    # Menu background: 24px corners, dark emerald, semi-transparent
     generate_9patch(
         os.path.join(out_dir, "menu"),
-        radius=12,
-        color=(14, 31, 20),       # #0e1f14
+        radius=24,
+        color=(14, 31, 20),        # #0e1f14
         alpha=120,
-        border_color=(42, 90, 50), # subtle green border
+        border_color=(42, 90, 50),  # subtle green border
         border_alpha=50,
     )
+    # Selected item: 12px corners, green highlight
     generate_9patch(
         os.path.join(out_dir, "select"),
-        radius=6,
-        color=(66, 165, 75),      # #42a54b
+        radius=12,
+        color=(66, 165, 75),       # #42a54b
         alpha=160,
         border_color=(78, 190, 90),
         border_alpha=100,
     )
 
-    # Only generate a fallback logo if no pre-made logo exists (e.g. the
-    # resized URA horse logo committed to the theme directory).
+    # Keep existing URA horse logo; only generate fallback if missing
     logo_path = os.path.join(out_dir, "logo.png")
     if os.path.exists(logo_path):
         print(f"  Keeping existing {logo_path}")
     else:
         generate_logo(logo_path, size=64)
+
     print("Done.")
 
 
