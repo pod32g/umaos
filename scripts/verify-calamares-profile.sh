@@ -16,7 +16,7 @@ BOOTLOADER="$CAL_ROOT/modules/bootloader.conf"
 SHELLPROCESS_PRE="$CAL_ROOT/modules/shellprocess-preinit.conf"
 SHELLPROCESS_POST="$CAL_ROOT/modules/shellprocess-postboot.conf"
 BRANDING_DESC="$CAL_ROOT/branding/umaos/branding.desc"
-BRANDING_LOGO="$CAL_ROOT/branding/umaos/ura_logo.png"
+BRANDING_LOGO="$CAL_ROOT/branding/umaos/logo.svg"
 SYNC_HOOK="$AIROOTFS_DIR/etc/pacman.d/hooks/95-umao-calamares-config.hook"
 SYNC_SCRIPT="$AIROOTFS_DIR/usr/local/bin/umao-sync-calamares-config"
 GRUB_BRANDING_SCRIPT="$AIROOTFS_DIR/usr/local/bin/umao-apply-grub-branding"
@@ -128,8 +128,8 @@ if [[ -f "$SHELLPROCESS_POST" ]]; then
 fi
 
 if [[ -f "$BRANDING_DESC" ]]; then
-  check_contains "$BRANDING_DESC" 'productIcon:[[:space:]]*"ura_logo\.png"' "Calamares product icon uses ura_logo.png"
-  check_contains "$BRANDING_DESC" 'productLogo:[[:space:]]*"ura_logo\.png"' "Calamares product logo uses ura_logo.png"
+  check_contains "$BRANDING_DESC" 'productIcon:[[:space:]]*"logo\.svg"' "Calamares product icon uses logo.svg"
+  check_contains "$BRANDING_DESC" 'productLogo:[[:space:]]*"logo\.svg"' "Calamares product logo uses logo.svg"
 fi
 
 if [[ -d "$DEFAULTS_ROOT" ]]; then
