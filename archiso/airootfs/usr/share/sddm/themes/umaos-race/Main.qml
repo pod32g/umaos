@@ -176,6 +176,12 @@ Rectangle {
             height: 44
             font.pixelSize: 15
             text: userModel.lastUser
+            color: "#20ffffff"
+            borderColor: "#30ffffff"
+            focusColor: "#42a54b"
+            hoverColor: "#25ffffff"
+            textColor: "#ffffff"
+            radius: 10
             Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                     if (name.text !== "") {
@@ -212,6 +218,12 @@ Rectangle {
                 width: parent.width
                 height: 44
                 font.pixelSize: 15
+                color: "#20ffffff"
+                borderColor: "#30ffffff"
+                focusColor: "#42a54b"
+                hoverColor: "#25ffffff"
+                textColor: "#ffffff"
+                radius: 10
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                         sddm.login(name.text, password.text, session.index)
