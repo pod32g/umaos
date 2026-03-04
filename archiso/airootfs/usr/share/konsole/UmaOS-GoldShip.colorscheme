@@ -6,16 +6,16 @@ Wallpaper=/usr/share/umaos/themes/konsole/goldship.webp
 FillStyle=Adapt
 WallpaperOpacity=0.22
 WallpaperFlipType=NoFlip
-Anchor=0.5,0.5
+Anchor=1.0,0.5
 
 [Foreground]
 Color=255,255,255
 
 [Background]
-Color=0,0,0
+Color=45,15,15
 
 [Color0]
-Color=0,0,0
+Color=45,15,15
 
 [Color1]
 Color=178,24,24
@@ -42,7 +42,7 @@ Color=178,178,178
 Color=255,255,255
 
 [BackgroundIntense]
-Color=0,0,0
+Color=65,25,25
 
 [Color0Intense]
 Color=104,104,104
@@ -72,10 +72,10 @@ Color=255,255,255
 Color=255,255,255
 
 [BackgroundFaint]
-Color=0,0,0
+Color=30,8,8
 
 [Color0Faint]
-Color=0,0,0
+Color=30,8,8
 
 [Color1Faint]
 Color=101,0,0
