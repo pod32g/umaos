@@ -5,6 +5,7 @@ RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
     pacman -S --noconfirm --needed \
       archiso \
       grub \
+      freetype2 \
       rsync \
       git \
       base-devel \
