@@ -1042,16 +1042,31 @@ if ((${#MISSING_REQUIRED_PKGS[@]} > 0)); then
   fi
 fi
 
-# Start from a clean state so mkarchiso does not reuse stale run markers.
+# Start from a clean state so mkarchiso does not reuse stale _run_once markers.
+# Stale markers cause mkarchiso to skip steps (e.g. squashfs image creation)
+# even when the actual build artifacts no longer exist.
 clean_dir_contents() {
   local dir="$1"
   mkdir -p "$dir"
-  find "$dir" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+  # Remove everything at depth 1 (includes mkarchiso marker files like base.*)
+  find "$dir" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} + 2>/dev/null || true
+  # Verify the directory is truly empty
+  if [[ -n "$(ls -A "$dir" 2>/dev/null)" ]]; then
+    log "WARNING: Could not fully clean $dir — some files remain:"
+    ls -la "$dir" >&2
+  fi
 }
 
 clean_dir_contents "$BUILD_PROFILE"
 clean_dir_contents "$WORK_DIR"
 clean_dir_contents "$OUT_DIR"
+
+# Double-check no stale mkarchiso markers remain in work directory
+if compgen -G "$WORK_DIR/base.*" >/dev/null 2>&1 || \
+   compgen -G "$WORK_DIR/iso.*" >/dev/null 2>&1; then
+  log "WARNING: Stale mkarchiso markers found after cleaning. Force-removing..."
+  rm -f "$WORK_DIR"/base.* "$WORK_DIR"/iso.* 2>/dev/null || true
+fi
 
 rsync -a --delete "$RELENG_DIR/" "$BUILD_PROFILE/"
 

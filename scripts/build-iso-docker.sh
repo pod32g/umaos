@@ -46,8 +46,13 @@ fi
 
 echo "[umaos] Ensuring pacman cache volume: $PACMAN_CACHE_VOLUME"
 docker volume create "$PACMAN_CACHE_VOLUME" >/dev/null
-echo "[umaos] Ensuring build/work volumes: $BUILD_VOLUME, $WORK_VOLUME"
+echo "[umaos] Ensuring build volume: $BUILD_VOLUME"
 docker volume create "$BUILD_VOLUME" >/dev/null
+
+# Always recreate work volume to prevent stale mkarchiso _run_once markers
+# from causing steps (e.g. squashfs creation) to be skipped on subsequent builds.
+echo "[umaos] Recreating work volume: $WORK_VOLUME (clean slate)"
+docker volume rm "$WORK_VOLUME" 2>/dev/null || true
 docker volume create "$WORK_VOLUME" >/dev/null
 
 echo "[umaos] Running ISO build in container"
