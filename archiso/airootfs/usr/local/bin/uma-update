@@ -215,7 +215,11 @@ sync_dir_files "$airootfs/usr/share/color-schemes" "/usr/share/color-schemes"
 # ── 7. UmaOS shared assets (recursive — has subdirs) ──
 sync_dir_recursive "$airootfs/usr/share/umaos" "/usr/share/umaos"
 
-# ── 8. Skel KDE/GTK config files ──
+# ── 8. KDE Look and Feel lock screen (recursive) ──
+sync_dir_recursive "$airootfs/usr/share/plasma/look-and-feel/com.umaos.desktop" \
+  "/usr/share/plasma/look-and-feel/com.umaos.desktop"
+
+# ── 9. Skel KDE/GTK config files ──
 # These are the source files that get copied to each user's home.
 for cfg in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
   if [[ -f "$airootfs/etc/skel/.config/$cfg" ]]; then
