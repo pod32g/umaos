@@ -1,47 +1,68 @@
-/* UmaOS Plymouth boot splash script.
- * Displays ura_logo centered on a dark emerald background with a green spinner.
+/* UmaOS Plymouth boot/shutdown splash.
+ * Matches the KDE splash: logo → "UmaOS" title → accent line → progress dots.
  */
 
 /* ---------- background ---------- */
 Window.SetBackgroundTopColor(0.055, 0.122, 0.078);    /* #0e1f14 */
 Window.SetBackgroundBottomColor(0.071, 0.188, 0.102);  /* #12301a */
 
-/* ---------- logo ---------- */
+cx = Window.GetWidth() / 2;
+cy = Window.GetHeight() / 2;
+
+/* ---------- logo (small, centered, slightly above middle) ---------- */
 logo.image = Image("logo.png");
 logo.sprite = Sprite(logo.image);
-logo.sprite.SetX(Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
-logo.sprite.SetY(Window.GetHeight() / 2 - logo.image.GetHeight() / 2 - 40);
-logo.sprite.SetZ(10);
+logo.x = cx - logo.image.GetWidth() / 2;
+logo.y = cy - logo.image.GetHeight() / 2 - 50;
+logo.sprite.SetPosition(logo.x, logo.y, 10);
+logo.sprite.SetOpacity(0.92);
 
-/* ---------- spinner (green dots) ---------- */
-spinner_count = 12;
-spinner_radius = 32;
-spinner_dot_radius = 4;
-spinner_cx = Window.GetWidth() / 2;
-spinner_cy = Window.GetHeight() / 2 + logo.image.GetHeight() / 2 + 20;
+/* ---------- "UmaOS" title text ---------- */
+title.image = Image.Text("U m a O S", 1.0, 1.0, 1.0);  /* white, spaced */
+title.sprite = Sprite(title.image);
+title.sprite.SetX(cx - title.image.GetWidth() / 2);
+title.sprite.SetY(logo.y + logo.image.GetHeight() + 20);
+title.sprite.SetZ(10);
 
-/* Pre-render a green dot image (1 dot image reused). */
+/* ---------- accent line (green) ---------- */
+line.image = Image("dot.png");
+line_width = 80;
+line_y = logo.y + logo.image.GetHeight() + 20 + title.image.GetHeight() + 12;
+line_segments = 20;
+for (i = 0; i < line_segments; i++) {
+    line[i].sprite = Sprite(line.image);
+    line[i].sprite.SetX(cx - line_width / 2 + i * (line_width / line_segments));
+    line[i].sprite.SetY(line_y);
+    line[i].sprite.SetZ(10);
+    line[i].sprite.SetOpacity(0.5);
+}
+
+/* ---------- 5 progress dots (matching ksplash) ---------- */
 dot_image = Image("dot.png");
+dot_count = 5;
+dot_spacing = 14;
+dots_y = line_y + 24;
+dots_start_x = cx - ((dot_count - 1) * dot_spacing) / 2;
 
-for (i = 0; i < spinner_count; i++) {
-    spinner[i].sprite = Sprite(dot_image);
-    spinner[i].sprite.SetZ(10);
+for (i = 0; i < dot_count; i++) {
+    dots[i].sprite = Sprite(dot_image);
+    dots[i].sprite.SetX(dots_start_x + i * dot_spacing);
+    dots[i].sprite.SetY(dots_y);
+    dots[i].sprite.SetZ(10);
+    dots[i].sprite.SetOpacity(0.25);
 }
 
 progress = 0;
 
 fun refresh_callback() {
     progress++;
-    for (i = 0; i < spinner_count; i++) {
-        angle = (i * 2 * 3.14159265 / spinner_count) + (progress * 0.05);
-        x = spinner_cx + Math.Int(spinner_radius * Math.Cos(angle)) - spinner_dot_radius;
-        y = spinner_cy + Math.Int(spinner_radius * Math.Sin(angle)) - spinner_dot_radius;
-        /* Fade dots based on position relative to active index. */
-        active = Math.Int(progress * 0.3) % spinner_count;
-        dist = (i - active + spinner_count) % spinner_count;
-        alpha = 1.0 - (dist / spinner_count) * 0.8;
-        spinner[i].sprite.SetPosition(x, y, 10);
-        spinner[i].sprite.SetOpacity(alpha);
+    /* Cycle through dots — light each one up in turn */
+    active = Math.Int(progress * 0.15) % dot_count;
+    for (i = 0; i < dot_count; i++) {
+        if (i <= active)
+            dots[i].sprite.SetOpacity(0.9);
+        else
+            dots[i].sprite.SetOpacity(0.25);
     }
 }
 
@@ -49,21 +70,19 @@ Plymouth.SetRefreshFunction(refresh_callback);
 
 /* ---------- password prompt (disk encryption) ---------- */
 fun display_password_callback(prompt, bullets) {
-    /* Show prompt text. */
     prompt_image = Image.Text(prompt, 0.91, 0.96, 0.91);  /* #e8f5ea */
     prompt_sprite = Sprite(prompt_image);
-    prompt_sprite.SetX(Window.GetWidth() / 2 - prompt_image.GetWidth() / 2);
-    prompt_sprite.SetY(spinner_cy + 60);
+    prompt_sprite.SetX(cx - prompt_image.GetWidth() / 2);
+    prompt_sprite.SetY(dots_y + 50);
     prompt_sprite.SetZ(10);
 
-    /* Show bullet characters for typed password. */
     bullet_string = "";
     for (i = 0; i < bullets; i++)
         bullet_string += "●";
     bullet_image = Image.Text(bullet_string, 0.259, 0.647, 0.294);  /* #42a54b */
     bullet_sprite = Sprite(bullet_image);
-    bullet_sprite.SetX(Window.GetWidth() / 2 - bullet_image.GetWidth() / 2);
-    bullet_sprite.SetY(spinner_cy + 90);
+    bullet_sprite.SetX(cx - bullet_image.GetWidth() / 2);
+    bullet_sprite.SetY(dots_y + 80);
     bullet_sprite.SetZ(10);
 }
 
@@ -75,7 +94,7 @@ message_sprite = Sprite();
 fun message_callback(text) {
     msg_image = Image.Text(text, 0.91, 0.96, 0.91);  /* #e8f5ea */
     message_sprite = Sprite(msg_image);
-    message_sprite.SetX(Window.GetWidth() / 2 - msg_image.GetWidth() / 2);
+    message_sprite.SetX(cx - msg_image.GetWidth() / 2);
     message_sprite.SetY(Window.GetHeight() - 50);
     message_sprite.SetZ(10);
 }
