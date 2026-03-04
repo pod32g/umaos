@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Intentionally no set -euo pipefail — this script must never fail the
+# installation.  Every section handles its own errors and we always exit 0.
 
 log() {
   printf '[umao-fix-boot-root-cmdline] %s\n' "$*"
@@ -9,14 +10,14 @@ find_root_spec() {
   local spec=""
 
   if [[ -r /etc/fstab ]]; then
-    spec="$(awk '$2 == "/" { print $1; exit }' /etc/fstab || true)"
+    spec="$(awk '$2 == "/" { print $1; exit }' /etc/fstab 2>/dev/null || true)"
   fi
 
-  printf '%s' "$spec"
+  printf '%s' "${spec:-}"
 }
 
 root_arg_from_spec() {
-  local spec="$1"
+  local spec="${1:-}"
   local uuid=""
 
   if [[ -z "$spec" ]]; then
@@ -31,7 +32,7 @@ root_arg_from_spec() {
     /dev/*)
       if command -v blkid >/dev/null 2>&1; then
         uuid="$(blkid -s UUID -o value "$spec" 2>/dev/null || true)"
-        if [[ -n "$uuid" ]]; then
+        if [[ -n "${uuid:-}" ]]; then
           printf 'root=UUID=%s' "$uuid"
           return 0
         fi
@@ -45,13 +46,13 @@ root_arg_from_spec() {
 }
 
 ensure_cmdline_has_root() {
-  local root_arg="$1"
+  local root_arg="${1:-}"
   local cmdline_file="/etc/kernel/cmdline"
   local cmdline=""
 
-  mkdir -p /etc/kernel
-  [[ -f "$cmdline_file" ]] || touch "$cmdline_file"
-  cmdline="$(tr '\n' ' ' < "$cmdline_file" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
+  mkdir -p /etc/kernel 2>/dev/null || return 0
+  [[ -f "$cmdline_file" ]] || touch "$cmdline_file" 2>/dev/null || return 0
+  cmdline="$(tr '\n' ' ' < "$cmdline_file" 2>/dev/null | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//' || true)"
 
   if [[ "$cmdline" =~ (^|[[:space:]])root= ]]; then
     log "Kernel cmdline already has root= entry."
@@ -59,29 +60,29 @@ ensure_cmdline_has_root() {
   fi
 
   if [[ -n "$cmdline" ]]; then
-    printf '%s %s\n' "$cmdline" "$root_arg" > "$cmdline_file"
+    printf '%s %s\n' "$cmdline" "$root_arg" > "$cmdline_file" 2>/dev/null || true
   else
-    printf '%s rw quiet splash\n' "$root_arg" > "$cmdline_file"
+    printf '%s rw quiet splash\n' "$root_arg" > "$cmdline_file" 2>/dev/null || true
   fi
   log "Injected ${root_arg} into /etc/kernel/cmdline."
 }
 
 patch_loader_entries() {
-  local root_arg="$1"
+  local root_arg="${1:-}"
   local entry
   local found=0
 
   for entry in /boot/efi/loader/entries/*.conf /boot/loader/entries/*.conf; do
     [[ -f "$entry" ]] || continue
     found=1
-    if grep -Eq '^[[:space:]]*options[[:space:]].*root=' "$entry"; then
+    if grep -Eq '^[[:space:]]*options[[:space:]].*root=' "$entry" 2>/dev/null; then
       continue
     fi
-    if grep -Eq '^[[:space:]]*options[[:space:]]+' "$entry"; then
-      sed -i.bak -E "s|^([[:space:]]*options[[:space:]]+.*)$|\\1 ${root_arg}|" "$entry"
+    if grep -Eq '^[[:space:]]*options[[:space:]]+' "$entry" 2>/dev/null; then
+      sed -i.bak -E "s|^([[:space:]]*options[[:space:]]+.*)$|\\1 ${root_arg}|" "$entry" 2>/dev/null || true
       rm -f "$entry.bak"
     else
-      printf '\noptions %s rw quiet splash\n' "$root_arg" >> "$entry"
+      printf '\noptions %s rw quiet splash\n' "$root_arg" >> "$entry" 2>/dev/null || true
     fi
     log "Patched loader entry with ${root_arg}: $entry"
   done
@@ -108,30 +109,31 @@ rebuild_systemd_boot_entries() {
   done
 
   [[ "$had_kernel_install" -eq 0 ]] && log "No /usr/lib/modules/*/vmlinuz found for kernel-install."
+  return 0
 }
 
 ensure_grub_default_cmdline_root() {
-  local root_arg="$1"
+  local root_arg="${1:-}"
   local grub_default="/etc/default/grub"
 
   [[ -f "$grub_default" ]] || return 0
 
-  if grep -Eq '^GRUB_CMDLINE_LINUX=.*root=' "$grub_default"; then
+  if grep -Eq '^GRUB_CMDLINE_LINUX=.*root=' "$grub_default" 2>/dev/null; then
     return 0
   fi
 
-  if grep -Eq '^GRUB_CMDLINE_LINUX=' "$grub_default"; then
-    sed -i.bak -E "s|^GRUB_CMDLINE_LINUX=\"(.*)\"$|GRUB_CMDLINE_LINUX=\"\\1 ${root_arg}\"|" "$grub_default"
+  if grep -Eq '^GRUB_CMDLINE_LINUX=' "$grub_default" 2>/dev/null; then
+    sed -i.bak -E "s|^GRUB_CMDLINE_LINUX=\"(.*)\"$|GRUB_CMDLINE_LINUX=\"\\1 ${root_arg}\"|" "$grub_default" 2>/dev/null || true
     rm -f "$grub_default.bak"
   else
-    printf '\nGRUB_CMDLINE_LINUX="%s"\n' "$root_arg" >> "$grub_default"
+    printf '\nGRUB_CMDLINE_LINUX="%s"\n' "$root_arg" >> "$grub_default" 2>/dev/null || true
   fi
   log "Ensured GRUB_CMDLINE_LINUX includes ${root_arg}."
 }
 
 main() {
-  local root_spec
-  local root_arg
+  local root_spec=""
+  local root_arg=""
 
   root_spec="$(find_root_spec)"
   if ! root_arg="$(root_arg_from_spec "$root_spec")"; then
@@ -143,7 +145,8 @@ main() {
   ensure_grub_default_cmdline_root "$root_arg"
   rebuild_systemd_boot_entries
   patch_loader_entries "$root_arg"
-  echo "Umazing!"
+  log "Umazing!"
 }
 
-main "$@"
+main "$@" || true
+exit 0
