@@ -11,7 +11,7 @@ usage() {
 Usage: uma-update [--ref <branch|tag|sha>] [--repo <url>] [--dry-run]
 
 Downloads the latest UmaOS repository snapshot from GitHub and syncs
-runtime scripts into the local system.
+runtime scripts, themes, and configuration into the local system.
 
 Default repo: https://github.com/pod32g/umaos
 Default ref:  main
@@ -146,16 +146,156 @@ sync_dir_files() {
   done < <(find "$src_dir" -maxdepth 1 -type f -print0 | sort -z)
 }
 
-# Script-bearing paths in the repo overlay, synced into the local system.
-sync_dir_files "$repo_extract_dir/archiso/airootfs/usr/local/bin" "/usr/local/bin"
-sync_dir_files "$repo_extract_dir/archiso/airootfs/etc/profile.d" "/etc/profile.d"
-sync_dir_files "$repo_extract_dir/archiso/airootfs/etc/skel/Desktop" "/etc/skel/Desktop"
-sync_dir_files "$repo_extract_dir/archiso/airootfs/etc/skel/.config/autostart" "/etc/skel/.config/autostart"
-sync_dir_files "$repo_extract_dir/archiso/airootfs/usr/share/applications" "/usr/share/applications"
+# Recursive version: syncs all files preserving subdirectory structure.
+sync_dir_recursive() {
+  local src_dir="$1"
+  local dst_dir="$2"
+  local file
+  local rel_path
+  local dst_file
+  local mode
+
+  if [[ ! -d "$src_dir" ]]; then
+    log "Skipping missing source directory: $src_dir"
+    return 0
+  fi
+
+  while IFS= read -r -d '' file; do
+    rel_path="${file#"$src_dir"/}"
+    dst_file="$dst_dir/$rel_path"
+    mode="0644"
+    if [[ -x "$file" ]]; then
+      mode="0755"
+    fi
+
+    if cmp -s "$file" "$dst_file" 2>/dev/null; then
+      skipped=$((skipped + 1))
+      continue
+    fi
+
+    if ((dry_run == 1)); then
+      log "Would update: $dst_file"
+    else
+      install -D -m "$mode" "$file" "$dst_file"
+      log "Updated: $dst_file"
+    fi
+    updated=$((updated + 1))
+  done < <(find "$src_dir" -type f -print0 | sort -z)
+}
+
+airootfs="$repo_extract_dir/archiso/airootfs"
+plymouth_changed=0
+theme_changed_before=$updated
+
+# ── 1. Runtime scripts ──
+sync_dir_files "$airootfs/usr/local/bin" "/usr/local/bin"
+sync_dir_files "$airootfs/etc/profile.d" "/etc/profile.d"
+sync_dir_files "$airootfs/usr/share/applications" "/usr/share/applications"
+
+# ── 2. Desktop launchers & autostart ──
+sync_dir_files "$airootfs/etc/skel/Desktop" "/etc/skel/Desktop"
+sync_dir_files "$airootfs/etc/skel/.config/autostart" "/etc/skel/.config/autostart"
+
+# ── 3. SDDM login theme ──
+sync_dir_files "$airootfs/usr/share/sddm/themes/umaos-race" "/usr/share/sddm/themes/umaos-race"
+
+# ── 4. Plymouth boot splash ──
+theme_changed_before=$updated
+sync_dir_files "$airootfs/usr/share/plymouth/themes/umaos" "/usr/share/plymouth/themes/umaos"
+if ((updated > theme_changed_before)); then
+  plymouth_changed=1
+fi
+
+# ── 5. Konsole terminal themes & profiles ──
+sync_dir_files "$airootfs/usr/share/konsole" "/usr/share/konsole"
+
+# ── 6. KDE color schemes ──
+sync_dir_files "$airootfs/usr/share/color-schemes" "/usr/share/color-schemes"
+
+# ── 7. UmaOS shared assets (recursive — has subdirs) ──
+sync_dir_recursive "$airootfs/usr/share/umaos" "/usr/share/umaos"
+
+# ── 8. Skel KDE/GTK config files ──
+# These are the source files that get copied to each user's home.
+for cfg in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
+  if [[ -f "$airootfs/etc/skel/.config/$cfg" ]]; then
+    sync_dir_files "$airootfs/etc/skel/.config" "/etc/skel/.config"
+    break  # sync_dir_files handles the whole flat dir at once
+  fi
+done
+sync_dir_files "$airootfs/etc/skel/.config/fastfetch" "/etc/skel/.config/fastfetch"
+sync_dir_files "$airootfs/etc/skel/.config/gtk-3.0" "/etc/skel/.config/gtk-3.0"
+sync_dir_files "$airootfs/etc/skel/.config/gtk-4.0" "/etc/skel/.config/gtk-4.0"
+
+# ── Post-sync: propagate theme changes to existing users ──
+propagate_to_users() {
+  log "Propagating updated configs to existing users..."
+  local user_name user_home uid gid
+  while IFS=: read -r user_name _ uid gid _ user_home _; do
+    [[ "$uid" =~ ^[0-9]+$ ]] || continue
+    (( uid >= 1000 && uid < 60000 )) || continue
+    [[ "$user_home" != "/" && -n "$user_home" && -d "$user_home" ]] || continue
+
+    # Sync skel config files to user home
+    for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
+      if [[ -f "/etc/skel/.config/$src" ]]; then
+        install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$src" "$user_home/.config/$src"
+      fi
+    done
+
+    # Sync fastfetch config
+    if [[ -f "/etc/skel/.config/fastfetch/config.jsonc" ]]; then
+      install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/fastfetch/config.jsonc" \
+        "$user_home/.config/fastfetch/config.jsonc"
+    fi
+
+    # Sync GTK settings
+    for gtk_ver in gtk-3.0 gtk-4.0; do
+      if [[ -f "/etc/skel/.config/$gtk_ver/settings.ini" ]]; then
+        install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$gtk_ver/settings.ini" \
+          "$user_home/.config/$gtk_ver/settings.ini"
+      fi
+    done
+
+    # Sync desktop launchers
+    for launcher in "Install Uma Musume.sh" "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop"; do
+      if [[ -f "/etc/skel/Desktop/$launcher" ]]; then
+        install -D -m 755 -o "$uid" -g "$gid" "/etc/skel/Desktop/$launcher" \
+          "$user_home/Desktop/$launcher"
+      fi
+    done
+
+    log "Synced configs for user '$user_name'."
+  done < /etc/passwd
+}
+
+# ── Post-sync: rebuild initramfs if Plymouth theme changed ──
+rebuild_plymouth() {
+  if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+    if [[ -f /usr/share/plymouth/themes/umaos/umaos.plymouth ]]; then
+      plymouth-set-default-theme umaos
+      log "Plymouth default theme set to umaos."
+    fi
+  fi
+  if command -v mkinitcpio >/dev/null 2>&1; then
+    log "Rebuilding initramfs to apply Plymouth changes..."
+    mkinitcpio -P 2>&1 | tail -5 || log "WARNING: mkinitcpio rebuild returned errors."
+    log "Initramfs rebuilt."
+  fi
+}
 
 if ((dry_run == 1)); then
   log "Dry-run complete. Files to update: $updated, unchanged: $skipped."
 else
-  log "Update complete. Files updated: $updated, unchanged: $skipped."
+  log "Sync complete. Files updated: $updated, unchanged: $skipped."
+
+  if ((updated > 0)); then
+    propagate_to_users
+
+    if ((plymouth_changed == 1)); then
+      rebuild_plymouth
+    fi
+  fi
+
   echo "Umazing!"
 fi
