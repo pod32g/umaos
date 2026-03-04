@@ -156,7 +156,6 @@ Rectangle {
             width: parent.width
             height: 44
             font.pixelSize: 15
-            placeholderText: textConstants.password
             Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                     sddm.login(name.text, password.text, session.index)
