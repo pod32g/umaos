@@ -25,8 +25,8 @@ strings:
 
 images:
   productBanner: "banner.svg"
-  productIcon: "logo.svg"
-  productLogo: "logo.svg"
+  productIcon: "ura_logo_sidebar.png"
+  productLogo: "ura_logo_sidebar.png"
   productWallpaper: "wallpaper.svg"
   productWelcome: "welcome.svg"
 
