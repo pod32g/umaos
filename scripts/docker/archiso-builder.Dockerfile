@@ -12,6 +12,7 @@ RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
       pacman-contrib \
       python \
       sudo \
+      imagemagick \
       noto-fonts \
       noto-fonts-cjk && \
     useradd -m -s /bin/bash builder && \

@@ -347,7 +347,16 @@ install_uma_ksplash_theme() {
 
   rm -rf "$theme_root"
   mkdir -p "$images_dir"
-  cp -f "$URA_LOGO_SRC" "$images_dir/ura_logo.png"
+  # Pre-resize logo to 120px so it doesn't render at native 872×1000
+  # even if QML sourceSize is ignored by the renderer.
+  if command -v magick >/dev/null 2>&1; then
+    magick "$URA_LOGO_SRC" -resize x120 "$images_dir/ura_logo.png"
+  elif command -v convert >/dev/null 2>&1; then
+    convert "$URA_LOGO_SRC" -resize x120 "$images_dir/ura_logo.png"
+  else
+    cp -f "$URA_LOGO_SRC" "$images_dir/ura_logo.png"
+    log "WARNING: ImageMagick not available — ksplash logo not resized"
+  fi
 
   cat > "$theme_root/metadata.json" <<'EOF'
 {
@@ -402,8 +411,6 @@ Rectangle {
         source: "images/ura_logo.png"
         fillMode: Image.PreserveAspectFit
         smooth: true
-        sourceSize.width: Math.min(parent.width * 0.07, 120)
-        sourceSize.height: Math.min(parent.height * 0.10, 120)
 
         // Fade in on load
         opacity: 0
