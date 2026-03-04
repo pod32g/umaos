@@ -161,8 +161,8 @@ EOF
 }
 
 if ((has_graphical_session == 1)) && command -v plasma-apply-colorscheme >/dev/null 2>&1; then
-  if ! plasma-apply-colorscheme UmaSkyPink >/dev/null 2>&1; then
-    log_debug "WARNING: Failed to apply UmaSkyPink color scheme."
+  if ! plasma-apply-colorscheme UmaOS-Dark >/dev/null 2>&1; then
+    log_debug "WARNING: Failed to apply UmaOS-Dark color scheme."
   fi
 fi
 
@@ -240,7 +240,7 @@ if [[ -n "$kwriteconfig_cmd" ]]; then
   if [[ ! -d "/usr/share/icons/${cursor_theme}" ]]; then
     cursor_theme="breeze_cursors"
   fi
-  "$kwriteconfig_cmd" --file kdeglobals --group General --key ColorScheme UmaSkyPink
+  "$kwriteconfig_cmd" --file kdeglobals --group General --key ColorScheme UmaOS-Dark
   "$kwriteconfig_cmd" --file kdeglobals --group Icons --key Theme UmaOS-Papirus
   "$kwriteconfig_cmd" --file kdeglobals --group KDE --key widgetStyle Breeze
   "$kwriteconfig_cmd" --file kdeglobals --group KDE --key LookAndFeelPackage com.umaos.desktop
@@ -271,9 +271,9 @@ var allPanels = panels();
 for (var i = 0; i < allPanels.length; i++) {
     var p = allPanels[i];
 
-    // Translucent opacity (0=adaptive, 1=opaque, 2=translucent)
+    // Opaque dark green panel (0=adaptive, 1=opaque, 2=translucent)
     p.currentConfigGroup = ["General"];
-    p.writeConfig("panelOpacity", 2);
+    p.writeConfig("panelOpacity", 1);
 
     // Enforce UmaOS Kickoff icon
     var ws = p.widgets("org.kde.plasma.kickoff");
@@ -283,7 +283,7 @@ for (var i = 0; i < allPanels.length; i++) {
     }
 
     // Enforce pinned launchers on icontasks
-    var ts = p.widgets("org.kde.plasma.icontasks");
+    var ts = p.widgets("org.kde.plasma.taskmanager");
     for (var k = 0; k < ts.length; k++) {
         ts[k].currentConfigGroup = ["Configuration", "General"];
         ts[k].writeConfig("launchers", [

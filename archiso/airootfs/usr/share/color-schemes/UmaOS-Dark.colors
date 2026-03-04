@@ -122,10 +122,3 @@ ForegroundVisited=200,170,240
 ColorScheme=UmaOS-Dark
 Name=UmaOS Dark
 shadeSortColumn=true
-
-[Icons]
-Theme=UmaOS-Papirus
-
-[KDE]
-LookAndFeelPackage=com.umaos.desktop
-widgetStyle=Breeze
