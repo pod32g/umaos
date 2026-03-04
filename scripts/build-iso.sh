@@ -1120,6 +1120,7 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-theme" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install-steam-root" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-first-login-umamusume" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-ensure-proton-ge" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-refresh-lsb-release" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-show-ascii" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
@@ -1170,6 +1171,7 @@ file_permissions+=(
   ["/usr/local/bin/umao-apply-theme"]="0:0:755"
   ["/usr/local/bin/umao-install-steam-root"]="0:0:755"
   ["/usr/local/bin/umao-first-login-umamusume"]="0:0:755"
+  ["/usr/local/bin/umao-ensure-proton-ge"]="0:0:755"
   ["/usr/local/bin/umao-refresh-lsb-release"]="0:0:755"
   ["/usr/local/bin/umao-show-ascii"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
