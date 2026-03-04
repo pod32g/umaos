@@ -156,23 +156,34 @@ Rectangle {
     }
 
     // ── Username input (shown when editing) ──
-    TextBox {
-        id: name
+    Column {
+        id: nameColumn
         anchors.horizontalCenter: loginCard.horizontalCenter
         anchors.top: avatar.bottom
         anchors.topMargin: 8
         width: loginCard.width - 80
-        height: 44
-        font.pixelSize: 15
-        text: userModel.lastUser
+        spacing: 6
         visible: editingUsername
-        Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                if (name.text !== "") {
-                    editingUsername = false
+
+        Text {
+            text: textConstants.userName
+            color: "#80ffffff"
+            font.pixelSize: 11
+        }
+        TextBox {
+            id: name
+            width: parent.width
+            height: 44
+            font.pixelSize: 15
+            text: userModel.lastUser
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    if (name.text !== "") {
+                        editingUsername = false
+                    }
+                    password.focus = true
+                    event.accepted = true
                 }
-                password.focus = true
-                event.accepted = true
             }
         }
     }
@@ -180,22 +191,32 @@ Rectangle {
     // ── Login fields ──
     Column {
         id: fields
-        anchors.top: editingUsername ? name.bottom : usernameLabel.bottom
+        anchors.top: editingUsername ? nameColumn.bottom : usernameLabel.bottom
         anchors.topMargin: 14
         anchors.horizontalCenter: loginCard.horizontalCenter
         width: loginCard.width - 80
         spacing: 14
 
         // Password input
-        PasswordBox {
-            id: password
+        Column {
             width: parent.width
-            height: 44
-            font.pixelSize: 15
-            Keys.onPressed: function(event) {
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    sddm.login(name.text, password.text, session.index)
-                    event.accepted = true
+            spacing: 6
+
+            Text {
+                text: textConstants.password
+                color: "#80ffffff"
+                font.pixelSize: 11
+            }
+            PasswordBox {
+                id: password
+                width: parent.width
+                height: 44
+                font.pixelSize: 15
+                Keys.onPressed: function(event) {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                        sddm.login(name.text, password.text, session.index)
+                        event.accepted = true
+                    }
                 }
             }
         }
