@@ -67,7 +67,7 @@ Rectangle {
     Rectangle {
         id: loginCard
         width: 380
-        height: 420
+        height: 480
         radius: 20
         anchors.centerIn: parent
         color: "#b00c2418"
@@ -130,27 +130,31 @@ Rectangle {
         }
     }
 
-    // ── Username display ──
-    Text {
-        id: usernameLabel
-        anchors.horizontalCenter: loginCard.horizontalCenter
-        anchors.top: avatar.bottom
-        anchors.topMargin: 14
-        text: userModel.lastUser !== "" ? userModel.lastUser : "User"
-        color: "#ffffff"
-        font.pixelSize: 18
-        font.bold: true
-    }
-
     // ── Login fields ──
     Column {
         id: fields
-        anchors.top: usernameLabel.bottom
-        anchors.topMargin: 20
+        anchors.top: avatar.bottom
+        anchors.topMargin: 14
         anchors.horizontalCenter: loginCard.horizontalCenter
         width: loginCard.width - 80
         spacing: 14
 
+        // Username input
+        TextBox {
+            id: name
+            width: parent.width
+            height: 44
+            font.pixelSize: 15
+            text: userModel.lastUser
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    password.focus = true
+                    event.accepted = true
+                }
+            }
+        }
+
+        // Password input
         PasswordBox {
             id: password
             width: parent.width
@@ -206,12 +210,7 @@ Rectangle {
         }
     }
 
-    // Hidden fields for SDDM API
-    TextBox {
-        id: name
-        visible: false
-        text: userModel.lastUser
-    }
+    // Hidden session selector for SDDM API
     ComboBox {
         id: session
         visible: false
@@ -286,6 +285,10 @@ Rectangle {
     }
 
     Component.onCompleted: {
-        password.focus = true
+        if (name.text === "") {
+            name.focus = true
+        } else {
+            password.focus = true
+        }
     }
 }
