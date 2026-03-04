@@ -370,26 +370,106 @@ Rectangle {
     property int stage: 0
     color: "#0e1f14"
 
+    // Subtle center glow — dark emerald radial highlight
+    Rectangle {
+        anchors.centerIn: parent
+        width: parent.width * 0.7
+        height: parent.height * 0.7
+        radius: width / 2
+        color: "#1a3d24"
+        opacity: 0.25
+    }
+
+    // Secondary glow — slight pink tint offset right
+    Rectangle {
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: parent.width * 0.15
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: -parent.height * 0.05
+        width: parent.width * 0.4
+        height: parent.height * 0.4
+        radius: width / 2
+        color: "#3d1a2a"
+        opacity: 0.12
+    }
+
+    // URA horse logo
     Image {
         id: logo
-        anchors.centerIn: parent
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: -parent.height * 0.085
         source: "images/ura_logo.png"
         fillMode: Image.PreserveAspectFit
         smooth: true
-        sourceSize.width: Math.min(parent.width * 0.32, 560)
-        sourceSize.height: Math.min(parent.height * 0.32, 560)
-        opacity: 0.92
+        sourceSize.width: Math.min(parent.width * 0.18, 320)
+        sourceSize.height: Math.min(parent.height * 0.18, 320)
+
+        // Fade in on load
+        opacity: 0
+        Component.onCompleted: opacity = 0.92
+        Behavior on opacity {
+            NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
+        }
     }
 
+    // Title: "UmaOS" — light weight, wide letter-spacing
     Text {
+        id: title
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: logo.bottom
-        anchors.topMargin: Math.max(24, parent.height * 0.03)
+        anchors.topMargin: Math.max(20, parent.height * 0.026)
         text: "UmaOS"
-        color: "#e8f5ea"
-        font.pixelSize: Math.max(20, parent.height * 0.034)
-        font.bold: true
-        opacity: 0.9
+        color: "#ffffff"
+        font.pixelSize: Math.max(18, parent.height * 0.026)
+        font.weight: Font.Light
+        font.family: "Noto Sans"
+        font.letterSpacing: font.pixelSize * 0.2
+
+        opacity: 0
+        Component.onCompleted: opacity = 1
+        Behavior on opacity {
+            NumberAnimation { duration: 600; easing.type: Easing.OutCubic }
+        }
+    }
+
+    // Accent line: green-to-pink gradient
+    Rectangle {
+        id: accentLine
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: title.bottom
+        anchors.topMargin: parent.height * 0.014
+        width: parent.height * 0.074
+        height: 2
+        opacity: 0.5
+        gradient: Gradient {
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: "#42a54b" }
+            GradientStop { position: 1.0; color: "#ff91c0" }
+        }
+    }
+
+    // Loading dots — light up progressively with stage
+    Row {
+        id: dots
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.top: accentLine.bottom
+        anchors.topMargin: parent.height * 0.03
+        spacing: Math.max(8, parent.height * 0.011)
+
+        Repeater {
+            model: 5
+            Rectangle {
+                width: Math.max(4, root.height * 0.0056)
+                height: width
+                radius: width / 2
+                color: "#42a54b"
+                opacity: index <= root.stage ? 0.9 : 0.25
+                Behavior on opacity {
+                    NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
+                }
+            }
+        }
     }
 }
 EOF
