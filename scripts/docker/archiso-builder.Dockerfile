@@ -10,7 +10,9 @@ RUN sed -i 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf && \
       base-devel \
       pacman-contrib \
       python \
-      sudo && \
+      sudo \
+      noto-fonts \
+      noto-fonts-cjk && \
     useradd -m -s /bin/bash builder && \
     printf 'builder ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder && \
     chmod 0440 /etc/sudoers.d/builder && \
