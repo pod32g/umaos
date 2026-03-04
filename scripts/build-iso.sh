@@ -402,8 +402,8 @@ Rectangle {
         source: "images/ura_logo.png"
         fillMode: Image.PreserveAspectFit
         smooth: true
-        sourceSize.width: Math.min(parent.width * 0.18, 320)
-        sourceSize.height: Math.min(parent.height * 0.18, 320)
+        sourceSize.width: Math.min(parent.width * 0.07, 120)
+        sourceSize.height: Math.min(parent.height * 0.10, 120)
 
         // Fade in on load
         opacity: 0
