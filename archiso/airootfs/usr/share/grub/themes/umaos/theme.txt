@@ -29,7 +29,7 @@ terminal-font: "Unifont Regular 16"
 
 # ── Subtitle ──
 + label {
-    text = "Uma Musume Pretty Derby"
+    text = "ウマ娘 プリティーダービー"
     font = "UmaOS Regular 16"
     color = "#7ab882"
     align = "center"

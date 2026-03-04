@@ -577,57 +577,125 @@ install_grub_theme() {
   fi
 
   # Generate .pf2 fonts from system fonts for the theme.
-  # Search common font paths across distros; Noto Sans preferred, then
-  # DejaVu Sans, then Liberation Sans, then any available sans-serif.
-  local font_regular="" font_bold=""
+  #
+  # Priority order:
+  #   1. CJK-capable fonts (Noto Sans CJK / Noto Sans JP) — includes both
+  #      Latin and Japanese glyphs for the "ウマ娘 プリティーダービー" subtitle.
+  #   2. Latin-only fonts (Noto Sans, DejaVu Sans, Liberation Sans, FreeSans).
+  #
+  # When using a CJK font, --range flags limit the PF2 to Latin + Katakana +
+  # the single kanji 娘 (U+5A18) so the file stays small.
+
+  local font_regular="" font_bold="" font_is_cjk=0
+
+  # ── Search for CJK-capable fonts first ──
   for candidate in \
-    /usr/share/fonts/noto/NotoSans-Regular.ttf \
-    /usr/share/fonts/noto/NotoSans[wght].ttf \
-    /usr/share/fonts/TTF/NotoSans-Regular.ttf \
-    /usr/share/fonts/TTF/DejaVuSans.ttf \
-    /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
-    /usr/share/fonts/TTF/LiberationSans-Regular.ttf \
-    /usr/share/fonts/liberation/LiberationSans-Regular.ttf \
-    /usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf \
-    /usr/share/fonts/gnu-free/FreeSans.ttf; do
+    /usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc \
+    /usr/share/fonts/noto-cjk/NotoSansJP-Regular.otf \
+    /usr/share/fonts/OTF/NotoSansCJK-Regular.ttc \
+    /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc \
+    /usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc \
+    /usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc; do
     if [[ -f "$candidate" ]]; then
       font_regular="$candidate"
+      font_is_cjk=1
+      log "Found CJK font: $candidate (Japanese subtitle enabled)"
       break
     fi
   done
-  for candidate in \
-    /usr/share/fonts/noto/NotoSans-Bold.ttf \
-    /usr/share/fonts/TTF/NotoSans-Bold.ttf \
-    /usr/share/fonts/TTF/DejaVuSans-Bold.ttf \
-    /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf \
-    /usr/share/fonts/TTF/LiberationSans-Bold.ttf \
-    /usr/share/fonts/liberation/LiberationSans-Bold.ttf \
-    /usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf \
-    /usr/share/fonts/gnu-free/FreeSansBold.ttf; do
-    if [[ -f "$candidate" ]]; then
-      font_bold="$candidate"
-      break
-    fi
-  done
+
+  if [[ "$font_is_cjk" -eq 1 ]]; then
+    # Search for matching bold CJK font
+    for candidate in \
+      /usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc \
+      /usr/share/fonts/noto-cjk/NotoSansJP-Bold.otf \
+      /usr/share/fonts/OTF/NotoSansCJK-Bold.ttc \
+      /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc \
+      /usr/share/fonts/google-noto-cjk/NotoSansCJK-Bold.ttc \
+      /usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc; do
+      if [[ -f "$candidate" ]]; then
+        font_bold="$candidate"
+        break
+      fi
+    done
+  fi
+
+  # ── Fall back to Latin-only fonts if no CJK found ──
+  if [[ -z "$font_regular" ]]; then
+    for candidate in \
+      /usr/share/fonts/noto/NotoSans-Regular.ttf \
+      /usr/share/fonts/noto/NotoSans[wght].ttf \
+      /usr/share/fonts/TTF/NotoSans-Regular.ttf \
+      /usr/share/fonts/TTF/DejaVuSans.ttf \
+      /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+      /usr/share/fonts/TTF/LiberationSans-Regular.ttf \
+      /usr/share/fonts/liberation/LiberationSans-Regular.ttf \
+      /usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf \
+      /usr/share/fonts/gnu-free/FreeSans.ttf; do
+      if [[ -f "$candidate" ]]; then
+        font_regular="$candidate"
+        break
+      fi
+    done
+  fi
+  if [[ -z "$font_bold" ]]; then
+    for candidate in \
+      /usr/share/fonts/noto/NotoSans-Bold.ttf \
+      /usr/share/fonts/TTF/NotoSans-Bold.ttf \
+      /usr/share/fonts/TTF/DejaVuSans-Bold.ttf \
+      /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf \
+      /usr/share/fonts/TTF/LiberationSans-Bold.ttf \
+      /usr/share/fonts/liberation/LiberationSans-Bold.ttf \
+      /usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf \
+      /usr/share/fonts/gnu-free/FreeSansBold.ttf; do
+      if [[ -f "$candidate" ]]; then
+        font_bold="$candidate"
+        break
+      fi
+    done
+  fi
 
   # Fall back: use regular font for bold if no bold variant found.
   [[ -z "$font_bold" && -n "$font_regular" ]] && font_bold="$font_regular"
 
+  # Unicode ranges for CJK fonts (keeps PF2 small):
+  #   Latin + Latin Extended  : 0x0020–0x024F
+  #   General Punctuation     : 0x2000–0x206F
+  #   Arrows                  : 0x2190–0x21FF
+  #   Geometric Shapes        : 0x25A0–0x25FF
+  #   Box Drawing             : 0x2500–0x257F
+  #   Katakana (full block)   : 0x30A0–0x30FF
+  #   CJK: 娘 (U+5A18)       : 0x5A18–0x5A18
+  local cjk_ranges=(
+    --range=0x0020-0x024F
+    --range=0x2000-0x206F
+    --range=0x2190-0x21FF
+    --range=0x25A0-0x25FF
+    --range=0x2500-0x257F
+    --range=0x30A0-0x30FF
+    --range=0x5A18-0x5A18
+  )
+
   local fonts_generated=0
   if command -v grub-mkfont >/dev/null 2>&1; then
+    local mkfont_range=()
+    [[ "$font_is_cjk" -eq 1 ]] && mkfont_range=("${cjk_ranges[@]}")
+
     if [[ -n "$font_regular" ]]; then
       for size in 12 14 16; do
         grub-mkfont -n "UmaOS Regular" -s "$size" \
+          "${mkfont_range[@]}" \
           -o "$theme_src/UmaOS_Regular_${size}.pf2" "$font_regular"
-        log "Generated UmaOS Regular ${size}pt font from $(basename "$font_regular")"
+        log "Generated UmaOS Regular ${size}pt from $(basename "$font_regular")"
       done
       fonts_generated=1
     fi
     if [[ -n "$font_bold" ]]; then
       for size in 16 28; do
         grub-mkfont -n "UmaOS Bold" -s "$size" \
+          "${mkfont_range[@]}" \
           -o "$theme_src/UmaOS_Bold_${size}.pf2" "$font_bold"
-        log "Generated UmaOS Bold ${size}pt font from $(basename "$font_bold")"
+        log "Generated UmaOS Bold ${size}pt from $(basename "$font_bold")"
       done
     fi
   else
@@ -637,6 +705,7 @@ install_grub_theme() {
   if [[ "$fonts_generated" -eq 0 ]]; then
     log "WARNING: No TTF fonts found for GRUB theme. Install noto-fonts or ttf-dejavu."
     log "  The GRUB theme will fall back to the built-in Unifont (small text)."
+    log "  For Japanese subtitle: install noto-fonts-cjk."
   fi
 
   # Copy theme to ISO's GRUB directory (for live boot)
