@@ -67,7 +67,7 @@ Rectangle {
     Rectangle {
         id: loginCard
         width: 380
-        height: 480
+        height: 420
         radius: 20
         anchors.centerIn: parent
         color: "#b00c2418"
@@ -130,29 +130,61 @@ Rectangle {
         }
     }
 
+    // Track whether we're editing the username
+    property bool editingUsername: userModel.lastUser === ""
+
+    // ── Username display (click to edit) ──
+    Text {
+        id: usernameLabel
+        anchors.horizontalCenter: loginCard.horizontalCenter
+        anchors.top: avatar.bottom
+        anchors.topMargin: 14
+        text: name.text !== "" ? name.text : "User"
+        color: "#ffffff"
+        font.pixelSize: 18
+        font.bold: true
+        visible: !editingUsername
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                editingUsername = true
+                name.focus = true
+            }
+        }
+    }
+
+    // ── Username input (shown when editing) ──
+    TextBox {
+        id: name
+        anchors.horizontalCenter: loginCard.horizontalCenter
+        anchors.top: avatar.bottom
+        anchors.topMargin: 8
+        width: loginCard.width - 80
+        height: 44
+        font.pixelSize: 15
+        text: userModel.lastUser
+        visible: editingUsername
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (name.text !== "") {
+                    editingUsername = false
+                }
+                password.focus = true
+                event.accepted = true
+            }
+        }
+    }
+
     // ── Login fields ──
     Column {
         id: fields
-        anchors.top: avatar.bottom
+        anchors.top: editingUsername ? name.bottom : usernameLabel.bottom
         anchors.topMargin: 14
         anchors.horizontalCenter: loginCard.horizontalCenter
         width: loginCard.width - 80
         spacing: 14
-
-        // Username input
-        TextBox {
-            id: name
-            width: parent.width
-            height: 44
-            font.pixelSize: 15
-            text: userModel.lastUser
-            Keys.onPressed: function(event) {
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                    password.focus = true
-                    event.accepted = true
-                }
-            }
-        }
 
         // Password input
         PasswordBox {
@@ -285,7 +317,7 @@ Rectangle {
     }
 
     Component.onCompleted: {
-        if (name.text === "") {
+        if (editingUsername) {
             name.focus = true
         } else {
             password.focus = true
