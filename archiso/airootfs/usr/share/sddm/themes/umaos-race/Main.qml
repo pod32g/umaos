@@ -85,48 +85,77 @@ Rectangle {
         }
     }
 
-    // ── Avatar circle ──
-    Rectangle {
+    // ── Helper: look up user face icon from userModel ──
+    function getUserIcon(username) {
+        for (var i = 0; i < userModel.count; i++) {
+            if (userModel.data(userModel.index(i, 0), Qt.UserRole + 1) === username) {
+                var icon = userModel.data(userModel.index(i, 0), Qt.UserRole + 4);
+                if (icon && icon.toString() !== "")
+                    return icon;
+            }
+        }
+        return "";
+    }
+
+    // ── Avatar ──
+    Item {
         id: avatar
         width: 72
         height: 72
-        radius: 36
-        color: "#42a54b"
         anchors.horizontalCenter: loginCard.horizontalCenter
         anchors.top: loginCard.top
         anchors.topMargin: 36
 
-        // User icon (simplified person silhouette)
-        Text {
-            anchors.centerIn: parent
-            text: "\u2603"
-            color: "#ffffff"
-            font.pixelSize: 0
-            visible: false
+        // User face image (circular crop, shown when available)
+        Rectangle {
+            id: faceClip
+            anchors.fill: parent
+            radius: 36
+            clip: true
+            color: "transparent"
+            visible: faceImage.status === Image.Ready
+
+            Image {
+                id: faceImage
+                anchors.fill: parent
+                source: getUserIcon(name.text)
+                fillMode: Image.PreserveAspectCrop
+                smooth: true
+            }
         }
 
-        // Simple user icon using shapes
+        // Fallback: green circle with placeholder silhouette
         Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: 16
-            width: 20
-            height: 20
-            radius: 10
-            color: "transparent"
-            border.color: "#ffffff"
-            border.width: 2
-        }
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 12
-            width: 32
-            height: 16
-            radius: 8
-            color: "transparent"
-            border.color: "#ffffff"
-            border.width: 2
+            id: avatarFallback
+            anchors.fill: parent
+            radius: 36
+            color: "#42a54b"
+            visible: !faceClip.visible
+
+            // Head
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: parent.top
+                anchors.topMargin: 16
+                width: 20
+                height: 20
+                radius: 10
+                color: "transparent"
+                border.color: "#ffffff"
+                border.width: 2
+            }
+            // Shoulders
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 12
+                width: 32
+                height: 16
+                radius: 8
+                color: "transparent"
+                border.color: "#ffffff"
+                border.width: 2
+            }
         }
     }
 
