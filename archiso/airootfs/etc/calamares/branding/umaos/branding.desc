@@ -1,7 +1,7 @@
 ---
 componentName: umaos
-welcomeStyleCalamares: true
-welcomeExpandingLogo: true
+welcomeStyleCalamares: false
+welcomeExpandingLogo: false
 
 windowExpanding: normal
 windowSize: 920px,560px
@@ -25,15 +25,15 @@ strings:
 
 images:
   productBanner: "banner.svg"
-  productIcon: "ura_logo.png"
-  productLogo: "ura_logo.png"
+  productIcon: "logo.svg"
+  productLogo: "logo.svg"
   productWallpaper: "wallpaper.svg"
   productWelcome: "welcome.svg"
 
 style:
   SidebarBackground: "#12301a"
   SidebarText: "#e8f5ea"
-  SidebarTextCurrent: "#0a1f10"
+  SidebarTextCurrent: "#ffffff"
   SidebarBackgroundCurrent: "#42a54b"
 
 stylesheet: "stylesheet.qss"

@@ -1,7 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" viewBox="0 0 640 320">
-  <rect width="640" height="320" fill="#f0f9f2"/>
-  <circle cx="180" cy="160" r="120" fill="#42a54b" opacity="0.2"/>
-  <circle cx="460" cy="140" r="110" fill="#ff91c0" opacity="0.2"/>
-  <text x="86" y="184" fill="#16302a" font-size="54" font-family="Noto Sans">UmaOS</text>
-  <text x="88" y="226" fill="#2a6634" font-size="28" font-family="Noto Sans">Fast install. Fast desktop.</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#12301a"/>
+      <stop offset="60%" stop-color="#1e5a2a"/>
+      <stop offset="100%" stop-color="#42a54b"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#42a54b" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ff91c0" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="320" rx="12" fill="url(#bg)"/>
+  <ellipse cx="500" cy="180" rx="200" ry="160" fill="url(#glow)"/>
+  <text x="320" y="130" text-anchor="middle" fill="#ffffff" font-size="42" font-family="Noto Sans, sans-serif" font-weight="bold">Welcome to UmaOS</text>
+  <text x="320" y="170" text-anchor="middle" fill="#7ab882" font-size="18" font-family="Noto Sans, sans-serif">&#x30A6;&#x30DE;&#x5A18; &#x30D7;&#x30EA;&#x30C6;&#x30A3;&#x30FC;&#x30C0;&#x30FC;&#x30D3;&#x30FC;</text>
+  <text x="320" y="210" text-anchor="middle" fill="#8ab892" font-size="14" font-family="Noto Sans, sans-serif">Easy install. Fast desktop. Racing-idol inspired style.</text>
 </svg>
