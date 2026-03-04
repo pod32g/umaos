@@ -29,7 +29,7 @@ kickoff.writeConfig("icon", "umaos-launcher")
 kickoff.writeConfig("favoritesPortedToKAstats", true)
 
 // ── Pinned application launchers ──
-var tasks = panel.addWidget("org.kde.plasma.icontasks")
+var tasks = panel.addWidget("org.kde.plasma.taskmanager")
 tasks.currentConfigGroup = ["Configuration", "General"]
 tasks.writeConfig("launchers", [
     "applications:systemsettings.desktop",
@@ -59,7 +59,7 @@ clock.currentConfigGroup = ["Configuration", "Appearance"]
 clock.writeConfig("showDate", true)
 clock.writeConfig("dateFormat", "shortDate")
 
-// ── Panel appearance: translucent ──
+// ── Panel appearance: opaque dark green ──
 // panelOpacity: 0 = adaptive, 1 = opaque, 2 = translucent
 panel.currentConfigGroup = ["General"]
-panel.writeConfig("panelOpacity", 2)
+panel.writeConfig("panelOpacity", 1)
