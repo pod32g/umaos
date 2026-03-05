@@ -293,6 +293,13 @@ propagate_to_users() {
       fi
     done
 
+    # Sync AccountsService face icon to SDDM faces dir so the login
+    # screen can always find the avatar (home dirs may be 700).
+    if [[ -f "/var/lib/AccountsService/icons/$user_name" ]]; then
+      install -D -m 644 "/var/lib/AccountsService/icons/$user_name" \
+        "/usr/share/sddm/faces/${user_name}.face.icon"
+    fi
+
     log "Synced configs for user '$user_name'."
   done < /etc/passwd
 }

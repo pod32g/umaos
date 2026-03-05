@@ -67,7 +67,7 @@ Rectangle {
     Rectangle {
         id: loginCard
         width: 380
-        height: 420
+        height: 440
         radius: 20
         anchors.centerIn: parent
         color: "#b00c2418"
@@ -87,6 +87,9 @@ Rectangle {
 
     // ── Helper: look up user face icon from userModel ──
     function getUserIcon(username) {
+        if (!username || username === "")
+            return "";
+        // SDDM userModel queries ~/.face.icon, /usr/share/sddm/faces/, and AccountsService
         for (var i = 0; i < userModel.count; i++) {
             if (userModel.data(userModel.index(i, 0), Qt.UserRole + 1) === username) {
                 var icon = userModel.data(userModel.index(i, 0), Qt.UserRole + 4);
@@ -100,27 +103,55 @@ Rectangle {
     // ── Avatar ──
     Item {
         id: avatar
-        width: 72
-        height: 72
+        width: 96
+        height: 96
         anchors.horizontalCenter: loginCard.horizontalCenter
         anchors.top: loginCard.top
-        anchors.topMargin: 36
+        anchors.topMargin: 30
 
-        // User face image (circular crop, shown when available)
+        // Circular clip container for user face image
         Rectangle {
             id: faceClip
             anchors.fill: parent
-            radius: 36
+            radius: width / 2
             clip: true
             color: "transparent"
             visible: faceImage.status === Image.Ready
+            border.color: "#40ffffff"
+            border.width: 2
 
             Image {
                 id: faceImage
                 anchors.fill: parent
-                source: getUserIcon(name.text)
                 fillMode: Image.PreserveAspectCrop
                 smooth: true
+                cache: false
+
+                // Fallback chain: userModel → sddm/faces → AccountsService
+                property int attempt: 0
+                property var sources: {
+                    var user = name.text;
+                    if (!user || user === "") return [];
+                    var list = [];
+                    var modelIcon = getUserIcon(user);
+                    if (modelIcon !== "") list.push(modelIcon);
+                    list.push("/usr/share/sddm/faces/" + user + ".face.icon");
+                    list.push("/var/lib/AccountsService/icons/" + user);
+                    return list;
+                }
+
+                source: attempt < sources.length ? sources[attempt] : ""
+
+                onStatusChanged: {
+                    if (status === Image.Error && attempt < sources.length - 1)
+                        attempt++;
+                }
+            }
+
+            // Reset fallback chain when username changes
+            Connections {
+                target: name
+                function onTextChanged() { faceImage.attempt = 0; }
             }
         }
 
@@ -128,18 +159,20 @@ Rectangle {
         Rectangle {
             id: avatarFallback
             anchors.fill: parent
-            radius: 36
+            radius: width / 2
             color: "#42a54b"
             visible: !faceClip.visible
+            border.color: "#40ffffff"
+            border.width: 2
 
             // Head
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
-                anchors.topMargin: 16
-                width: 20
-                height: 20
-                radius: 10
+                anchors.topMargin: 22
+                width: 26
+                height: 26
+                radius: 13
                 color: "transparent"
                 border.color: "#ffffff"
                 border.width: 2
@@ -148,10 +181,10 @@ Rectangle {
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 12
-                width: 32
-                height: 16
-                radius: 8
+                anchors.bottomMargin: 14
+                width: 42
+                height: 20
+                radius: 10
                 color: "transparent"
                 border.color: "#ffffff"
                 border.width: 2
