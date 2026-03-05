@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/umaos"
+MARKER="$STATE_DIR/welcome.done"
+mkdir -p "$STATE_DIR"
+
+if [[ -f "$MARKER" ]]; then
+  exit 0
+fi
+
+# Wait for desktop to settle
+sleep 3
+
+if ! command -v kdialog >/dev/null 2>&1; then
+  touch "$MARKER"
+  exit 0
+fi
+
+kdialog --title "Welcome to UmaOS!" --msgbox \
+"$(cat <<'MSG'
+<h2 style="color:#42a54b;">Welcome to UmaOS! 🐴</h2>
+<p><b>ウマ娘 プリティーダービー</b></p>
+<br/>
+<p><b>Quick Start:</b></p>
+<ul>
+  <li><b>Uma Musume</b> — Steam will install automatically on first login</li>
+  <li><b>Wallpapers</b> — Right-click desktop → Configure → Wallpaper</li>
+  <li><b>Terminal</b> — Konsole with Goldship theme (Ctrl+Alt+T)</li>
+  <li><b>Updates</b> — Run <code>sudo uma-update</code> to sync latest customizations</li>
+  <li><b>Audio issues?</b> — Run <code>umao-audio-doctor</code></li>
+</ul>
+<br/>
+<p style="color:#888;">This message only appears once. Enjoy your race!</p>
+MSG
+)" 2>/dev/null || true
+
+touch "$MARKER"

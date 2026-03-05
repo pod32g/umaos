@@ -227,6 +227,22 @@ sync_dir_recursive "$airootfs/usr/share/plasma/look-and-feel/com.umaos.desktop" 
 sync_dir_files "$airootfs/usr/lib/qt6/qml/org/kde/breeze/components" \
   "/usr/lib/qt6/qml/org/kde/breeze/components"
 
+# ── 9b. Force Qt6 to load QML from filesystem instead of compiled resources ──
+# plasma-workspace compiles QML files into libcomponents.so and the generated
+# qmldir contains a "prefer :/qt/qml/..." line.  This causes Qt6 to use the
+# compiled-in versions, completely ignoring our patched UserDelegate.qml on
+# disk.  Removing the "prefer" line makes Qt6 load from the filesystem.
+breeze_qmldir="/usr/lib/qt6/qml/org/kde/breeze/components/qmldir"
+if [[ -f "$breeze_qmldir" ]] && grep -q '^prefer ' "$breeze_qmldir"; then
+  if ((dry_run == 1)); then
+    log "Would patch: $breeze_qmldir (remove 'prefer' directive)"
+  else
+    sed -i '/^prefer /d' "$breeze_qmldir"
+    log "Patched: $breeze_qmldir (removed 'prefer' directive so filesystem QML is used)"
+  fi
+  updated=$((updated + 1))
+fi
+
 # ── 10. Skel KDE/GTK config files ──
 # These are the source files that get copied to each user's home.
 for cfg in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
@@ -248,8 +264,10 @@ propagate_to_users() {
     (( uid >= 1000 && uid < 60000 )) || continue
     [[ "$user_home" != "/" && -n "$user_home" && -d "$user_home" ]] || continue
 
-    # Sync skel config files to user home
-    for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
+    # Sync skel config files to user home.
+    # NOTE: kcminputrc is excluded — it contains cursor theme which is a
+    # user preference that should not be overwritten on update.
+    for src in kdeglobals ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
       if [[ -f "/etc/skel/.config/$src" ]]; then
         install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$src" "$user_home/.config/$src"
       fi
@@ -261,13 +279,9 @@ propagate_to_users() {
         "$user_home/.config/fastfetch/config.jsonc"
     fi
 
-    # Sync GTK settings
-    for gtk_ver in gtk-3.0 gtk-4.0; do
-      if [[ -f "/etc/skel/.config/$gtk_ver/settings.ini" ]]; then
-        install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$gtk_ver/settings.ini" \
-          "$user_home/.config/$gtk_ver/settings.ini"
-      fi
-    done
+    # NOTE: GTK settings (gtk-3.0, gtk-4.0) are excluded from propagation
+    # because they contain cursor theme preferences that should not be
+    # overwritten on update.
 
     # Sync desktop launchers
     for launcher in "Install Uma Musume.sh" "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop"; do
@@ -276,6 +290,20 @@ propagate_to_users() {
           "$user_home/Desktop/$launcher"
       fi
     done
+
+    # Sync autostart entries
+    for entry in umaos-welcome.desktop umaos-login-sound.desktop; do
+      if [[ -f "/etc/skel/.config/autostart/$entry" ]]; then
+        install -D -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$entry" \
+          "$user_home/.config/autostart/$entry"
+      fi
+    done
+
+    # Sync Dolphin sidebar bookmarks (only if user hasn't customized theirs)
+    if [[ -f "/etc/skel/.local/share/user-places.xbel" ]] && [[ ! -f "$user_home/.local/share/user-places.xbel" ]]; then
+      install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.local/share/user-places.xbel" \
+        "$user_home/.local/share/user-places.xbel"
+    fi
 
     log "Synced configs for user '$user_name'."
   done < /etc/passwd
@@ -300,6 +328,25 @@ if ((dry_run == 1)); then
   log "Dry-run complete. Files to update: $updated, unchanged: $skipped."
 else
   log "Sync complete. Files updated: $updated, unchanged: $skipped."
+
+  # Always sync face icons to SDDM faces directory.
+  # Home dirs may be mode 700, so SDDM can't read ~/.face.icon.
+  # Copy AccountsService icons to /usr/share/sddm/faces/ where SDDM can find them.
+  sync_sddm_face_icons() {
+    local user_name uid
+    while IFS=: read -r user_name _ uid _ _ _ _; do
+      [[ "$uid" =~ ^[0-9]+$ ]] || continue
+      (( uid >= 1000 && uid < 60000 )) || continue
+      if [[ -f "/var/lib/AccountsService/icons/$user_name" ]]; then
+        local dest="/usr/share/sddm/faces/${user_name}.face.icon"
+        if ! cmp -s "/var/lib/AccountsService/icons/$user_name" "$dest" 2>/dev/null; then
+          install -D -m 644 "/var/lib/AccountsService/icons/$user_name" "$dest"
+          log "Synced face icon for '$user_name' to SDDM faces dir."
+        fi
+      fi
+    done < /etc/passwd
+  }
+  sync_sddm_face_icons
 
   if ((updated > 0)); then
     propagate_to_users

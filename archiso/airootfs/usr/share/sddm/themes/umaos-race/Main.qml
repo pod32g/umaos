@@ -83,6 +83,19 @@ Rectangle {
             border.color: "#10ffffff"
             border.width: 1
         }
+
+        // URA logo watermark at bottom of card
+        Image {
+            source: "ura_logo.png"
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottomMargin: 10
+            width: 36
+            height: 36 * (172 / 150)  // preserve aspect ratio
+            fillMode: Image.PreserveAspectFit
+            opacity: 0.2
+            smooth: true
+        }
     }
 
     // ── Helper: look up user face icon from userModel ──
@@ -335,12 +348,29 @@ Rectangle {
             }
         }
 
-        // Session selector (subtle)
+        // Session selector (click to cycle)
         Text {
+            id: sessionLabel
             anchors.horizontalCenter: parent.horizontalCenter
-            text: textConstants.session + ": " + sessionModel.data(sessionModel.index(session.index, 0), Qt.DisplayRole)
-            color: "#80ffffff"
+            text: {
+                var idx = session.index;
+                var sName = (idx >= 0 && idx < sessionModel.count)
+                    ? sessionModel.data(sessionModel.index(idx, 0), Qt.DisplayRole)
+                    : "";
+                return textConstants.session + ": " + (sName || "Default") + " \u25BE";
+            }
+            color: sessionMouseArea.containsMouse ? "#b0ffffff" : "#80ffffff"
             font.pixelSize: 12
+
+            MouseArea {
+                id: sessionMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    session.index = (session.index + 1) % sessionModel.count;
+                }
+            }
         }
 
         Text {
