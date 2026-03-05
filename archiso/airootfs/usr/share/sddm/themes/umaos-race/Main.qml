@@ -87,9 +87,6 @@ Rectangle {
 
     // ── Helper: look up user face icon from userModel ──
     function getUserIcon(username) {
-        if (!username || username === "")
-            return "";
-        // SDDM userModel queries ~/.face.icon, /usr/share/sddm/faces/, and AccountsService
         for (var i = 0; i < userModel.count; i++) {
             if (userModel.data(userModel.index(i, 0), Qt.UserRole + 1) === username) {
                 var icon = userModel.data(userModel.index(i, 0), Qt.UserRole + 4);
@@ -109,64 +106,70 @@ Rectangle {
         anchors.top: loginCard.top
         anchors.topMargin: 30
 
-        // Circular clip container for user face image.
-        // NOTE: QML "clip: true" only clips to the rectangular bounds, NOT
-        // to rounded corners.  Setting layer.enabled renders the Rectangle
-        // and its children into an FBO, then paints the texture using the
-        // rounded shape — producing a true circular mask.
-        Rectangle {
-            id: faceClip
+        // Face image (hidden — used as ShaderEffect source)
+        Image {
+            id: faceImage
             anchors.fill: parent
-            radius: width / 2
-            color: "transparent"
-            visible: faceImage.status === Image.Ready
+            fillMode: Image.PreserveAspectCrop
+            smooth: true
+            cache: false
+            visible: false
 
-            layer.enabled: true
-            layer.smooth: true
-
-            Image {
-                id: faceImage
-                anchors.fill: parent
-                fillMode: Image.PreserveAspectCrop
-                smooth: true
-                cache: false
-
-                // Fallback chain: userModel → sddm/faces → AccountsService
-                property int attempt: 0
-                property var sources: {
-                    var user = name.text;
-                    if (!user || user === "") return [];
-                    var list = [];
-                    var modelIcon = getUserIcon(user);
-                    if (modelIcon !== "") list.push(modelIcon);
-                    list.push("/usr/share/sddm/faces/" + user + ".face.icon");
-                    list.push("/var/lib/AccountsService/icons/" + user);
-                    return list;
-                }
-
-                source: attempt < sources.length ? sources[attempt] : ""
-
-                onStatusChanged: {
-                    if (status === Image.Error && attempt < sources.length - 1)
-                        attempt++;
-                }
+            // Fallback chain: userModel → sddm/faces → AccountsService
+            property int attempt: 0
+            property var sources: {
+                var user = name.text;
+                if (!user || user === "") return [];
+                var list = [];
+                var modelIcon = getUserIcon(user);
+                if (modelIcon !== "") list.push(modelIcon);
+                list.push("/usr/share/sddm/faces/" + user + ".face.icon");
+                list.push("/var/lib/AccountsService/icons/" + user);
+                return list;
             }
 
-            // Reset fallback chain when username changes
-            Connections {
-                target: name
-                function onTextChanged() { faceImage.attempt = 0; }
+            source: attempt < sources.length ? sources[attempt] : ""
+
+            onStatusChanged: {
+                if (status === Image.Error && attempt < sources.length - 1)
+                    attempt++;
             }
         }
 
-        // Circular border ring (drawn on top, outside the layer)
+        // Reset fallback chain when username changes
+        Connections {
+            target: name
+            function onTextChanged() { faceImage.attempt = 0; }
+        }
+
+        // Circular clip via inline GLSL shader (Qt5 ShaderEffect).
+        // Discards pixels outside a circle of radius 0.5 in UV space.
+        ShaderEffect {
+            anchors.fill: parent
+            visible: faceImage.status === Image.Ready
+            property variant src: faceImage
+
+            fragmentShader: "
+                varying highp vec2 qt_TexCoord0;
+                uniform sampler2D src;
+                uniform lowp float qt_Opacity;
+                void main() {
+                    highp vec2 uv = qt_TexCoord0 - vec2(0.5);
+                    if (length(uv) > 0.5)
+                        discard;
+                    gl_FragColor = texture2D(src, qt_TexCoord0) * qt_Opacity;
+                }
+            "
+        }
+
+        // Circular border ring
         Rectangle {
             anchors.fill: parent
             radius: width / 2
             color: "transparent"
             border.color: "#40ffffff"
             border.width: 2
-            visible: faceClip.visible
+            visible: faceImage.status === Image.Ready
         }
 
         // Fallback: green circle with placeholder silhouette
@@ -175,7 +178,7 @@ Rectangle {
             anchors.fill: parent
             radius: width / 2
             color: "#42a54b"
-            visible: !faceClip.visible
+            visible: faceImage.status !== Image.Ready
             border.color: "#40ffffff"
             border.width: 2
 
