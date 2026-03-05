@@ -9,7 +9,12 @@
     }
   },
   "display": {
-    "separator": " → "
+    "separator": " → ",
+    "color": {
+      "keys": "green",
+      "separator": "magenta",
+      "title": "green"
+    }
   },
   "modules": [
     "title",

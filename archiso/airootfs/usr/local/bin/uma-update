@@ -291,6 +291,20 @@ propagate_to_users() {
       fi
     done
 
+    # Sync autostart entries
+    for entry in umaos-welcome.desktop umaos-login-sound.desktop; do
+      if [[ -f "/etc/skel/.config/autostart/$entry" ]]; then
+        install -D -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$entry" \
+          "$user_home/.config/autostart/$entry"
+      fi
+    done
+
+    # Sync Dolphin sidebar bookmarks (only if user hasn't customized theirs)
+    if [[ -f "/etc/skel/.local/share/user-places.xbel" ]] && [[ ! -f "$user_home/.local/share/user-places.xbel" ]]; then
+      install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.local/share/user-places.xbel" \
+        "$user_home/.local/share/user-places.xbel"
+    fi
+
     log "Synced configs for user '$user_name'."
   done < /etc/passwd
 }

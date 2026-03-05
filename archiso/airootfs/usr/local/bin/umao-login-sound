@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Play a short login sound when the desktop session starts.
+# Uses the UmaOS fanfare if available, falls back to KDE login sound.
+
+CUSTOM_SOUND="/usr/share/umaos/sounds/login.ogg"
+KDE_SOUND="/usr/share/sounds/freedesktop/stereo/service-login.oga"
+FALLBACK_SOUND="/usr/share/sounds/freedesktop/stereo/complete.oga"
+
+# Wait briefly for audio to be ready
+sleep 2
+
+play_sound() {
+  local file="$1"
+  if command -v paplay >/dev/null 2>&1; then
+    paplay "$file" 2>/dev/null &
+  elif command -v aplay >/dev/null 2>&1; then
+    aplay "$file" 2>/dev/null &
+  elif command -v pw-play >/dev/null 2>&1; then
+    pw-play "$file" 2>/dev/null &
+  fi
+}
+
+for sound in "$CUSTOM_SOUND" "$KDE_SOUND" "$FALLBACK_SOUND"; do
+  if [[ -f "$sound" ]]; then
+    play_sound "$sound"
+    exit 0
+  fi
+done

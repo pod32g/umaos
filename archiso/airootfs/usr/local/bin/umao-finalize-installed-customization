@@ -256,7 +256,7 @@ sync_user_customization() {
   done
 
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/autostart"
-  for src in umaos-first-login.desktop umao-umamusume-first-login.desktop; do
+  for src in umaos-first-login.desktop umao-umamusume-first-login.desktop umaos-welcome.desktop umaos-login-sound.desktop; do
     if [[ -f "/etc/skel/.config/autostart/$src" ]]; then
       install -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$src" \
         "$user_home/.config/autostart/$src"
@@ -294,6 +294,13 @@ sync_user_customization() {
     install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/fastfetch"
     install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/fastfetch/config.jsonc" \
       "$user_home/.config/fastfetch/config.jsonc"
+  fi
+
+  # Sync Dolphin sidebar bookmarks.
+  if [[ -f "/etc/skel/.local/share/user-places.xbel" ]]; then
+    install -d -m 700 -o "$uid" -g "$gid" "$user_home/.local/share"
+    install -m 600 -o "$uid" -g "$gid" "/etc/skel/.local/share/user-places.xbel" \
+      "$user_home/.local/share/user-places.xbel"
   fi
 
   cat > "$user_home/.icons/default/index.theme" <<'EOF'

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=UmaOS Login Sound
+Comment=Play a short sound when the desktop loads
+Exec=/usr/local/bin/umao-login-sound
+Terminal=false
+OnlyShowIn=KDE;
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

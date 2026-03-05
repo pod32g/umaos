@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xbel>
+<xbel xmlns:bookmark="http://www.freedesktop.org/standards/desktop-bookmarks"
+      xmlns:kdeconnect="http://www.kde.org"
+      xmlns:mime="http://www.freedesktop.org/standards/shared-mime-info">
+ <bookmark href="file:///home">
+  <title>Home</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="user-home"/>
+   </metadata>
+   <metadata owner="http://www.kde.org">
+    <IsSystemItem>true</IsSystemItem>
+   </metadata>
+  </info>
+ </bookmark>
+ <bookmark href="file:///home/Desktop">
+  <title>Desktop</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="user-desktop"/>
+   </metadata>
+   <metadata owner="http://www.kde.org">
+    <IsSystemItem>true</IsSystemItem>
+   </metadata>
+  </info>
+ </bookmark>
+ <bookmark href="file:///home/Documents">
+  <title>Documents</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="folder-documents"/>
+   </metadata>
+   <metadata owner="http://www.kde.org">
+    <IsSystemItem>true</IsSystemItem>
+   </metadata>
+  </info>
+ </bookmark>
+ <bookmark href="file:///home/Downloads">
+  <title>Downloads</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="folder-downloads"/>
+   </metadata>
+   <metadata owner="http://www.kde.org">
+    <IsSystemItem>true</IsSystemItem>
+   </metadata>
+  </info>
+ </bookmark>
+ <separator/>
+ <bookmark href="file:///home/.local/share/Steam/steamapps/common">
+  <title>Steam Games</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="folder-games"/>
+   </metadata>
+  </info>
+ </bookmark>
+ <bookmark href="file:///usr/share/wallpapers">
+  <title>Wallpapers</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="folder-pictures"/>
+   </metadata>
+  </info>
+ </bookmark>
+ <bookmark href="file:///usr/share/umaos">
+  <title>UmaOS Assets</title>
+  <info>
+   <metadata owner="http://freedesktop.org">
+    <bookmark:icon name="folder-favorites"/>
+   </metadata>
+  </info>
+ </bookmark>
+</xbel>

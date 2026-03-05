@@ -1412,6 +1412,8 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-ensure-proton-ge" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-refresh-lsb-release" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-show-ascii" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-welcome" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-login-sound" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
   "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
   "$BUILD_PROFILE/airootfs/etc/skel/Desktop/Install Uma Musume.sh" \
@@ -1463,6 +1465,8 @@ file_permissions+=(
   ["/usr/local/bin/umao-ensure-proton-ge"]="0:0:755"
   ["/usr/local/bin/umao-refresh-lsb-release"]="0:0:755"
   ["/usr/local/bin/umao-show-ascii"]="0:0:755"
+  ["/usr/local/bin/umao-welcome"]="0:0:755"
+  ["/usr/local/bin/umao-login-sound"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
   ["/home/arch/Desktop/Install Uma Musume.sh"]="1000:1000:755"
   ["/etc/skel/Desktop/Install Uma Musume.sh"]="0:0:755"
