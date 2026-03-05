@@ -1,6 +1,5 @@
 import QtQuick 2.15
 import SddmComponents 2.0
-import Qt5Compat.GraphicalEffects
 
 Rectangle {
     id: root
@@ -107,7 +106,7 @@ Rectangle {
         anchors.top: loginCard.top
         anchors.topMargin: 30
 
-        // Face image (hidden — used as source for OpacityMask)
+        // Face image (hidden — used as ShaderEffect source)
         Image {
             id: faceImage
             anchors.fill: parent
@@ -143,21 +142,24 @@ Rectangle {
             function onTextChanged() { faceImage.attempt = 0; }
         }
 
-        // Circular mask shape (hidden — used as mask for OpacityMask)
-        Rectangle {
-            id: circleMask
+        // Circular clip via inline GLSL shader (Qt5 ShaderEffect).
+        // Discards pixels outside a circle of radius 0.5 in UV space.
+        ShaderEffect {
             anchors.fill: parent
-            radius: width / 2
-            color: "black"
-            visible: false
-        }
-
-        // Circular-clipped face image via OpacityMask
-        OpacityMask {
-            anchors.fill: parent
-            source: faceImage
-            maskSource: circleMask
             visible: faceImage.status === Image.Ready
+            property variant src: faceImage
+
+            fragmentShader: "
+                varying highp vec2 qt_TexCoord0;
+                uniform sampler2D src;
+                uniform lowp float qt_Opacity;
+                void main() {
+                    highp vec2 uv = qt_TexCoord0 - vec2(0.5);
+                    if (length(uv) > 0.5)
+                        discard;
+                    gl_FragColor = texture2D(src, qt_TexCoord0) * qt_Opacity;
+                }
+            "
         }
 
         // Circular border ring
