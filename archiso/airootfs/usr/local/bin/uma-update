@@ -264,8 +264,10 @@ propagate_to_users() {
     (( uid >= 1000 && uid < 60000 )) || continue
     [[ "$user_home" != "/" && -n "$user_home" && -d "$user_home" ]] || continue
 
-    # Sync skel config files to user home
-    for src in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
+    # Sync skel config files to user home.
+    # NOTE: kcminputrc is excluded — it contains cursor theme which is a
+    # user preference that should not be overwritten on update.
+    for src in kdeglobals ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
       if [[ -f "/etc/skel/.config/$src" ]]; then
         install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$src" "$user_home/.config/$src"
       fi
