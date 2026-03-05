@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import SddmComponents 2.0
+import Qt5Compat.GraphicalEffects
 
 Rectangle {
     id: root
@@ -67,7 +68,7 @@ Rectangle {
     Rectangle {
         id: loginCard
         width: 380
-        height: 420
+        height: 440
         radius: 20
         anchors.centerIn: parent
         color: "#b00c2418"
@@ -100,46 +101,93 @@ Rectangle {
     // ── Avatar ──
     Item {
         id: avatar
-        width: 72
-        height: 72
+        width: 96
+        height: 96
         anchors.horizontalCenter: loginCard.horizontalCenter
         anchors.top: loginCard.top
-        anchors.topMargin: 36
+        anchors.topMargin: 30
 
-        // User face image (circular crop, shown when available)
-        Rectangle {
-            id: faceClip
+        // Face image (hidden — used as source for OpacityMask)
+        Image {
+            id: faceImage
             anchors.fill: parent
-            radius: 36
-            clip: true
-            color: "transparent"
-            visible: faceImage.status === Image.Ready
+            fillMode: Image.PreserveAspectCrop
+            smooth: true
+            cache: false
+            visible: false
 
-            Image {
-                id: faceImage
-                anchors.fill: parent
-                source: getUserIcon(name.text)
-                fillMode: Image.PreserveAspectCrop
-                smooth: true
+            // Fallback chain: userModel → sddm/faces → AccountsService
+            property int attempt: 0
+            property var sources: {
+                var user = name.text;
+                if (!user || user === "") return [];
+                var list = [];
+                var modelIcon = getUserIcon(user);
+                if (modelIcon !== "") list.push(modelIcon);
+                list.push("/usr/share/sddm/faces/" + user + ".face.icon");
+                list.push("/var/lib/AccountsService/icons/" + user);
+                return list;
             }
+
+            source: attempt < sources.length ? sources[attempt] : ""
+
+            onStatusChanged: {
+                if (status === Image.Error && attempt < sources.length - 1)
+                    attempt++;
+            }
+        }
+
+        // Reset fallback chain when username changes
+        Connections {
+            target: name
+            function onTextChanged() { faceImage.attempt = 0; }
+        }
+
+        // Circular mask shape (hidden — used as mask for OpacityMask)
+        Rectangle {
+            id: circleMask
+            anchors.fill: parent
+            radius: width / 2
+            color: "black"
+            visible: false
+        }
+
+        // Circular-clipped face image via OpacityMask
+        OpacityMask {
+            anchors.fill: parent
+            source: faceImage
+            maskSource: circleMask
+            visible: faceImage.status === Image.Ready
+        }
+
+        // Circular border ring
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: "transparent"
+            border.color: "#40ffffff"
+            border.width: 2
+            visible: faceImage.status === Image.Ready
         }
 
         // Fallback: green circle with placeholder silhouette
         Rectangle {
             id: avatarFallback
             anchors.fill: parent
-            radius: 36
+            radius: width / 2
             color: "#42a54b"
-            visible: !faceClip.visible
+            visible: faceImage.status !== Image.Ready
+            border.color: "#40ffffff"
+            border.width: 2
 
             // Head
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
-                anchors.topMargin: 16
-                width: 20
-                height: 20
-                radius: 10
+                anchors.topMargin: 22
+                width: 26
+                height: 26
+                radius: 13
                 color: "transparent"
                 border.color: "#ffffff"
                 border.width: 2
@@ -148,10 +196,10 @@ Rectangle {
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 12
-                width: 32
-                height: 16
-                radius: 8
+                anchors.bottomMargin: 14
+                width: 42
+                height: 20
+                radius: 10
                 color: "transparent"
                 border.color: "#ffffff"
                 border.width: 2
