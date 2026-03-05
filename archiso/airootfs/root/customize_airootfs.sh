@@ -31,3 +31,12 @@ if command -v plymouth-set-default-theme >/dev/null 2>&1; then
     echo "[customize_airootfs] Plymouth default theme set to umaos."
   fi
 fi
+
+# Force Qt6 to load Breeze QML components from the filesystem instead of the
+# compiled-in resources in libcomponents.so.  Without this, the patched
+# UserDelegate.qml (circular lock screen avatar) is ignored.
+breeze_qmldir="/usr/lib/qt6/qml/org/kde/breeze/components/qmldir"
+if [[ -f "$breeze_qmldir" ]] && grep -q '^prefer ' "$breeze_qmldir"; then
+  sed -i '/^prefer /d' "$breeze_qmldir"
+  echo "[customize_airootfs] Patched breeze components qmldir (removed 'prefer' directive)."
+fi

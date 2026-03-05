@@ -227,6 +227,22 @@ sync_dir_recursive "$airootfs/usr/share/plasma/look-and-feel/com.umaos.desktop" 
 sync_dir_files "$airootfs/usr/lib/qt6/qml/org/kde/breeze/components" \
   "/usr/lib/qt6/qml/org/kde/breeze/components"
 
+# ── 9b. Force Qt6 to load QML from filesystem instead of compiled resources ──
+# plasma-workspace compiles QML files into libcomponents.so and the generated
+# qmldir contains a "prefer :/qt/qml/..." line.  This causes Qt6 to use the
+# compiled-in versions, completely ignoring our patched UserDelegate.qml on
+# disk.  Removing the "prefer" line makes Qt6 load from the filesystem.
+breeze_qmldir="/usr/lib/qt6/qml/org/kde/breeze/components/qmldir"
+if [[ -f "$breeze_qmldir" ]] && grep -q '^prefer ' "$breeze_qmldir"; then
+  if ((dry_run == 1)); then
+    log "Would patch: $breeze_qmldir (remove 'prefer' directive)"
+  else
+    sed -i '/^prefer /d' "$breeze_qmldir"
+    log "Patched: $breeze_qmldir (removed 'prefer' directive so filesystem QML is used)"
+  fi
+  updated=$((updated + 1))
+fi
+
 # ── 10. Skel KDE/GTK config files ──
 # These are the source files that get copied to each user's home.
 for cfg in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do

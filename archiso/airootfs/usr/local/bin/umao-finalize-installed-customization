@@ -344,6 +344,15 @@ main() {
     fi
   fi
 
+  # Force Qt6 to load Breeze QML components from the filesystem instead of the
+  # compiled-in resources in libcomponents.so.  Without this, the patched
+  # UserDelegate.qml (circular lock screen avatar) is ignored.
+  local breeze_qmldir="/usr/lib/qt6/qml/org/kde/breeze/components/qmldir"
+  if [[ -f "$breeze_qmldir" ]] && grep -q '^prefer ' "$breeze_qmldir"; then
+    sed -i '/^prefer /d' "$breeze_qmldir"
+    log "Patched breeze components qmldir (removed 'prefer' directive)."
+  fi
+
   # Add plymouth hook to mkinitcpio for boot splash.
   if [[ -f /etc/mkinitcpio.conf ]] && ! grep -q 'plymouth' /etc/mkinitcpio.conf; then
     sed -i 's/^HOOKS=(\(base udev\)/HOOKS=(\1 plymouth/' /etc/mkinitcpio.conf
