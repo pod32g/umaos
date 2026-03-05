@@ -109,16 +109,20 @@ Rectangle {
         anchors.top: loginCard.top
         anchors.topMargin: 30
 
-        // Circular clip container for user face image
+        // Circular clip container for user face image.
+        // NOTE: QML "clip: true" only clips to the rectangular bounds, NOT
+        // to rounded corners.  Setting layer.enabled renders the Rectangle
+        // and its children into an FBO, then paints the texture using the
+        // rounded shape — producing a true circular mask.
         Rectangle {
             id: faceClip
             anchors.fill: parent
             radius: width / 2
-            clip: true
             color: "transparent"
             visible: faceImage.status === Image.Ready
-            border.color: "#40ffffff"
-            border.width: 2
+
+            layer.enabled: true
+            layer.smooth: true
 
             Image {
                 id: faceImage
@@ -153,6 +157,16 @@ Rectangle {
                 target: name
                 function onTextChanged() { faceImage.attempt = 0; }
             }
+        }
+
+        // Circular border ring (drawn on top, outside the layer)
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: "transparent"
+            border.color: "#40ffffff"
+            border.width: 2
+            visible: faceClip.visible
         }
 
         // Fallback: green circle with placeholder silhouette
