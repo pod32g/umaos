@@ -335,18 +335,29 @@ Rectangle {
             }
         }
 
-        // Session selector (subtle)
+        // Session selector (click to cycle)
         Text {
+            id: sessionLabel
             anchors.horizontalCenter: parent.horizontalCenter
             text: {
                 var idx = session.index;
                 var sName = (idx >= 0 && idx < sessionModel.count)
                     ? sessionModel.data(sessionModel.index(idx, 0), Qt.DisplayRole)
                     : "";
-                return textConstants.session + ": " + (sName || "Default");
+                return textConstants.session + ": " + (sName || "Default") + " \u25BE";
             }
-            color: "#80ffffff"
+            color: sessionMouseArea.containsMouse ? "#b0ffffff" : "#80ffffff"
             font.pixelSize: 12
+
+            MouseArea {
+                id: sessionMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    session.index = (session.index + 1) % sessionModel.count;
+                }
+            }
         }
 
         Text {
