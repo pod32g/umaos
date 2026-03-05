@@ -340,10 +340,10 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             text: {
                 var idx = session.index;
-                var name = (idx >= 0 && idx < sessionModel.rowCount())
+                var sName = (idx >= 0 && idx < sessionModel.count)
                     ? sessionModel.data(sessionModel.index(idx, 0), Qt.DisplayRole)
                     : "";
-                return textConstants.session + ": " + (name || "Default");
+                return textConstants.session + ": " + (sName || "Default");
             }
             color: "#80ffffff"
             font.pixelSize: 12
