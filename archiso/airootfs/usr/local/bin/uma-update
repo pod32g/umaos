@@ -219,7 +219,15 @@ sync_dir_recursive "$airootfs/usr/share/umaos" "/usr/share/umaos"
 sync_dir_recursive "$airootfs/usr/share/plasma/look-and-feel/com.umaos.desktop" \
   "/usr/share/plasma/look-and-feel/com.umaos.desktop"
 
-# ── 9. Skel KDE/GTK config files ──
+# ── 9. Breeze lock screen avatar patch (circular clip fallback) ──
+# The default UserDelegate.qml uses a GPU ShaderEffect for the circular avatar.
+# On software rendering or certain GPU drivers the shader fails silently,
+# leaving a rectangular avatar. Our patched version adds clip+radius to the
+# image container so it's always circular.
+sync_dir_files "$airootfs/usr/lib/qt6/qml/org/kde/breeze/components" \
+  "/usr/lib/qt6/qml/org/kde/breeze/components"
+
+# ── 10. Skel KDE/GTK config files ──
 # These are the source files that get copied to each user's home.
 for cfg in kdeglobals kcminputrc ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
   if [[ -f "$airootfs/etc/skel/.config/$cfg" ]]; then
