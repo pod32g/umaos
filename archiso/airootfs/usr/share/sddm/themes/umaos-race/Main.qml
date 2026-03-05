@@ -83,6 +83,19 @@ Rectangle {
             border.color: "#10ffffff"
             border.width: 1
         }
+
+        // URA logo watermark at bottom of card
+        Image {
+            source: "ura_logo.png"
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottomMargin: 10
+            width: 24
+            height: 24 * (172 / 150)  // preserve aspect ratio
+            fillMode: Image.PreserveAspectFit
+            opacity: 0.15
+            smooth: true
+        }
     }
 
     // ── Helper: look up user face icon from userModel ──
