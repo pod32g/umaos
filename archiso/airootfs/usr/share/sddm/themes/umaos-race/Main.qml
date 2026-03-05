@@ -338,7 +338,13 @@ Rectangle {
         // Session selector (subtle)
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: textConstants.session + ": " + sessionModel.data(sessionModel.index(session.index, 0), Qt.DisplayRole)
+            text: {
+                var idx = session.index;
+                var name = (idx >= 0 && idx < sessionModel.rowCount())
+                    ? sessionModel.data(sessionModel.index(idx, 0), Qt.DisplayRole)
+                    : "";
+                return textConstants.session + ": " + (name || "Default");
+            }
             color: "#80ffffff"
             font.pixelSize: 12
         }
