@@ -279,13 +279,9 @@ propagate_to_users() {
         "$user_home/.config/fastfetch/config.jsonc"
     fi
 
-    # Sync GTK settings
-    for gtk_ver in gtk-3.0 gtk-4.0; do
-      if [[ -f "/etc/skel/.config/$gtk_ver/settings.ini" ]]; then
-        install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$gtk_ver/settings.ini" \
-          "$user_home/.config/$gtk_ver/settings.ini"
-      fi
-    done
+    # NOTE: GTK settings (gtk-3.0, gtk-4.0) are excluded from propagation
+    # because they contain cursor theme preferences that should not be
+    # overwritten on update.
 
     # Sync desktop launchers
     for launcher in "Install Uma Musume.sh" "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop"; do

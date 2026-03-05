@@ -90,10 +90,10 @@ Rectangle {
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottomMargin: 10
-            width: 24
-            height: 24 * (172 / 150)  // preserve aspect ratio
+            width: 36
+            height: 36 * (172 / 150)  // preserve aspect ratio
             fillMode: Image.PreserveAspectFit
-            opacity: 0.15
+            opacity: 0.2
             smooth: true
         }
     }
