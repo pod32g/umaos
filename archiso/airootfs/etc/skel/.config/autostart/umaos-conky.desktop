@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=UmaOS Training Stats
+Comment=Desktop widget showing system stats as Uma Musume training metrics
+Exec=conky --daemonize --pause=5
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

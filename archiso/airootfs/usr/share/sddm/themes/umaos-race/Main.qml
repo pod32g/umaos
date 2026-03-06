@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import SddmComponents 2.0
+import QtGraphicalEffects 1.0
 
 Rectangle {
     id: root
@@ -33,6 +34,15 @@ Rectangle {
         source: config.Background
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
+        visible: false  // hidden — used as source for blur
+    }
+
+    // Frosted glass blur on wallpaper
+    FastBlur {
+        id: blurredBg
+        anchors.fill: parent
+        source: background
+        radius: 48
     }
 
     // Dark overlay for readability

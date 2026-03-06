@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Print a random Uma Musume character quote after pacman operations.
+
+quotes=(
+  "Special Week: \"I'll definitely become the best horse girl!\""
+  "Silence Suzuka: \"...I just want to keep running.\""
+  "Tokai Teio: \"I'll never give up, no matter what!\""
+  "Mejiro McQueen: \"Elegance and speed — one needs both.\""
+  "Gold Ship: \"Heh, piece of cake~ ☆\""
+  "Vodka: \"I'll show you what real power looks like!\""
+  "Daiwa Scarlet: \"Don't underestimate me!\""
+  "Oguri Cap: \"...I'm hungry. Got any carrots?\""
+  "Rice Shower: \"I'll do my best... even if they boo me.\""
+  "Symboli Rudolf: \"As the emperor, I shall lead the way.\""
+  "Haru Urara: \"I didn't win, but I had fun! Let's go again!\""
+  "Kitasan Black: \"With hard work, anyone can reach the top!\""
+  "Sakura Bakushin O: \"BAKUSHIN! Full speed ahead!\""
+  "Nice Nature: \"Eh, third place is fine... right?\""
+  "Tamamo Cross: \"I'm the cutest, obviously~\""
+  "Manhattan Cafe: \"...The darkness whispers to me.\""
+  "Mayano Top Gun: \"The Top Gun always hits the mark!\""
+  "Agnes Digital: \"Analyzing... optimal strategy found.\""
+  "El Condor Pasa: \"Olé! Let's race with passion!\""
+  "T.M. Opera O: \"The stage is set for my grand performance!\""
+)
+
+idx=$(( RANDOM % ${#quotes[@]} ))
+printf '\n  %s\n\n' "${quotes[$idx]}"
