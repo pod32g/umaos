@@ -8,4 +8,4 @@ Target = *
 [Action]
 Description = UmaOS celebration
 When = PostTransaction
-Exec = /usr/bin/echo Umazing!
+Exec = /bin/bash -c 'echo "Umazing!" && /usr/local/bin/umao-pacman-quote 2>/dev/null || true'

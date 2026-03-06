@@ -1,0 +1,11 @@
+{
+  "policies": {
+    "Homepage": {
+      "URL": "file:///usr/share/umaos/homepage/index.html",
+      "StartPage": "homepage"
+    },
+    "NewTabPage": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": ""
+  }
+}

@@ -27,5 +27,9 @@ ButtonsOnRight=IAX
 Placement=Centered
 
 [Desktops]
+Id_1=tokyo
+Id_2=nakayama
+Name_1=東京 Tokyo
+Name_2=中山 Nakayama
 Number=2
 Rows=1

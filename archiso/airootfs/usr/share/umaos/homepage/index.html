@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UmaOS</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Noto Sans", "Noto Sans CJK JP", sans-serif;
+    background: #0e1f14;
+    color: #dce8de;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  /* Subtle radial glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 70vw; height: 70vh;
+    background: radial-gradient(ellipse, rgba(66,165,75,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .container {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 2rem;
+    max-width: 720px;
+    width: 100%;
+  }
+  .logo {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.2rem;
+  }
+  .subtitle {
+    font-size: 0.95rem;
+    color: #80b088;
+    letter-spacing: 0.3em;
+    margin-bottom: 0.5rem;
+  }
+  .accent-line {
+    width: 80px;
+    height: 2px;
+    margin: 0 auto 2rem;
+    background: linear-gradient(90deg, #42a54b, #ff91c0);
+    border-radius: 1px;
+  }
+  /* Search bar */
+  .search-wrap {
+    margin-bottom: 2.5rem;
+  }
+  .search-wrap form {
+    display: flex;
+    justify-content: center;
+  }
+  .search-wrap input[type="text"] {
+    width: 100%;
+    max-width: 420px;
+    padding: 10px 18px;
+    border: 1px solid #2a5a34;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    color: #dce8de;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-wrap input[type="text"]:focus {
+    border-color: #42a54b;
+    background: rgba(255,255,255,0.09);
+  }
+  .search-wrap input[type="text"]::placeholder {
+    color: #5a7a60;
+  }
+  /* Link cards */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin-bottom: 2rem;
+  }
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 1.2rem 0.8rem;
+    text-decoration: none;
+    color: #dce8de;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  }
+  .card:hover {
+    background: rgba(66,165,75,0.1);
+    border-color: rgba(66,165,75,0.3);
+    transform: translateY(-2px);
+  }
+  .card-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  .card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  .card-desc {
+    font-size: 0.72rem;
+    color: #80b088;
+    margin-top: 0.3rem;
+  }
+  .footer {
+    font-size: 0.7rem;
+    color: #3a5a40;
+    margin-top: 1rem;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">UmaOS</div>
+  <div class="subtitle">ウマ娘 プリティーダービー</div>
+  <div class="accent-line"></div>
+
+  <div class="search-wrap">
+    <form action="https://duckduckgo.com/" method="get">
+      <input type="text" name="q" placeholder="Search the web..." autofocus>
+    </form>
+  </div>
+
+  <div class="cards">
+    <a class="card" href="https://store.steampowered.com/app/3224770/Umamusume_Pretty_Derby/">
+      <span class="card-icon">&#x1F3AE;</span>
+      <div class="card-title">Uma Musume</div>
+      <div class="card-desc">Steam Store Page</div>
+    </a>
+    <a class="card" href="https://gametora.com/umamusume">
+      <span class="card-icon">&#x1F4D6;</span>
+      <div class="card-title">Game Wiki</div>
+      <div class="card-desc">Guides &amp; Database</div>
+    </a>
+    <a class="card" href="https://github.com/pod32g/umaos">
+      <span class="card-icon">&#x1F4BB;</span>
+      <div class="card-title">UmaOS GitHub</div>
+      <div class="card-desc">Source &amp; Issues</div>
+    </a>
+    <a class="card" href="https://umamusume.jp/">
+      <span class="card-icon">&#x1F3C7;</span>
+      <div class="card-title">Official Site</div>
+      <div class="card-desc">umamusume.jp</div>
+    </a>
+  </div>
+
+  <div class="footer">UmaOS — Arch Linux for Uma Musume fans</div>
+</div>
+</body>
+</html>

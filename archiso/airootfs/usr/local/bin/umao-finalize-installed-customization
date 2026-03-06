@@ -256,7 +256,7 @@ sync_user_customization() {
   done
 
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/autostart"
-  for src in umaos-first-login.desktop umao-umamusume-first-login.desktop umaos-welcome.desktop umaos-login-sound.desktop; do
+  for src in umaos-first-login.desktop umao-umamusume-first-login.desktop umaos-welcome.desktop umaos-login-sound.desktop umaos-conky.desktop; do
     if [[ -f "/etc/skel/.config/autostart/$src" ]]; then
       install -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$src" \
         "$user_home/.config/autostart/$src"
@@ -273,7 +273,7 @@ sync_user_customization() {
   fi
 
   # Sync desktop utility launchers.
-  for src in "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop"; do
+  for src in "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop" "Change Cursor.desktop"; do
     if [[ -f "/etc/skel/Desktop/$src" ]]; then
       install -m 755 -o "$uid" -g "$gid" "/etc/skel/Desktop/$src" \
         "$user_home/Desktop/$src"
@@ -294,6 +294,13 @@ sync_user_customization() {
     install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/fastfetch"
     install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/fastfetch/config.jsonc" \
       "$user_home/.config/fastfetch/config.jsonc"
+  fi
+
+  # Sync conky config.
+  if [[ -f "/etc/skel/.config/conky/conky.conf" ]]; then
+    install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/conky"
+    install -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/conky/conky.conf" \
+      "$user_home/.config/conky/conky.conf"
   fi
 
   # Sync Dolphin sidebar bookmarks.
