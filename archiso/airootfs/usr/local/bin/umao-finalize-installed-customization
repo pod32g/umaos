@@ -303,6 +303,15 @@ sync_user_customization() {
       "$user_home/.config/conky/conky.conf"
   fi
 
+  # Sync nvim (NvChad) config.
+  if [[ -d "/etc/skel/.config/nvim" ]]; then
+    install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/nvim"
+    while IFS= read -r -d '' file; do
+      local rel="${file#/etc/skel/.config/nvim/}"
+      install -D -m 600 -o "$uid" -g "$gid" "$file" "$user_home/.config/nvim/$rel"
+    done < <(find /etc/skel/.config/nvim -type f -print0 | sort -z)
+  fi
+
   # Sync Dolphin sidebar bookmarks.
   if [[ -f "/etc/skel/.local/share/user-places.xbel" ]]; then
     install -d -m 700 -o "$uid" -g "$gid" "$user_home/.local/share"
