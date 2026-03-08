@@ -273,7 +273,7 @@ sync_user_customization() {
   fi
 
   # Sync desktop utility launchers.
-  for src in "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop" "Change Cursor.desktop"; do
+  for src in "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop" "Change Cursor.desktop" "Dev Setup.desktop"; do
     if [[ -f "/etc/skel/Desktop/$src" ]]; then
       install -m 755 -o "$uid" -g "$gid" "/etc/skel/Desktop/$src" \
         "$user_home/Desktop/$src"
