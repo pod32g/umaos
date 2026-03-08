@@ -24,6 +24,22 @@ if id arch >/dev/null 2>&1; then
   echo "[customize_airootfs] Fixed /home/arch ownership."
 fi
 
+# Apply patched UserDelegate.qml for circular avatar on lock screen.
+# This file is owned by plasma-workspace so it can't live in airootfs
+# (would cause pacman file-conflict). We patch it here after pacstrap.
+patch_src="/usr/share/umaos/patches/UserDelegate.qml"
+patch_dst="/usr/lib/qt6/qml/org/kde/breeze/components/UserDelegate.qml"
+if [[ -f "$patch_src" && -f "$patch_dst" ]]; then
+  cp "$patch_src" "$patch_dst"
+  echo "[customize_airootfs] Applied patched UserDelegate.qml."
+  # Remove 'prefer' directive so Qt6 loads from filesystem instead of compiled resources.
+  qmldir="$(dirname "$patch_dst")/qmldir"
+  if [[ -f "$qmldir" ]] && grep -q '^prefer ' "$qmldir"; then
+    sed -i '/^prefer /d' "$qmldir"
+    echo "[customize_airootfs] Patched qmldir (removed 'prefer' directive)."
+  fi
+fi
+
 # Set UmaOS as default Plymouth theme if Plymouth is installed.
 if command -v plymouth-set-default-theme >/dev/null 2>&1; then
   if [[ -f /usr/share/plymouth/themes/umaos/umaos.plymouth ]]; then
