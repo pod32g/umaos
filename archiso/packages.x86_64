@@ -27,6 +27,11 @@ git
 yay
 nano
 vim
+neovim
+ripgrep
+gcc
+make
+ttf-jetbrains-mono-nerd
 wget
 curl
 unzip

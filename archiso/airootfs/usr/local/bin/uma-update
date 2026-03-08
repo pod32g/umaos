@@ -255,6 +255,7 @@ sync_dir_files "$airootfs/etc/skel/.config/fastfetch" "/etc/skel/.config/fastfet
 sync_dir_files "$airootfs/etc/skel/.config/gtk-3.0" "/etc/skel/.config/gtk-3.0"
 sync_dir_files "$airootfs/etc/skel/.config/gtk-4.0" "/etc/skel/.config/gtk-4.0"
 sync_dir_files "$airootfs/etc/skel/.config/conky" "/etc/skel/.config/conky"
+sync_dir_recursive "$airootfs/etc/skel/.config/nvim" "/etc/skel/.config/nvim"
 
 # ── 11. Pacman hooks & config ──
 sync_dir_files "$airootfs/etc/pacman.d/hooks" "/etc/pacman.d/hooks"
@@ -305,6 +306,23 @@ propagate_to_users() {
     if [[ -f "/etc/skel/.config/conky/conky.conf" ]]; then
       install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/conky/conky.conf" \
         "$user_home/.config/conky/conky.conf"
+    fi
+
+    # Sync nvim (NvChad) config — only Lua source files, not plugin data
+    if [[ -d "/etc/skel/.config/nvim" ]]; then
+      local nvim_src="/etc/skel/.config/nvim"
+      local nvim_dst="$user_home/.config/nvim"
+      for nvim_file in init.lua .stylua.toml; do
+        if [[ -f "$nvim_src/$nvim_file" ]]; then
+          install -D -m 600 -o "$uid" -g "$gid" "$nvim_src/$nvim_file" "$nvim_dst/$nvim_file"
+        fi
+      done
+      if [[ -d "$nvim_src/lua" ]]; then
+        while IFS= read -r -d '' file; do
+          local rel="${file#"$nvim_src"/}"
+          install -D -m 600 -o "$uid" -g "$gid" "$file" "$nvim_dst/$rel"
+        done < <(find "$nvim_src/lua" -type f -print0 | sort -z)
+      fi
     fi
 
     # Sync autostart entries

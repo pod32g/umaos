@@ -2,6 +2,7 @@
 ColorScheme=UmaOS-GoldShip
 BackgroundImage=/usr/share/umaos/goldship.png
 BackgroundImageOpacity=0.3
+Font=JetBrainsMono Nerd Font,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 
 [General]
 Name=UmaOS
