@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Dev Setup
+Comment=Install development tool stacks
+Exec=bash -c 'umao-dev-setup; echo "Press Enter to close..."; read'
+Icon=utilities-terminal
+Terminal=true
+Categories=Development;

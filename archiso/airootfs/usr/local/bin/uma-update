@@ -295,7 +295,7 @@ propagate_to_users() {
     # overwritten on update.
 
     # Sync desktop launchers
-    for launcher in "Install Uma Musume.sh" "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop" "Change Cursor.desktop"; do
+    for launcher in "Install Uma Musume.sh" "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop" "Change Cursor.desktop" "Dev Setup.desktop"; do
       if [[ -f "/etc/skel/Desktop/$launcher" ]]; then
         install -D -m 755 -o "$uid" -g "$gid" "/etc/skel/Desktop/$launcher" \
           "$user_home/Desktop/$launcher"

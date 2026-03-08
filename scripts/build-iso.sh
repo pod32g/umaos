@@ -1415,6 +1415,7 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-welcome" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-login-sound" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-cursor-switcher" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-dev-setup" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-pacman-quote" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
   "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
@@ -1470,6 +1471,7 @@ file_permissions+=(
   ["/usr/local/bin/umao-welcome"]="0:0:755"
   ["/usr/local/bin/umao-login-sound"]="0:0:755"
   ["/usr/local/bin/umao-cursor-switcher"]="0:0:755"
+  ["/usr/local/bin/umao-dev-setup"]="0:0:755"
   ["/usr/local/bin/umao-pacman-quote"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
   ["/home/arch/Desktop/Install Uma Musume.sh"]="1000:1000:755"
