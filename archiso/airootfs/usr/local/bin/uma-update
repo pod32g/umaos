@@ -224,8 +224,24 @@ sync_dir_recursive "$airootfs/usr/share/plasma/look-and-feel/com.umaos.desktop" 
 # On software rendering or certain GPU drivers the shader fails silently,
 # leaving a rectangular avatar. Our patched version adds clip+radius to the
 # image container so it's always circular.
-sync_dir_files "$airootfs/usr/lib/qt6/qml/org/kde/breeze/components" \
-  "/usr/lib/qt6/qml/org/kde/breeze/components"
+# The patch lives in /usr/share/umaos/patches/ (not in the qt6 tree) to avoid
+# pacman file-conflict with plasma-workspace during ISO build.
+_patch_src="$airootfs/usr/share/umaos/patches/UserDelegate.qml"
+_patch_dst="/usr/lib/qt6/qml/org/kde/breeze/components/UserDelegate.qml"
+if [[ -f "$_patch_src" ]]; then
+  if ! cmp -s "$_patch_src" "$_patch_dst" 2>/dev/null; then
+    if ((dry_run == 1)); then
+      log "Would update: $_patch_dst"
+    else
+      mkdir -p "$(dirname "$_patch_dst")"
+      cp "$_patch_src" "$_patch_dst"
+      log "Updated: $_patch_dst"
+    fi
+    updated=$((updated + 1))
+  else
+    skipped=$((skipped + 1))
+  fi
+fi
 
 # ── 9b. Force Qt6 to load QML from filesystem instead of compiled resources ──
 # plasma-workspace compiles QML files into libcomponents.so and the generated
