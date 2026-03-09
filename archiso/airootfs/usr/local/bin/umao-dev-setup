@@ -2,160 +2,327 @@
 set -euo pipefail
 
 # UmaOS Dev Environment Setup
-# Interactive TUI for installing development tool stacks.
+# KDE-native GUI for installing development tool stacks.
+# Falls back to text mode when no graphical session is available.
+
+TITLE="UmaOS Dev Setup"
+ICON="utilities-terminal"
 
 # ── Stack definitions ──
-# Each stack: NAME|CHECK_CMD|PACKAGES (space-separated)
-
+# Each stack: TAG|DISPLAY_NAME|CHECK_CMD|PACKAGES (space-separated)
 STACKS=(
-  "Web Dev|node|nodejs npm typescript prettier"
-  "Python|python3|python python-pip python-virtualenv"
-  "Rust|rustup|rustup"
-  "Go|go|go"
-  "Java|javac|jdk-openjdk gradle"
-  "C/C++ Toolchain|clang|clang cmake gdb valgrind"
-  "DevOps|docker|docker docker-compose kubectl helm"
-  "Database|sqlite3|sqlite postgresql redis"
+  "web|Web Development|node|nodejs npm typescript prettier"
+  "python|Python Development|python3|python python-pip python-virtualenv"
+  "rust|Rust Development|rustup|rustup"
+  "go|Go Development|go|go"
+  "java|Java Development|javac|jdk-openjdk gradle"
+  "cpp|C/C++ Toolchain|clang|clang cmake gdb valgrind"
+  "devops|DevOps Tools|docker|docker docker-compose kubectl helm"
+  "database|Database Tools|sqlite3|sqlite postgresql redis"
 )
 
-get_name()  { echo "${1%%|*}"; }
-get_check() { local rest="${1#*|}"; echo "${rest%%|*}"; }
+get_tag()   { echo "${1%%|*}"; }
+get_name()  { local r="${1#*|}"; echo "${r%%|*}"; }
+get_check() { local r="${1#*|}"; r="${r#*|}"; echo "${r%%|*}"; }
 get_pkgs()  { echo "${1##*|}"; }
 
-is_installed() {
-  command -v "$1" >/dev/null 2>&1
+is_installed() { command -v "$1" >/dev/null 2>&1; }
+
+has_gui() {
+  [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]] \
+    && command -v kdialog >/dev/null 2>&1
 }
 
-echo ""
-echo "  🐴 UmaOS Dev Environment Setup"
-echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
+# ── GUI mode (kdialog) ──────────────────────────────────────────────
 
-for i in "${!STACKS[@]}"; do
-  name="$(get_name "${STACKS[$i]}")"
-  check="$(get_check "${STACKS[$i]}")"
-  pkgs="$(get_pkgs "${STACKS[$i]}")"
-
-  if is_installed "$check"; then
-    marker=" ✓"
-  else
-    marker="  "
-  fi
-
-  printf "  %s %2d) %-20s  [%s]\n" "$marker" "$((i + 1))" "$name" "$pkgs"
-done
-
-echo ""
-echo "  Enter stack numbers separated by spaces (e.g. 1 3 5)"
-echo "  Or 'all' to install everything, 'q' to quit."
-echo ""
-read -rp "  Select stacks: " input
-
-if [[ "$input" == "q" || -z "$input" ]]; then
-  echo "  Nothing to install."
-  exit 0
-fi
-
-# Parse selections
-declare -a selected_pkgs=()
-declare -a selected_names=()
-
-if [[ "$input" == "all" ]]; then
-  for i in "${!STACKS[@]}"; do
-    selected_names+=("$(get_name "${STACKS[$i]}")")
-    for pkg in $(get_pkgs "${STACKS[$i]}"); do
-      selected_pkgs+=("$pkg")
-    done
-  done
-else
-  for num in $input; do
-    if ! [[ "$num" =~ ^[0-9]+$ ]] || (( num < 1 || num > ${#STACKS[@]} )); then
-      echo "  Skipping invalid selection: $num"
-      continue
+gui_select_stacks() {
+  local args=()
+  for entry in "${STACKS[@]}"; do
+    local tag; tag="$(get_tag "$entry")"
+    local name; name="$(get_name "$entry")"
+    local check; check="$(get_check "$entry")"
+    local pkgs; pkgs="$(get_pkgs "$entry")"
+    local pkg_count; pkg_count=$(echo "$pkgs" | wc -w)
+    local state="off"
+    if is_installed "$check"; then
+      state="on"
     fi
-    idx=$((num - 1))
-    selected_names+=("$(get_name "${STACKS[$idx]}")")
-    for pkg in $(get_pkgs "${STACKS[$idx]}"); do
-      selected_pkgs+=("$pkg")
+    args+=("$tag" "$name  ($pkg_count packages)" "$state")
+  done
+
+  kdialog --icon "$ICON" --title "$TITLE" \
+    --checklist "Select development stacks to install:" \
+    "${args[@]}" 2>/dev/null
+}
+
+gui_confirm() {
+  local summary="$1"
+  kdialog --icon "$ICON" --title "$TITLE" \
+    --yesno "$summary" 2>/dev/null
+}
+
+gui_install() {
+  local -a pkgs=("$@")
+  local total=${#pkgs[@]}
+  local dbus_ref
+
+  dbus_ref=$(kdialog --icon "$ICON" --title "$TITLE" \
+    --progressbar "Preparing installation..." "$total" 2>/dev/null)
+
+  # Separate official repo vs AUR
+  local -a pacman_pkgs=()
+  local -a aur_pkgs=()
+  for pkg in "${pkgs[@]}"; do
+    if pacman -Si "$pkg" >/dev/null 2>&1; then
+      pacman_pkgs+=("$pkg")
+    else
+      aur_pkgs+=("$pkg")
+    fi
+  done
+
+  local i=0
+
+  if [[ ${#pacman_pkgs[@]} -gt 0 ]]; then
+    for pkg in "${pacman_pkgs[@]}"; do
+      qdbus6 $dbus_ref setLabelText "Installing $pkg..." 2>/dev/null || true
+      qdbus6 $dbus_ref Set "" value "$i" 2>/dev/null || true
+      sudo pacman -S --needed --noconfirm "$pkg" >/dev/null 2>&1 || true
+      i=$((i + 1))
+    done
+  fi
+
+  if [[ ${#aur_pkgs[@]} -gt 0 ]]; then
+    if command -v yay >/dev/null 2>&1; then
+      for pkg in "${aur_pkgs[@]}"; do
+        qdbus6 $dbus_ref setLabelText "Installing $pkg (AUR)..." 2>/dev/null || true
+        qdbus6 $dbus_ref Set "" value "$i" 2>/dev/null || true
+        yay -S --needed --noconfirm "$pkg" >/dev/null 2>&1 || true
+        i=$((i + 1))
+      done
+    else
+      qdbus6 $dbus_ref setLabelText "Some AUR packages need manual install" 2>/dev/null || true
+      # Skip AUR packages but keep counting for progress bar
+      i=$((i + ${#aur_pkgs[@]}))
+    fi
+  fi
+
+  qdbus6 $dbus_ref Set "" value "$total" 2>/dev/null || true
+  qdbus6 $dbus_ref setLabelText "Done!" 2>/dev/null || true
+  sleep 1
+  qdbus6 $dbus_ref close 2>/dev/null || true
+}
+
+gui_error() {
+  kdialog --icon "$ICON" --title "$TITLE" --error "$1" 2>/dev/null
+}
+
+gui_done() {
+  local msg="$1"
+  kdialog --icon "$ICON" --title "$TITLE" \
+    --passivepopup "$msg" 5 2>/dev/null || true
+  kdialog --icon "$ICON" --title "$TITLE" --msgbox "$msg" 2>/dev/null
+}
+
+run_gui() {
+  local selection
+  selection="$(gui_select_stacks)" || exit 0
+
+  # kdialog --checklist returns space-separated quoted tags: "web" "rust"
+  # Strip quotes and convert to array
+  selection="${selection//\"/}"
+  if [[ -z "$selection" ]]; then
+    exit 0
+  fi
+
+  # Resolve selected tags to names and packages
+  local -a selected_names=()
+  local -a selected_pkgs=()
+  for sel_tag in $selection; do
+    for entry in "${STACKS[@]}"; do
+      local tag; tag="$(get_tag "$entry")"
+      if [[ "$tag" == "$sel_tag" ]]; then
+        selected_names+=("$(get_name "$entry")")
+        for pkg in $(get_pkgs "$entry"); do
+          selected_pkgs+=("$pkg")
+        done
+      fi
     done
   done
-fi
 
-if [[ ${#selected_pkgs[@]} -eq 0 ]]; then
-  echo "  No valid stacks selected."
-  exit 1
-fi
+  # Deduplicate packages
+  local -a unique_pkgs
+  mapfile -t unique_pkgs < <(printf '%s\n' "${selected_pkgs[@]}" | sort -u)
 
-# Deduplicate packages
-mapfile -t unique_pkgs < <(printf '%s\n' "${selected_pkgs[@]}" | sort -u)
+  # Build summary
+  local summary
+  summary="Install the following stacks?\n\n"
+  for name in "${selected_names[@]}"; do
+    summary+="  - $name\n"
+  done
+  summary+="\n${#unique_pkgs[@]} packages total: ${unique_pkgs[*]}"
 
-echo ""
-echo "  Installing: ${selected_names[*]}"
-echo "  Packages:   ${unique_pkgs[*]}"
-echo ""
+  gui_confirm "$summary" || exit 0
 
-# Separate official repo packages from AUR-only packages.
-# Try pacman first; anything it can't find goes through yay.
-declare -a pacman_pkgs=()
-declare -a aur_pkgs=()
+  gui_install "${unique_pkgs[@]}"
 
-for pkg in "${unique_pkgs[@]}"; do
-  if pacman -Si "$pkg" >/dev/null 2>&1; then
-    pacman_pkgs+=("$pkg")
-  else
-    aur_pkgs+=("$pkg")
+  # Post-install hooks
+  run_post_hooks "${selected_names[@]}"
+
+  # AUR warning if applicable
+  local aur_missing=()
+  for pkg in "${unique_pkgs[@]}"; do
+    if ! pacman -Si "$pkg" >/dev/null 2>&1; then
+      if ! command -v yay >/dev/null 2>&1; then
+        aur_missing+=("$pkg")
+      fi
+    fi
+  done
+  local done_msg="Umazing! Dev environment is ready."
+  if [[ ${#aur_missing[@]} -gt 0 ]]; then
+    done_msg+="\n\nNote: yay is not installed. These AUR packages need manual install:\n${aur_missing[*]}"
   fi
-done
 
-if [[ ${#pacman_pkgs[@]} -gt 0 ]]; then
-  echo "  >> Installing from official repos..."
-  sudo pacman -S --needed --noconfirm "${pacman_pkgs[@]}"
-fi
+  gui_done "$done_msg"
+}
 
-if [[ ${#aur_pkgs[@]} -gt 0 ]]; then
-  if command -v yay >/dev/null 2>&1; then
-    echo "  >> Installing from AUR..."
-    yay -S --needed --noconfirm "${aur_pkgs[@]}"
-  else
-    echo "  WARNING: yay not found. These AUR packages need manual install:"
-    printf "    %s\n" "${aur_pkgs[@]}"
+# ── Text fallback mode ──────────────────────────────────────────────
+
+run_text() {
+  echo ""
+  echo "  UmaOS Dev Environment Setup"
+  echo "  (text mode -- no graphical session detected)"
+  echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+
+  for i in "${!STACKS[@]}"; do
+    local name; name="$(get_name "${STACKS[$i]}")"
+    local check; check="$(get_check "${STACKS[$i]}")"
+    local pkgs; pkgs="$(get_pkgs "${STACKS[$i]}")"
+    local marker="  "
+    if is_installed "$check"; then
+      marker=" *"
+    fi
+    printf "  %s %2d) %-22s  [%s]\n" "$marker" "$((i + 1))" "$name" "$pkgs"
+  done
+
+  echo ""
+  echo "  Enter stack numbers separated by spaces (e.g. 1 3 5)"
+  echo "  Or 'all' to install everything, 'q' to quit."
+  echo ""
+  read -rp "  Select stacks: " input
+
+  if [[ "$input" == "q" || -z "$input" ]]; then
+    echo "  Nothing to install."
+    exit 0
   fi
+
+  local -a selected_pkgs=()
+  local -a selected_names=()
+
+  if [[ "$input" == "all" ]]; then
+    for entry in "${STACKS[@]}"; do
+      selected_names+=("$(get_name "$entry")")
+      for pkg in $(get_pkgs "$entry"); do
+        selected_pkgs+=("$pkg")
+      done
+    done
+  else
+    for num in $input; do
+      if ! [[ "$num" =~ ^[0-9]+$ ]] || (( num < 1 || num > ${#STACKS[@]} )); then
+        echo "  Skipping invalid selection: $num"
+        continue
+      fi
+      local idx=$((num - 1))
+      selected_names+=("$(get_name "${STACKS[$idx]}")")
+      for pkg in $(get_pkgs "${STACKS[$idx]}"); do
+        selected_pkgs+=("$pkg")
+      done
+    done
+  fi
+
+  if [[ ${#selected_pkgs[@]} -eq 0 ]]; then
+    echo "  No valid stacks selected."
+    exit 1
+  fi
+
+  local -a unique_pkgs
+  mapfile -t unique_pkgs < <(printf '%s\n' "${selected_pkgs[@]}" | sort -u)
+
+  echo ""
+  echo "  Installing: ${selected_names[*]}"
+  echo "  Packages:   ${unique_pkgs[*]}"
+  echo ""
+
+  local -a pacman_pkgs=()
+  local -a aur_pkgs=()
+  for pkg in "${unique_pkgs[@]}"; do
+    if pacman -Si "$pkg" >/dev/null 2>&1; then
+      pacman_pkgs+=("$pkg")
+    else
+      aur_pkgs+=("$pkg")
+    fi
+  done
+
+  if [[ ${#pacman_pkgs[@]} -gt 0 ]]; then
+    echo "  >> Installing from official repos..."
+    sudo pacman -S --needed --noconfirm "${pacman_pkgs[@]}"
+  fi
+
+  if [[ ${#aur_pkgs[@]} -gt 0 ]]; then
+    if command -v yay >/dev/null 2>&1; then
+      echo "  >> Installing from AUR..."
+      yay -S --needed --noconfirm "${aur_pkgs[@]}"
+    else
+      echo "  WARNING: yay not found. These AUR packages need manual install:"
+      printf "    %s\n" "${aur_pkgs[@]}"
+    fi
+  fi
+
+  run_post_hooks "${selected_names[@]}"
+
+  echo ""
+  echo "  Umazing! Dev environment is ready."
+  echo ""
+}
+
+# ── Post-install hooks (shared) ─────────────────────────────────────
+
+run_post_hooks() {
+  local -a names=("$@")
+  for name in "${names[@]}"; do
+    case "$name" in
+      "Rust Development")
+        if command -v rustup >/dev/null 2>&1; then
+          rustup default stable 2>/dev/null || true
+        fi
+        ;;
+      "DevOps Tools")
+        if command -v docker >/dev/null 2>&1; then
+          sudo systemctl enable --now docker.service 2>/dev/null || true
+          if ! groups | grep -q docker; then
+            sudo usermod -aG docker "$USER" 2>/dev/null || true
+          fi
+        fi
+        ;;
+      "Database Tools")
+        if command -v postgres >/dev/null 2>&1; then
+          if [[ ! -d /var/lib/postgres/data/base ]]; then
+            sudo -u postgres initdb -D /var/lib/postgres/data 2>/dev/null || true
+          fi
+          sudo systemctl enable --now postgresql.service 2>/dev/null || true
+        fi
+        if command -v redis-server >/dev/null 2>&1; then
+          sudo systemctl enable --now redis.service 2>/dev/null || true
+        fi
+        ;;
+    esac
+  done
+}
+
+# ── Main ────────────────────────────────────────────────────────────
+
+if has_gui; then
+  run_gui
+else
+  run_text
 fi
-
-# Post-install hooks
-for name in "${selected_names[@]}"; do
-  case "$name" in
-    Rust)
-      if command -v rustup >/dev/null 2>&1; then
-        echo "  >> Setting up Rust stable toolchain..."
-        rustup default stable 2>/dev/null || true
-      fi
-      ;;
-    DevOps)
-      if command -v docker >/dev/null 2>&1; then
-        echo "  >> Enabling Docker service..."
-        sudo systemctl enable --now docker.service 2>/dev/null || true
-        if ! groups | grep -q docker; then
-          sudo usermod -aG docker "$USER" 2>/dev/null || true
-          echo "  NOTE: Log out and back in for Docker group access."
-        fi
-      fi
-      ;;
-    Database)
-      if command -v postgres >/dev/null 2>&1; then
-        echo "  >> Initializing PostgreSQL..."
-        if [[ ! -d /var/lib/postgres/data/base ]]; then
-          sudo -u postgres initdb -D /var/lib/postgres/data 2>/dev/null || true
-        fi
-        sudo systemctl enable --now postgresql.service 2>/dev/null || true
-      fi
-      if command -v redis-server >/dev/null 2>&1; then
-        sudo systemctl enable --now redis.service 2>/dev/null || true
-      fi
-      ;;
-  esac
-done
-
-echo ""
-echo "  Umazing! Dev environment is ready."
-echo ""
