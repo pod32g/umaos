@@ -5,6 +5,9 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    // Active tab
+    property string activeTab: "languages"
+
     // Track selection state; bump version to trigger binding re-eval
     property var selectedTags: ({})
     property int selectionVersion: 0
@@ -52,6 +55,14 @@ Item {
         return tags
     }
 
+    function tabLabel(cat) {
+        if (cat === "languages") return "Languages"
+        if (cat === "editors") return "Editors"
+        if (cat === "devops") return "DevOps"
+        if (cat === "data") return "Data"
+        return cat
+    }
+
     // ── Header ──
     Column {
         id: header
@@ -87,14 +98,73 @@ Item {
         }
     }
 
-    // ── Stack list ──
-    ListView {
-        id: stackList
+    // ── Tab bar ──
+    Column {
+        id: tabBar
         anchors.top: header.bottom
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.topMargin: 20
+        spacing: 0
+
+        Row {
+            anchors.left: parent.left
+            anchors.leftMargin: 36
+            spacing: 0
+
+            Repeater {
+                model: backend.categories
+                delegate: Item {
+                    width: tabText.width + 32
+                    height: tabText.height + 18
+
+                    Text {
+                        id: tabText
+                        anchors.centerIn: parent
+                        text: root.tabLabel(modelData)
+                        font.family: Theme.sansFont
+                        font.pixelSize: 13
+                        font.weight: modelData === root.activeTab ? Font.DemiBold : Font.Medium
+                        color: modelData === root.activeTab ? Theme.primaryGreen : Theme.textMuted
+                    }
+
+                    // Active underline
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        width: tabText.width + 8
+                        height: 2
+                        radius: 1
+                        color: Theme.primaryGreen
+                        visible: modelData === root.activeTab
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.activeTab = modelData
+                    }
+                }
+            }
+        }
+
+        // Divider
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 1
+            color: Theme.divider
+        }
+    }
+
+    // ── Stack list ──
+    ListView {
+        id: stackList
+        anchors.top: tabBar.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.bottom: footer.top
-        anchors.topMargin: 24
+        anchors.topMargin: 12
         anchors.leftMargin: 28
         anchors.rightMargin: 28
         anchors.bottomMargin: 8
@@ -105,9 +175,11 @@ Item {
         delegate: Rectangle {
             id: rowDelegate
             width: stackList.width
-            height: 64
+            height: modelData.category === root.activeTab ? 64 : 0
+            visible: modelData.category === root.activeTab
             radius: 10
             color: root.isSelected(modelData.tag) ? Theme.cardBg : "transparent"
+            clip: true
 
             property bool checked: root.isSelected(modelData.tag)
 

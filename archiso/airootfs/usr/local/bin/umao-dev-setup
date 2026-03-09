@@ -9,11 +9,14 @@ from dataclasses import dataclass, field
 
 # ── Stack definitions ──────────────────────────────────────────────────────────
 
+CATEGORIES = ["languages", "editors", "devops", "data"]
+
 @dataclass
 class Stack:
     tag: str
     display_name: str
     check_cmd: str
+    category: str
     packages: list[str] = field(default_factory=list)
 
     @property
@@ -24,19 +27,34 @@ class Stack:
         return {
             "tag": self.tag,
             "displayName": self.display_name,
+            "category": self.category,
             "packages": self.packages,
             "installed": self.installed,
         }
 
 STACKS = [
-    Stack("web", "Web Development", "node", ["nodejs", "npm", "typescript", "prettier"]),
-    Stack("python", "Python Development", "python3", ["python", "python-pip", "python-virtualenv"]),
-    Stack("rust", "Rust Development", "rustup", ["rustup"]),
-    Stack("go", "Go Development", "go", ["go"]),
-    Stack("java", "Java Development", "javac", ["jdk-openjdk", "gradle"]),
-    Stack("cpp", "C/C++ Toolchain", "clang", ["clang", "cmake", "gdb", "valgrind"]),
-    Stack("devops", "DevOps Tools", "docker", ["docker", "docker-compose", "kubectl", "helm"]),
-    Stack("database", "Database Tools", "sqlite3", ["sqlite", "postgresql", "redis"]),
+    # Languages
+    Stack("web", "Web Development", "node", "languages", ["nodejs", "npm", "typescript", "prettier"]),
+    Stack("python", "Python", "python3", "languages", ["python", "python-pip", "python-virtualenv"]),
+    Stack("rust", "Rust", "rustup", "languages", ["rustup"]),
+    Stack("go", "Go", "go", "languages", ["go"]),
+    Stack("java", "Java", "javac", "languages", ["jdk-openjdk", "gradle"]),
+    Stack("cpp", "C/C++ Toolchain", "clang", "languages", ["clang", "cmake", "gdb", "valgrind"]),
+    # Editors
+    Stack("vscode", "VS Code", "code", "editors", ["code"]),
+    Stack("neovim", "Neovim", "nvim", "editors", ["neovim"]),
+    Stack("helix", "Helix", "hx", "editors", ["helix"]),
+    Stack("emacs", "Emacs", "emacs", "editors", ["emacs"]),
+    # DevOps
+    Stack("docker", "Docker & Compose", "docker", "devops", ["docker", "docker-compose"]),
+    Stack("k8s", "Kubernetes", "kubectl", "devops", ["kubectl", "helm"]),
+    Stack("terraform", "Terraform", "terraform", "devops", ["terraform"]),
+    Stack("ansible", "Ansible", "ansible", "devops", ["ansible"]),
+    # Data
+    Stack("postgresql", "PostgreSQL", "postgres", "data", ["postgresql"]),
+    Stack("redis", "Redis", "redis-server", "data", ["redis"]),
+    Stack("sqlite", "SQLite", "sqlite3", "data", ["sqlite"]),
+    Stack("mongodb", "MongoDB", "mongosh", "data", ["mongosh"]),
 ]
 
 STACKS_BY_TAG = {s.tag: s for s in STACKS}
@@ -51,7 +69,7 @@ def run_post_hooks(tags: list[str]) -> None:
         if stack.tag == "rust" and shutil.which("rustup"):
             subprocess.run(["rustup", "default", "stable"],
                            capture_output=True)
-        elif stack.tag == "devops" and shutil.which("docker"):
+        elif stack.tag == "docker" and shutil.which("docker"):
             subprocess.run(["sudo", "systemctl", "enable", "--now", "docker.service"],
                            capture_output=True)
             user = os.environ.get("SUDO_USER") or os.environ.get("USER", "")
@@ -60,17 +78,16 @@ def run_post_hooks(tags: list[str]) -> None:
                 if "docker" not in groups_out.stdout:
                     subprocess.run(["sudo", "usermod", "-aG", "docker", user],
                                    capture_output=True)
-        elif stack.tag == "database":
-            if shutil.which("postgres"):
-                pg_data = "/var/lib/postgres/data"
-                if not os.path.isdir(os.path.join(pg_data, "base")):
-                    subprocess.run(["sudo", "-u", "postgres", "initdb", "-D", pg_data],
-                                   capture_output=True)
-                subprocess.run(["sudo", "systemctl", "enable", "--now", "postgresql.service"],
+        elif stack.tag == "postgresql" and shutil.which("postgres"):
+            pg_data = "/var/lib/postgres/data"
+            if not os.path.isdir(os.path.join(pg_data, "base")):
+                subprocess.run(["sudo", "-u", "postgres", "initdb", "-D", pg_data],
                                capture_output=True)
-            if shutil.which("redis-server"):
-                subprocess.run(["sudo", "systemctl", "enable", "--now", "redis.service"],
-                               capture_output=True)
+            subprocess.run(["sudo", "systemctl", "enable", "--now", "postgresql.service"],
+                           capture_output=True)
+        elif stack.tag == "redis" and shutil.which("redis-server"):
+            subprocess.run(["sudo", "systemctl", "enable", "--now", "redis.service"],
+                           capture_output=True)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -213,11 +230,16 @@ def run_qml() -> None:
         def __init__(self, parent=None):
             super().__init__(parent)
             self._stacks = [s.to_dict() for s in STACKS]
+            self._categories = CATEGORIES
             self._worker = None
 
         @pyqtProperty("QVariantList", constant=True)
         def stacks(self):
             return self._stacks
+
+        @pyqtProperty("QVariantList", constant=True)
+        def categories(self):
+            return self._categories
 
         @pyqtSlot("QVariantList")
         def install(self, tags):
