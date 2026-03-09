@@ -5,6 +5,7 @@ import QtQuick.Window
 QQC2.ApplicationWindow {
     id: window
     title: "UmaOS Dev Setup"
+    visible: true
     width: 540
     height: 720
     minimumWidth: 480
