@@ -1,328 +1,449 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env python3
+"""UmaOS Dev Environment Setup — Qt6/QML GUI with kdialog & text fallbacks."""
 
-# UmaOS Dev Environment Setup
-# KDE-native GUI for installing development tool stacks.
-# Falls back to text mode when no graphical session is available.
+import os
+import sys
+import subprocess
+import shutil
+from dataclasses import dataclass, field
 
-TITLE="UmaOS Dev Setup"
-ICON="utilities-terminal"
+# ── Stack definitions ──────────────────────────────────────────────────────────
 
-# ── Stack definitions ──
-# Each stack: TAG|DISPLAY_NAME|CHECK_CMD|PACKAGES (space-separated)
-STACKS=(
-  "web|Web Development|node|nodejs npm typescript prettier"
-  "python|Python Development|python3|python python-pip python-virtualenv"
-  "rust|Rust Development|rustup|rustup"
-  "go|Go Development|go|go"
-  "java|Java Development|javac|jdk-openjdk gradle"
-  "cpp|C/C++ Toolchain|clang|clang cmake gdb valgrind"
-  "devops|DevOps Tools|docker|docker docker-compose kubectl helm"
-  "database|Database Tools|sqlite3|sqlite postgresql redis"
-)
+@dataclass
+class Stack:
+    tag: str
+    display_name: str
+    check_cmd: str
+    packages: list[str] = field(default_factory=list)
 
-get_tag()   { echo "${1%%|*}"; }
-get_name()  { local r="${1#*|}"; echo "${r%%|*}"; }
-get_check() { local r="${1#*|}"; r="${r#*|}"; echo "${r%%|*}"; }
-get_pkgs()  { echo "${1##*|}"; }
+    @property
+    def installed(self) -> bool:
+        return shutil.which(self.check_cmd) is not None
 
-is_installed() { command -v "$1" >/dev/null 2>&1; }
+    def to_dict(self) -> dict:
+        return {
+            "tag": self.tag,
+            "displayName": self.display_name,
+            "packages": self.packages,
+            "installed": self.installed,
+        }
 
-has_gui() {
-  [[ -n "${DISPLAY:-}" || -n "${WAYLAND_DISPLAY:-}" ]] \
-    && command -v kdialog >/dev/null 2>&1
-}
+STACKS = [
+    Stack("web", "Web Development", "node", ["nodejs", "npm", "typescript", "prettier"]),
+    Stack("python", "Python Development", "python3", ["python", "python-pip", "python-virtualenv"]),
+    Stack("rust", "Rust Development", "rustup", ["rustup"]),
+    Stack("go", "Go Development", "go", ["go"]),
+    Stack("java", "Java Development", "javac", ["jdk-openjdk", "gradle"]),
+    Stack("cpp", "C/C++ Toolchain", "clang", ["clang", "cmake", "gdb", "valgrind"]),
+    Stack("devops", "DevOps Tools", "docker", ["docker", "docker-compose", "kubectl", "helm"]),
+    Stack("database", "Database Tools", "sqlite3", ["sqlite", "postgresql", "redis"]),
+]
 
-# ── GUI mode (kdialog) ──────────────────────────────────────────────
+STACKS_BY_TAG = {s.tag: s for s in STACKS}
 
-gui_select_stacks() {
-  local args=()
-  for entry in "${STACKS[@]}"; do
-    local tag; tag="$(get_tag "$entry")"
-    local name; name="$(get_name "$entry")"
-    local check; check="$(get_check "$entry")"
-    local pkgs; pkgs="$(get_pkgs "$entry")"
-    local pkg_count; pkg_count=$(echo "$pkgs" | wc -w)
-    local state="off"
-    if is_installed "$check"; then
-      state="on"
-    fi
-    args+=("$tag" "$name  ($pkg_count packages)" "$state")
-  done
+# ── Post-install hooks ─────────────────────────────────────────────────────────
 
-  kdialog --icon "$ICON" --title "$TITLE" \
-    --checklist "Select development stacks to install:" \
-    "${args[@]}" 2>/dev/null
-}
+def run_post_hooks(tags: list[str]) -> None:
+    for tag in tags:
+        stack = STACKS_BY_TAG.get(tag)
+        if not stack:
+            continue
+        if stack.tag == "rust" and shutil.which("rustup"):
+            subprocess.run(["rustup", "default", "stable"],
+                           capture_output=True)
+        elif stack.tag == "devops" and shutil.which("docker"):
+            subprocess.run(["sudo", "systemctl", "enable", "--now", "docker.service"],
+                           capture_output=True)
+            user = os.environ.get("SUDO_USER") or os.environ.get("USER", "")
+            if user:
+                groups_out = subprocess.run(["groups", user], capture_output=True, text=True)
+                if "docker" not in groups_out.stdout:
+                    subprocess.run(["sudo", "usermod", "-aG", "docker", user],
+                                   capture_output=True)
+        elif stack.tag == "database":
+            if shutil.which("postgres"):
+                pg_data = "/var/lib/postgres/data"
+                if not os.path.isdir(os.path.join(pg_data, "base")):
+                    subprocess.run(["sudo", "-u", "postgres", "initdb", "-D", pg_data],
+                                   capture_output=True)
+                subprocess.run(["sudo", "systemctl", "enable", "--now", "postgresql.service"],
+                               capture_output=True)
+            if shutil.which("redis-server"):
+                subprocess.run(["sudo", "systemctl", "enable", "--now", "redis.service"],
+                               capture_output=True)
 
-gui_confirm() {
-  local summary="$1"
-  kdialog --icon "$ICON" --title "$TITLE" \
-    --yesno "$summary" 2>/dev/null
-}
 
-gui_install() {
-  local -a pkgs=("$@")
-  local total=${#pkgs[@]}
-  local dbus_ref
+# ── Helpers ────────────────────────────────────────────────────────────────────
 
-  dbus_ref=$(kdialog --icon "$ICON" --title "$TITLE" \
-    --progressbar "Preparing installation..." "$total" 2>/dev/null)
+def has_display() -> bool:
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
-  # Separate official repo vs AUR
-  local -a pacman_pkgs=()
-  local -a aur_pkgs=()
-  for pkg in "${pkgs[@]}"; do
-    if pacman -Si "$pkg" >/dev/null 2>&1; then
-      pacman_pkgs+=("$pkg")
-    else
-      aur_pkgs+=("$pkg")
-    fi
-  done
+def dedupe_packages(tags: list[str]) -> list[str]:
+    seen = {}
+    for tag in tags:
+        stack = STACKS_BY_TAG.get(tag)
+        if stack:
+            for pkg in stack.packages:
+                if pkg not in seen:
+                    seen[pkg] = True
+    return list(seen.keys())
 
-  local i=0
+def classify_packages(pkgs: list[str]) -> tuple[list[str], list[str]]:
+    """Split into (official, aur) packages."""
+    official, aur = [], []
+    for pkg in pkgs:
+        ret = subprocess.run(["pacman", "-Si", pkg],
+                             capture_output=True, timeout=10)
+        if ret.returncode == 0:
+            official.append(pkg)
+        else:
+            aur.append(pkg)
+    return official, aur
 
-  if [[ ${#pacman_pkgs[@]} -gt 0 ]]; then
-    for pkg in "${pacman_pkgs[@]}"; do
-      qdbus6 $dbus_ref setLabelText "Installing $pkg..." 2>/dev/null || true
-      qdbus6 $dbus_ref Set "" value "$i" 2>/dev/null || true
-      sudo pacman -S --needed --noconfirm "$pkg" >/dev/null 2>&1 || true
-      i=$((i + 1))
-    done
-  fi
 
-  if [[ ${#aur_pkgs[@]} -gt 0 ]]; then
-    if command -v yay >/dev/null 2>&1; then
-      for pkg in "${aur_pkgs[@]}"; do
-        qdbus6 $dbus_ref setLabelText "Installing $pkg (AUR)..." 2>/dev/null || true
-        qdbus6 $dbus_ref Set "" value "$i" 2>/dev/null || true
-        yay -S --needed --noconfirm "$pkg" >/dev/null 2>&1 || true
-        i=$((i + 1))
-      done
-    else
-      qdbus6 $dbus_ref setLabelText "Some AUR packages need manual install" 2>/dev/null || true
-      # Skip AUR packages but keep counting for progress bar
-      i=$((i + ${#aur_pkgs[@]}))
-    fi
-  fi
+# ═══════════════════════════════════════════════════════════════════════════════
+# QML GUI mode (PyQt6)
+# ═══════════════════════════════════════════════════════════════════════════════
 
-  qdbus6 $dbus_ref Set "" value "$total" 2>/dev/null || true
-  qdbus6 $dbus_ref setLabelText "Done!" 2>/dev/null || true
-  sleep 1
-  qdbus6 $dbus_ref close 2>/dev/null || true
-}
+def run_qml() -> None:
+    from PyQt6.QtCore import (
+        QObject, QThread, QUrl, pyqtSignal, pyqtSlot, pyqtProperty, QVariant
+    )
+    from PyQt6.QtGui import QGuiApplication
+    from PyQt6.QtQml import QQmlApplicationEngine
 
-gui_error() {
-  kdialog --icon "$ICON" --title "$TITLE" --error "$1" 2>/dev/null
-}
+    class InstallWorker(QThread):
+        progressChanged = pyqtSignal(int, int)
+        currentPackageChanged = pyqtSignal(str)
+        packageCompleted = pyqtSignal(str)
+        installComplete = pyqtSignal(str, str)
+        installError = pyqtSignal(str)
 
-gui_done() {
-  local msg="$1"
-  kdialog --icon "$ICON" --title "$TITLE" \
-    --passivepopup "$msg" 5 2>/dev/null || true
-  kdialog --icon "$ICON" --title "$TITLE" --msgbox "$msg" 2>/dev/null
-}
+        def __init__(self, tags: list[str], parent=None):
+            super().__init__(parent)
+            self.tags = tags
 
-run_gui() {
-  local selection
-  selection="$(gui_select_stacks)" || exit 0
+        def run(self):
+            try:
+                all_pkgs = dedupe_packages(self.tags)
+                if not all_pkgs:
+                    self.installError.emit("No packages to install.")
+                    return
 
-  # kdialog --checklist returns space-separated quoted tags: "web" "rust"
-  # Strip quotes and convert to array
-  selection="${selection//\"/}"
-  if [[ -z "$selection" ]]; then
-    exit 0
-  fi
+                total = len(all_pkgs)
+                official, aur = classify_packages(all_pkgs)
+                completed = set()
+                done = 0
 
-  # Resolve selected tags to names and packages
-  local -a selected_names=()
-  local -a selected_pkgs=()
-  for sel_tag in $selection; do
-    for entry in "${STACKS[@]}"; do
-      local tag; tag="$(get_tag "$entry")"
-      if [[ "$tag" == "$sel_tag" ]]; then
-        selected_names+=("$(get_name "$entry")")
-        for pkg in $(get_pkgs "$entry"); do
-          selected_pkgs+=("$pkg")
-        done
-      fi
-    done
-  done
+                # Install official packages via single pkexec call
+                if official:
+                    self.currentPackageChanged.emit(official[0])
+                    proc = subprocess.Popen(
+                        ["pkexec", "pacman", "-S", "--needed", "--noconfirm"] + official,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        text=True, bufsize=1,
+                    )
+                    for line in proc.stdout:
+                        line = line.strip()
+                        for prefix in ("installing ", "reinstalling "):
+                            if line.lower().startswith(prefix):
+                                pkg = line[len(prefix):].rstrip(".").strip()
+                                if pkg in official and pkg not in completed:
+                                    completed.add(pkg)
+                                    done += 1
+                                    self.packageCompleted.emit(pkg)
+                                    self.progressChanged.emit(done, total)
+                                    remaining = [p for p in official if p not in completed]
+                                    if remaining:
+                                        self.currentPackageChanged.emit(remaining[0])
+                    proc.wait()
+                    # Mark any un-tracked official packages as done
+                    for pkg in official:
+                        if pkg not in completed:
+                            completed.add(pkg)
+                            done += 1
+                            self.packageCompleted.emit(pkg)
+                            self.progressChanged.emit(done, total)
 
-  # Deduplicate packages
-  local -a unique_pkgs
-  mapfile -t unique_pkgs < <(printf '%s\n' "${selected_pkgs[@]}" | sort -u)
+                # Install AUR packages
+                aur_warning = ""
+                if aur:
+                    if shutil.which("yay"):
+                        for pkg in aur:
+                            self.currentPackageChanged.emit(pkg)
+                            subprocess.run(
+                                ["yay", "-S", "--needed", "--noconfirm", pkg],
+                                capture_output=True,
+                            )
+                            done += 1
+                            self.packageCompleted.emit(pkg)
+                            self.progressChanged.emit(done, total)
+                    else:
+                        aur_warning = (
+                            "yay is not installed. These AUR packages "
+                            "need manual install: " + ", ".join(aur)
+                        )
+                        for pkg in aur:
+                            done += 1
+                            self.progressChanged.emit(done, total)
 
-  # Build summary
-  local summary
-  summary="Install the following stacks?\n\n"
-  for name in "${selected_names[@]}"; do
-    summary+="  - $name\n"
-  done
-  summary+="\n${#unique_pkgs[@]} packages total: ${unique_pkgs[*]}"
+                run_post_hooks(self.tags)
 
-  gui_confirm "$summary" || exit 0
+                stack_names = []
+                for tag in self.tags:
+                    s = STACKS_BY_TAG.get(tag)
+                    if s:
+                        stack_names.append(s.display_name)
+                summary = (
+                    f"Installed {len(all_pkgs)} packages across "
+                    f"{len(self.tags)} stacks: {', '.join(stack_names)}."
+                )
+                self.installComplete.emit(summary, aur_warning)
 
-  gui_install "${unique_pkgs[@]}"
+            except Exception as e:
+                self.installError.emit(str(e))
 
-  # Post-install hooks
-  run_post_hooks "${selected_names[@]}"
+    class DevSetupBackend(QObject):
+        progressChanged = pyqtSignal(int, int, arguments=["current", "total"])
+        currentPackageChanged = pyqtSignal(str, arguments=["pkg"])
+        packageCompleted = pyqtSignal(str, arguments=["pkg"])
+        installComplete = pyqtSignal(str, str, arguments=["summary", "warning"])
+        installError = pyqtSignal(str, arguments=["error"])
 
-  # AUR warning if applicable
-  local aur_missing=()
-  for pkg in "${unique_pkgs[@]}"; do
-    if ! pacman -Si "$pkg" >/dev/null 2>&1; then
-      if ! command -v yay >/dev/null 2>&1; then
-        aur_missing+=("$pkg")
-      fi
-    fi
-  done
-  local done_msg="Umazing! Dev environment is ready."
-  if [[ ${#aur_missing[@]} -gt 0 ]]; then
-    done_msg+="\n\nNote: yay is not installed. These AUR packages need manual install:\n${aur_missing[*]}"
-  fi
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self._stacks = [s.to_dict() for s in STACKS]
+            self._worker = None
 
-  gui_done "$done_msg"
-}
+        @pyqtProperty("QVariantList", constant=True)
+        def stacks(self):
+            return self._stacks
 
-# ── Text fallback mode ──────────────────────────────────────────────
+        @pyqtSlot("QVariantList")
+        def install(self, tags):
+            tag_list = list(tags)
+            self._worker = InstallWorker(tag_list, self)
+            self._worker.progressChanged.connect(self.progressChanged)
+            self._worker.currentPackageChanged.connect(self.currentPackageChanged)
+            self._worker.packageCompleted.connect(self.packageCompleted)
+            self._worker.installComplete.connect(self.installComplete)
+            self._worker.installError.connect(self.installError)
+            self._worker.start()
 
-run_text() {
-  echo ""
-  echo "  UmaOS Dev Environment Setup"
-  echo "  (text mode -- no graphical session detected)"
-  echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo ""
+    app = QGuiApplication(sys.argv)
+    app.setApplicationName("UmaOS Dev Setup")
 
-  for i in "${!STACKS[@]}"; do
-    local name; name="$(get_name "${STACKS[$i]}")"
-    local check; check="$(get_check "${STACKS[$i]}")"
-    local pkgs; pkgs="$(get_pkgs "${STACKS[$i]}")"
-    local marker="  "
-    if is_installed "$check"; then
-      marker=" *"
-    fi
-    printf "  %s %2d) %-22s  [%s]\n" "$marker" "$((i + 1))" "$name" "$pkgs"
-  done
+    engine = QQmlApplicationEngine()
+    backend = DevSetupBackend()
+    engine.rootContext().setContextProperty("backend", backend)
 
-  echo ""
-  echo "  Enter stack numbers separated by spaces (e.g. 1 3 5)"
-  echo "  Or 'all' to install everything, 'q' to quit."
-  echo ""
-  read -rp "  Select stacks: " input
+    qml_dir = "/usr/share/umaos/dev-setup"
+    engine.addImportPath(qml_dir)
+    engine.load(QUrl.fromLocalFile(os.path.join(qml_dir, "main.qml")))
 
-  if [[ "$input" == "q" || -z "$input" ]]; then
-    echo "  Nothing to install."
-    exit 0
-  fi
+    if not engine.rootObjects():
+        print("Error: Failed to load QML interface.", file=sys.stderr)
+        sys.exit(1)
 
-  local -a selected_pkgs=()
-  local -a selected_names=()
+    sys.exit(app.exec())
 
-  if [[ "$input" == "all" ]]; then
-    for entry in "${STACKS[@]}"; do
-      selected_names+=("$(get_name "$entry")")
-      for pkg in $(get_pkgs "$entry"); do
-        selected_pkgs+=("$pkg")
-      done
-    done
-  else
-    for num in $input; do
-      if ! [[ "$num" =~ ^[0-9]+$ ]] || (( num < 1 || num > ${#STACKS[@]} )); then
-        echo "  Skipping invalid selection: $num"
-        continue
-      fi
-      local idx=$((num - 1))
-      selected_names+=("$(get_name "${STACKS[$idx]}")")
-      for pkg in $(get_pkgs "${STACKS[$idx]}"); do
-        selected_pkgs+=("$pkg")
-      done
-    done
-  fi
 
-  if [[ ${#selected_pkgs[@]} -eq 0 ]]; then
-    echo "  No valid stacks selected."
-    exit 1
-  fi
+# ═══════════════════════════════════════════════════════════════════════════════
+# kdialog fallback
+# ═══════════════════════════════════════════════════════════════════════════════
 
-  local -a unique_pkgs
-  mapfile -t unique_pkgs < <(printf '%s\n' "${selected_pkgs[@]}" | sort -u)
+def run_kdialog() -> None:
+    TITLE = "UmaOS Dev Setup"
+    ICON = "utilities-terminal"
 
-  echo ""
-  echo "  Installing: ${selected_names[*]}"
-  echo "  Packages:   ${unique_pkgs[*]}"
-  echo ""
+    args = []
+    for s in STACKS:
+        state = "on" if s.installed else "off"
+        label = f"{s.display_name}  ({len(s.packages)} packages)"
+        args += [s.tag, label, state]
 
-  local -a pacman_pkgs=()
-  local -a aur_pkgs=()
-  for pkg in "${unique_pkgs[@]}"; do
-    if pacman -Si "$pkg" >/dev/null 2>&1; then
-      pacman_pkgs+=("$pkg")
-    else
-      aur_pkgs+=("$pkg")
-    fi
-  done
+    try:
+        result = subprocess.run(
+            ["kdialog", "--icon", ICON, "--title", TITLE,
+             "--checklist", "Select development stacks to install:"] + args,
+            capture_output=True, text=True,
+        )
+    except FileNotFoundError:
+        return run_text()
 
-  if [[ ${#pacman_pkgs[@]} -gt 0 ]]; then
-    echo "  >> Installing from official repos..."
-    sudo pacman -S --needed --noconfirm "${pacman_pkgs[@]}"
-  fi
+    if result.returncode != 0 or not result.stdout.strip():
+        return
 
-  if [[ ${#aur_pkgs[@]} -gt 0 ]]; then
-    if command -v yay >/dev/null 2>&1; then
-      echo "  >> Installing from AUR..."
-      yay -S --needed --noconfirm "${aur_pkgs[@]}"
-    else
-      echo "  WARNING: yay not found. These AUR packages need manual install:"
-      printf "    %s\n" "${aur_pkgs[@]}"
-    fi
-  fi
+    selection = result.stdout.strip().replace('"', '').split()
+    tags = [t for t in selection if t in STACKS_BY_TAG]
+    if not tags:
+        return
 
-  run_post_hooks "${selected_names[@]}"
+    all_pkgs = dedupe_packages(tags)
+    stack_names = [STACKS_BY_TAG[t].display_name for t in tags]
 
-  echo ""
-  echo "  Umazing! Dev environment is ready."
-  echo ""
-}
+    summary = "Install the following stacks?\n\n"
+    summary += "\n".join(f"  - {n}" for n in stack_names)
+    summary += f"\n\n{len(all_pkgs)} packages total: {' '.join(all_pkgs)}"
 
-# ── Post-install hooks (shared) ─────────────────────────────────────
+    ret = subprocess.run(
+        ["kdialog", "--icon", ICON, "--title", TITLE, "--yesno", summary],
+        capture_output=True,
+    )
+    if ret.returncode != 0:
+        return
 
-run_post_hooks() {
-  local -a names=("$@")
-  for name in "${names[@]}"; do
-    case "$name" in
-      "Rust Development")
-        if command -v rustup >/dev/null 2>&1; then
-          rustup default stable 2>/dev/null || true
-        fi
-        ;;
-      "DevOps Tools")
-        if command -v docker >/dev/null 2>&1; then
-          sudo systemctl enable --now docker.service 2>/dev/null || true
-          if ! groups | grep -q docker; then
-            sudo usermod -aG docker "$USER" 2>/dev/null || true
-          fi
-        fi
-        ;;
-      "Database Tools")
-        if command -v postgres >/dev/null 2>&1; then
-          if [[ ! -d /var/lib/postgres/data/base ]]; then
-            sudo -u postgres initdb -D /var/lib/postgres/data 2>/dev/null || true
-          fi
-          sudo systemctl enable --now postgresql.service 2>/dev/null || true
-        fi
-        if command -v redis-server >/dev/null 2>&1; then
-          sudo systemctl enable --now redis.service 2>/dev/null || true
-        fi
-        ;;
-    esac
-  done
-}
+    official, aur = classify_packages(all_pkgs)
+    total = len(all_pkgs)
+    dbus = subprocess.run(
+        ["kdialog", "--icon", ICON, "--title", TITLE,
+         "--progressbar", "Preparing installation...", str(total)],
+        capture_output=True, text=True,
+    ).stdout.strip()
 
-# ── Main ────────────────────────────────────────────────────────────
+    done = 0
 
-if has_gui; then
-  run_gui
-else
-  run_text
-fi
+    def update_progress(label, value):
+        subprocess.run(["qdbus6", dbus, "setLabelText", label],
+                       capture_output=True)
+        subprocess.run(["qdbus6", dbus, "Set", "", "value", str(value)],
+                       capture_output=True)
+
+    if official:
+        for pkg in official:
+            update_progress(f"Installing {pkg}...", done)
+            subprocess.run(["sudo", "pacman", "-S", "--needed", "--noconfirm", pkg],
+                           capture_output=True)
+            done += 1
+
+    if aur:
+        if shutil.which("yay"):
+            for pkg in aur:
+                update_progress(f"Installing {pkg} (AUR)...", done)
+                subprocess.run(["yay", "-S", "--needed", "--noconfirm", pkg],
+                               capture_output=True)
+                done += 1
+        else:
+            done += len(aur)
+
+    update_progress("Done!", total)
+    subprocess.run(["qdbus6", dbus, "close"], capture_output=True)
+
+    run_post_hooks(tags)
+
+    msg = "Umazing! Dev environment is ready."
+    if aur and not shutil.which("yay"):
+        msg += f"\n\nyay is not installed. These AUR packages need manual install:\n{' '.join(aur)}"
+
+    subprocess.run(["kdialog", "--icon", ICON, "--title", TITLE,
+                     "--passivepopup", msg, "5"], capture_output=True)
+    subprocess.run(["kdialog", "--icon", ICON, "--title", TITLE,
+                     "--msgbox", msg], capture_output=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Text fallback
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def run_text() -> None:
+    print()
+    print("  UmaOS Dev Environment Setup")
+    print("  (text mode — no graphical session detected)")
+    print("  " + "━" * 43)
+    print()
+
+    for i, s in enumerate(STACKS):
+        marker = " *" if s.installed else "  "
+        pkgs_str = " ".join(s.packages)
+        print(f"  {marker} {i+1:2d}) {s.display_name:<22s}  [{pkgs_str}]")
+
+    print()
+    print("  Enter stack numbers separated by spaces (e.g. 1 3 5)")
+    print("  Or 'all' to install everything, 'q' to quit.")
+    print()
+
+    try:
+        inp = input("  Select stacks: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return
+
+    if inp in ("q", ""):
+        print("  Nothing to install.")
+        return
+
+    tags = []
+    if inp == "all":
+        tags = [s.tag for s in STACKS]
+    else:
+        for num in inp.split():
+            if not num.isdigit():
+                print(f"  Skipping invalid selection: {num}")
+                continue
+            idx = int(num) - 1
+            if 0 <= idx < len(STACKS):
+                tags.append(STACKS[idx].tag)
+            else:
+                print(f"  Skipping invalid selection: {num}")
+
+    if not tags:
+        print("  No valid stacks selected.")
+        return
+
+    all_pkgs = dedupe_packages(tags)
+    stack_names = [STACKS_BY_TAG[t].display_name for t in tags]
+
+    print()
+    print(f"  Installing: {', '.join(stack_names)}")
+    print(f"  Packages:   {' '.join(all_pkgs)}")
+    print()
+
+    official, aur = classify_packages(all_pkgs)
+
+    if official:
+        print("  >> Installing from official repos...")
+        subprocess.run(["sudo", "pacman", "-S", "--needed", "--noconfirm"] + official)
+
+    if aur:
+        if shutil.which("yay"):
+            print("  >> Installing from AUR...")
+            subprocess.run(["yay", "-S", "--needed", "--noconfirm"] + aur)
+        else:
+            print("  WARNING: yay not found. These AUR packages need manual install:")
+            for pkg in aur:
+                print(f"    {pkg}")
+
+    run_post_hooks(tags)
+
+    print()
+    print("  Umazing! Dev environment is ready.")
+    print()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Entry point
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def main() -> None:
+    if "--text" in sys.argv:
+        return run_text()
+
+    if not has_display():
+        return run_text()
+
+    # Try PyQt6 QML GUI
+    try:
+        import PyQt6.QtCore  # noqa: F401
+        return run_qml()
+    except ImportError:
+        pass
+
+    # Try kdialog
+    if shutil.which("kdialog"):
+        return run_kdialog()
+
+    return run_text()
+
+
+if __name__ == "__main__":
+    main()

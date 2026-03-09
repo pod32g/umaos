@@ -18,6 +18,7 @@ qt5-declarative
 qt6-svg
 xcb-util-cursor
 kdialog
+python-pyqt6
 konsole
 dolphin
 fastfetch
