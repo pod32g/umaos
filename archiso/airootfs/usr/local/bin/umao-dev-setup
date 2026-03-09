@@ -149,7 +149,7 @@ def run_qml() -> None:
     from PyQt6.QtCore import (
         QObject, QThread, QUrl, pyqtSignal, pyqtSlot, pyqtProperty, QVariant
     )
-    from PyQt6.QtGui import QGuiApplication
+    from PyQt6.QtGui import QGuiApplication, QIcon
     from PyQt6.QtQml import QQmlApplicationEngine
 
     class InstallWorker(QThread):
@@ -287,6 +287,10 @@ def run_qml() -> None:
     app = QGuiApplication(sys.argv)
     app.setApplicationName("UmaOS Dev Setup")
 
+    icon_path = "/usr/share/umaos/dev-setup/icon.png"
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
+
     engine = QQmlApplicationEngine()
     backend = DevSetupBackend()
     engine.rootContext().setContextProperty("backend", backend)
@@ -308,7 +312,7 @@ def run_qml() -> None:
 
 def run_kdialog() -> None:
     TITLE = "UmaOS Dev Setup"
-    ICON = "utilities-terminal"
+    ICON = "/usr/share/umaos/dev-setup/icon.png"
 
     args = []
     for s in STACKS:
