@@ -3,6 +3,6 @@ Type=Application
 Name=Dev Setup
 Comment=Install development tool stacks
 Exec=umao-dev-setup
-Icon=utilities-terminal
+Icon=/usr/share/umaos/dev-setup/icon.png
 Terminal=false
 Categories=Development;
