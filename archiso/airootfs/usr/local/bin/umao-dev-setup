@@ -197,7 +197,16 @@ def run_qml() -> None:
                                     if remaining:
                                         self.currentPackageChanged.emit(remaining[0])
                     proc.wait()
+                    if proc.returncode != 0 and not completed:
+                        # pkexec or pacman failed entirely
+                        self.installError.emit(
+                            "Installation failed (exit code "
+                            + str(proc.returncode)
+                            + "). Authentication may have been cancelled."
+                        )
+                        return
                     # Mark any un-tracked official packages as done
+                    # (pacman installs all-or-nothing with --needed)
                     for pkg in official:
                         if pkg not in completed:
                             completed.add(pkg)
