@@ -51,6 +51,7 @@ STACKS = [
     Stack("aider", "Aider", "aider", "ai", ["python", "python-pipx"]),
     Stack("codex", "OpenAI Codex", "codex", "ai", ["nodejs", "npm"]),
     Stack("gemini-cli", "Gemini CLI", "gemini", "ai", ["nodejs", "npm"]),
+    Stack("opencode", "OpenCode", "opencode", "ai", ["opencode-bin"]),
     Stack("cursor", "Cursor", "cursor", "ai", ["cursor-bin"]),
     # DevOps
     Stack("docker", "Docker & Compose", "docker", "devops", ["docker", "docker-compose"]),
