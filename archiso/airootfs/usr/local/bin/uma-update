@@ -282,6 +282,9 @@ sync_dir_files "$airootfs/etc/sudoers.d" "/etc/sudoers.d"
 # ── 13. Helium browser policies ──
 sync_dir_recursive "$airootfs/etc/helium" "/etc/helium"
 
+# ── 14. System-sleep hooks (touchpad resume fix, etc.) ──
+sync_dir_files "$airootfs/usr/lib/systemd/system-sleep" "/usr/lib/systemd/system-sleep"
+
 # ── Post-sync: propagate theme changes to existing users ──
 propagate_to_users() {
   log "Propagating updated configs to existing users..."
