@@ -1474,6 +1474,7 @@ file_permissions+=(
   ["/usr/local/bin/umao-dev-setup"]="0:0:755"
   ["/usr/local/bin/umao-pacman-quote"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
+  ["/usr/lib/systemd/system-sleep/rmi4-resume.sh"]="0:0:755"
   ["/home/arch/Desktop/Install Uma Musume.sh"]="1000:1000:755"
   ["/etc/skel/Desktop/Install Uma Musume.sh"]="0:0:755"
 )
