@@ -339,6 +339,8 @@ propagate_to_users() {
           install -D -m 600 -o "$uid" -g "$gid" "$file" "$nvim_dst/$rel"
         done < <(find "$nvim_src/lua" -type f -print0 | sort -z)
       fi
+      # install -D creates intermediate dirs as root; fix ownership
+      chown -R "$uid:$gid" "$nvim_dst"
     fi
 
     # Sync autostart entries
