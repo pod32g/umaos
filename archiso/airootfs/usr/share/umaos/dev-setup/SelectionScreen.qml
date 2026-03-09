@@ -58,6 +58,7 @@ Item {
     function tabLabel(cat) {
         if (cat === "languages") return "Languages"
         if (cat === "editors") return "Editors"
+        if (cat === "ai") return "AI"
         if (cat === "devops") return "DevOps"
         if (cat === "data") return "Data"
         return cat

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 # ── Stack definitions ──────────────────────────────────────────────────────────
 
-CATEGORIES = ["languages", "editors", "devops", "data"]
+CATEGORIES = ["languages", "editors", "ai", "devops", "data"]
 
 @dataclass
 class Stack:
@@ -45,6 +45,11 @@ STACKS = [
     Stack("neovim", "Neovim", "nvim", "editors", ["neovim"]),
     Stack("helix", "Helix", "hx", "editors", ["helix"]),
     Stack("emacs", "Emacs", "emacs", "editors", ["emacs"]),
+    # AI
+    Stack("ollama", "Ollama", "ollama", "ai", ["ollama"]),
+    Stack("claude-code", "Claude Code", "claude", "ai", ["nodejs", "npm"]),
+    Stack("aider", "Aider", "aider", "ai", ["python", "python-pipx"]),
+    Stack("cursor", "Cursor", "cursor", "ai", ["cursor-bin"]),
     # DevOps
     Stack("docker", "Docker & Compose", "docker", "devops", ["docker", "docker-compose"]),
     Stack("k8s", "Kubernetes", "kubectl", "devops", ["kubectl", "helm"]),
@@ -68,6 +73,15 @@ def run_post_hooks(tags: list[str]) -> None:
             continue
         if stack.tag == "rust" and shutil.which("rustup"):
             subprocess.run(["rustup", "default", "stable"],
+                           capture_output=True)
+        elif stack.tag == "claude-code" and shutil.which("npm"):
+            subprocess.run(["npm", "install", "-g", "@anthropic-ai/claude-code"],
+                           capture_output=True)
+        elif stack.tag == "aider" and shutil.which("pipx"):
+            subprocess.run(["pipx", "install", "aider-chat"],
+                           capture_output=True)
+        elif stack.tag == "ollama" and shutil.which("ollama"):
+            subprocess.run(["sudo", "systemctl", "enable", "--now", "ollama.service"],
                            capture_output=True)
         elif stack.tag == "docker" and shutil.which("docker"):
             subprocess.run(["sudo", "systemctl", "enable", "--now", "docker.service"],
