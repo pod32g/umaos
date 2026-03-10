@@ -71,6 +71,9 @@ docker run --rm --privileged \
     set -euo pipefail
     cd /workspace
 
+    # Refresh package database so cached images don't hit stale mirrors
+    pacman -Sy --noconfirm
+
     if [[ "${UMAOS_ALLOW_AUR:-0}" == "1" ]]; then
       export SUDO_USER=builder
     fi
