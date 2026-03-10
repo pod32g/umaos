@@ -24,4 +24,33 @@ package() {
 
     # Desktop entry
     install -Dm644 cursor-switcher.desktop "$pkgdir/etc/skel/Desktop/Cursor Switcher.desktop"
+
+    # Install cursor themes from bundled archives
+    local dest_icons="$pkgdir/usr/share/icons"
+    mkdir -p "$dest_icons"
+    for archive in cursors/*.tar.gz; do
+        [ -f "$archive" ] || continue
+        local extract_root
+        extract_root="$(mktemp -d)"
+        tar -xzf "$archive" -C "$extract_root"
+
+        # Find the index.theme to locate the theme root
+        local idx_path
+        idx_path="$(find "$extract_root" -name 'index.theme' -print -quit 2>/dev/null)"
+        [ -n "$idx_path" ] || { rm -rf "$extract_root"; continue; }
+
+        local theme_root
+        theme_root="$(dirname "$idx_path")"
+        [ -d "$theme_root/cursors" ] || { rm -rf "$extract_root"; continue; }
+
+        # Derive theme directory name from index.theme Name= field
+        local theme_name
+        theme_name="$(awk -F= '/^Name=/{print $2; exit}' "$theme_root/index.theme" | tr -d '\r')"
+        local theme_dir
+        theme_dir="$(printf '%s' "$theme_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g')"
+        [ -n "$theme_dir" ] || { rm -rf "$extract_root"; continue; }
+
+        cp -a "$theme_root" "$dest_icons/$theme_dir"
+        rm -rf "$extract_root"
+    done
 }

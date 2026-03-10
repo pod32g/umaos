@@ -38,7 +38,7 @@ WALLHAVEN_IMAGES_DIR="$WALLHAVEN_ASSETS_DIR/images"
 WALLHAVEN_MANIFEST="$WALLHAVEN_ASSETS_DIR/manifest.tsv"
 INCLUDE_WALLHAVEN="${UMAOS_INCLUDE_WALLHAVEN:-1}"
 URA_LOGO_SRC="$ROOT_DIR/ura_logo.png"
-DEFAULT_CURSOR_THEME="pixloen-haru-urara-v1.7"
+# Cursor themes are bundled in the umao-cursor-switcher package
 EXPECTED_WALLHAVEN_COUNT=0
 
 log() {
@@ -130,122 +130,8 @@ PACCONF
   log "Injected local repo '$LOCAL_REPO_NAME' into build pacman.conf (clean copy in airootfs)"
 }
 
-find_cursor_archives() {
-  find "$ROOT_DIR/assets/cursors" -maxdepth 1 -type f \( -name "*.tar.gz" -o -name "*.tgz" \) 2>/dev/null | sort -u
-}
 
-sanitize_theme_dir() {
-  local raw="$1"
-  printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g'
-}
-
-install_custom_cursor_themes() {
-  local dest_icons="$BUILD_PROFILE/airootfs/usr/share/icons"
-  local archive
-  local idx_path
-  local source_subdir
-  local extract_root
-  local extract_dir
-  local theme_name
-  local theme_dir
-  local target_dir
-  local installed=0
-  local -a archives=()
-
-  mapfile -t archives < <(find_cursor_archives)
-  if ((${#archives[@]} == 0)); then
-    log "No custom cursor archives found; skipping cursor import."
-    return 0
-  fi
-
-  mkdir -p "$dest_icons"
-
-  for archive in "${archives[@]}"; do
-    if ! idx_path="$(tar -tzf "$archive" 2>/dev/null | awk '
-      /(^|\/)index\.theme$/ && !found {
-        print
-        found=1
-      }
-      END {
-        if (!found) {
-          exit 1
-        }
-      }
-    ')"; then
-      warn "Skipping cursor archive without index.theme: $archive"
-      continue
-    fi
-
-    source_subdir="${idx_path%/index.theme}"
-    if [[ "$idx_path" == "index.theme" ]]; then
-      source_subdir=""
-    fi
-
-    extract_root="$(mktemp -d)"
-    tar -xzf "$archive" -C "$extract_root"
-    extract_dir="$extract_root"
-
-    if [[ -n "$source_subdir" ]]; then
-      extract_dir="$extract_dir/$source_subdir"
-    fi
-
-    if [[ ! -f "$extract_dir/index.theme" || ! -d "$extract_dir/cursors" ]]; then
-      warn "Skipping invalid cursor archive layout: $archive"
-      rm -rf "$extract_root"
-      continue
-    fi
-
-    theme_name="$(awk -F= '/^Name=/{print $2; exit}' "$extract_dir/index.theme" | tr -d '\r')"
-    if [[ -z "$theme_name" ]]; then
-      theme_name="$(basename "$archive")"
-      theme_name="${theme_name%.tar.gz}"
-      theme_name="${theme_name%.tgz}"
-    fi
-
-    theme_dir="$(sanitize_theme_dir "$theme_name")"
-    if [[ -z "$theme_dir" ]]; then
-      warn "Skipping cursor archive with unresolvable theme name: $archive"
-      rm -rf "$extract_root"
-      continue
-    fi
-
-    target_dir="$dest_icons/$theme_dir"
-    rm -rf "$target_dir"
-    mkdir -p "$target_dir"
-    cp -a "$extract_dir"/. "$target_dir"/
-
-    installed=$((installed + 1))
-    log "Installed cursor theme '$theme_name' as '$theme_dir'"
-    rm -rf "$extract_root"
-  done
-
-  log "Installed $installed custom cursor theme(s)."
-}
-
-ensure_default_cursor_theme() {
-  local dest_icons="$BUILD_PROFILE/airootfs/usr/share/icons"
-  local preferred="$DEFAULT_CURSOR_THEME"
-  local detected_haru_theme
-
-  if [[ -d "$dest_icons/$preferred" ]]; then
-    log "Default cursor theme present: $preferred"
-    return 0
-  fi
-
-  detected_haru_theme="$(
-    find "$dest_icons" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; \
-      | grep -Ei '^pixloen-.*haru.*urara' \
-      | head -n 1 || true
-  )"
-
-  if [[ -n "$detected_haru_theme" ]]; then
-    ln -sfn "$detected_haru_theme" "$dest_icons/$preferred"
-    log "Created cursor alias '$preferred' -> '$detected_haru_theme'."
-    return 0
-  fi
-
-  warn "Default cursor theme '$preferred' not found in $dest_icons. System may fall back to Breeze cursors."
-}
+# Cursor themes are now bundled in the umao-cursor-switcher package.
 
 install_wallhaven_wallpapers() {
   local wallpapers_root="$BUILD_PROFILE/airootfs/usr/share/wallpapers"
@@ -1390,8 +1276,7 @@ if [[ -x "$ROOT_DIR/scripts/verify-calamares-profile.sh" ]]; then
   bash "$ROOT_DIR/scripts/verify-calamares-profile.sh" "$BUILD_PROFILE/airootfs"
 fi
 
-install_custom_cursor_themes
-ensure_default_cursor_theme
+# Cursor themes are now installed by the umao-cursor-switcher package
 install_wallhaven_wallpapers
 install_uma_ksplash_theme
 install_grub_theme
