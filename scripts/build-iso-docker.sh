@@ -72,7 +72,7 @@ docker run --rm --privileged \
     cd /workspace
 
     # Refresh package database so cached images don't hit stale mirrors
-    pacman -Sy --noconfirm
+    /usr/bin/pacman -Sy --noconfirm
 
     if [[ "${UMAOS_ALLOW_AUR:-0}" == "1" ]]; then
       export SUDO_USER=builder
