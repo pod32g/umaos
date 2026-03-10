@@ -22,6 +22,7 @@ REQUIRED_REPO_PKGS=(
   yay
   helium-browser-bin
   umao-dev-setup
+  umao-cursor-switcher
 )
 MISSING_REQUIRED_PKGS=()
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
@@ -1425,7 +1426,6 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-show-ascii" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-welcome" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-login-sound" \
-  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-cursor-switcher" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-pacman-quote" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
   "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
@@ -1480,7 +1480,6 @@ file_permissions+=(
   ["/usr/local/bin/umao-show-ascii"]="0:0:755"
   ["/usr/local/bin/umao-welcome"]="0:0:755"
   ["/usr/local/bin/umao-login-sound"]="0:0:755"
-  ["/usr/local/bin/umao-cursor-switcher"]="0:0:755"
   ["/usr/local/bin/umao-pacman-quote"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
   ["/usr/lib/systemd/system-sleep/rmi4-resume.sh"]="0:0:755"

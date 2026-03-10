@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Version=1.0
-Name=Change Cursor Theme
-Comment=Switch between Uma Musume character cursors
-Exec=konsole -e /usr/local/bin/umao-cursor-switcher
-Terminal=false
-Icon=preferences-desktop-cursors
