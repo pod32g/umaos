@@ -19,6 +19,7 @@ qt6-svg
 xcb-util-cursor
 kdialog
 python-pyqt6
+umao-dev-setup
 konsole
 dolphin
 fastfetch
