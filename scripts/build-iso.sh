@@ -21,9 +21,11 @@ REQUIRED_REPO_PKGS=(
   plasma6-wallpapers-smart-video-wallpaper-reborn
   yay
   helium-browser-bin
+  umao-dev-setup
 )
 MISSING_REQUIRED_PKGS=()
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
+CUSTOM_PKGS_DIR="$ROOT_DIR/custom-pkgs"
 AUR_SRC_DIR="$ROOT_DIR/build/aur-src"
 LOCAL_REPO_DIR="$ROOT_DIR/build/localrepo"
 LOCAL_REPO_NAME="umaos-local"
@@ -1101,7 +1103,16 @@ build_missing_required_from_aur() {
 
     pkg_src="$AUR_SRC_DIR/$pkg"
 
-    if [[ "$EUID" -eq 0 ]]; then
+    if [[ -f "$CUSTOM_PKGS_DIR/$pkg/PKGBUILD" ]]; then
+      # Use local custom PKGBUILD from custom-pkgs/ directory
+      rm -rf "$pkg_src"
+      mkdir -p "$pkg_src"
+      cp "$CUSTOM_PKGS_DIR/$pkg/"* "$pkg_src/"
+      if [[ "$EUID" -eq 0 ]]; then
+        chown -R "$builder_user":"$builder_user" "$pkg_src"
+      fi
+      log "Using custom PKGBUILD for '$pkg' from custom-pkgs/"
+    elif [[ "$EUID" -eq 0 ]]; then
       sudo -u "$builder_user" -H bash -lc "rm -rf '$pkg_src' && git clone --depth=1 'https://aur.archlinux.org/$pkg.git' '$pkg_src'"
     else
       rm -rf "$pkg_src"
@@ -1415,7 +1426,6 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-welcome" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-login-sound" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-cursor-switcher" \
-  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-dev-setup" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-pacman-quote" \
   "$BUILD_PROFILE/airootfs/etc/profile.d/umaos-welcome.sh" \
   "$BUILD_PROFILE/airootfs/home/arch/Desktop/Install Uma Musume.sh" \
@@ -1471,7 +1481,6 @@ file_permissions+=(
   ["/usr/local/bin/umao-welcome"]="0:0:755"
   ["/usr/local/bin/umao-login-sound"]="0:0:755"
   ["/usr/local/bin/umao-cursor-switcher"]="0:0:755"
-  ["/usr/local/bin/umao-dev-setup"]="0:0:755"
   ["/usr/local/bin/umao-pacman-quote"]="0:0:755"
   ["/etc/profile.d/umaos-welcome.sh"]="0:0:755"
   ["/usr/lib/systemd/system-sleep/rmi4-resume.sh"]="0:0:755"

@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Dev Setup
-Comment=Install development tool stacks
-Exec=umao-dev-setup
-Icon=/usr/share/umaos/dev-setup/icon.png
-Terminal=false
-Categories=Development;
