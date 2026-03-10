@@ -20,6 +20,7 @@ xcb-util-cursor
 kdialog
 python-pyqt6
 umao-dev-setup
+umao-cursor-switcher
 konsole
 dolphin
 fastfetch
