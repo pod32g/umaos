@@ -1214,6 +1214,9 @@ if [[ ! -d "$RELENG_DIR" ]]; then
   die "releng profile not found at $RELENG_DIR. Install archiso: sudo pacman -S --needed archiso"
 fi
 
+# Refresh package database to avoid stale mirror 404s (especially in Docker)
+pacman -Sy --noconfirm 2>/dev/null || true
+
 require_cmd rsync
 require_cmd sed
 require_cmd mkarchiso
