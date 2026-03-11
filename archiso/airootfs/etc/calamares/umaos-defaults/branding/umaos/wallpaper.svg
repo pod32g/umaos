@@ -1,12 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
   <defs>
-    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0" stop-color="#daf0de"/>
-      <stop offset="1" stop-color="#ffd6e9"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#04170a"/>
+      <stop offset="50%" stop-color="#0a3416"/>
+      <stop offset="100%" stop-color="#0b2310"/>
     </linearGradient>
+    <radialGradient id="centerGlow" cx="51%" cy="45%" r="46%">
+      <stop offset="0%" stop-color="#2b7e35" stop-opacity="0.72"/>
+      <stop offset="48%" stop-color="#2b7e35" stop-opacity="0.26"/>
+      <stop offset="100%" stop-color="#2b7e35" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pinkGlow" cx="74%" cy="63%" r="38%">
+      <stop offset="0%" stop-color="#f2b4cf" stop-opacity="0.56"/>
+      <stop offset="46%" stop-color="#f2b4cf" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#f2b4cf" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mist" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#d5edd5" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#d5edd5" stop-opacity="0"/>
+    </radialGradient>
   </defs>
+
   <rect width="1920" height="1080" fill="url(#bg)"/>
-  <circle cx="320" cy="220" r="280" fill="#42a54b" opacity="0.22"/>
-  <circle cx="1600" cy="880" r="340" fill="#ff91c0" opacity="0.24"/>
-  <text x="130" y="960" fill="#16302a" font-size="120" font-family="Noto Sans">UmaOS</text>
+  <rect width="1920" height="1080" fill="url(#mist)"/>
+  <circle cx="960" cy="510" r="650" fill="url(#centerGlow)"/>
+  <circle cx="1440" cy="700" r="420" fill="url(#pinkGlow)"/>
+  <circle cx="310" cy="240" r="260" fill="#0f2414" opacity="0.42"/>
 </svg>

@@ -6,8 +6,8 @@ welcomeExpandingLogo: false
 windowExpanding: normal
 windowSize: 920px,560px
 windowPlacement: center
-sidebar: widget
-navigation: widget
+sidebar: qml
+navigation: qml
 
 strings:
   productName: "UmaOS"
@@ -17,16 +17,16 @@ strings:
   versionedName: "UmaOS Rolling"
   shortVersionedName: "UmaOS"
   bootloaderEntryName: "UmaOS"
-  productUrl: "https://example.com/umaos"
-  supportUrl: "https://example.com/umaos/support"
-  knownIssuesUrl: "https://example.com/umaos/issues"
-  releaseNotesUrl: "https://example.com/umaos/releases"
-  donateUrl: "https://example.com/umaos/donate"
+  productUrl: "https://github.com/pod32g/umaos"
+  supportUrl: "https://github.com/pod32g/umaos/issues"
+  knownIssuesUrl: "https://github.com/pod32g/umaos/issues"
+  releaseNotesUrl: "https://github.com/pod32g/umaos/releases"
+  donateUrl: "https://github.com/pod32g/umaos"
 
 images:
   productBanner: "banner.svg"
-  productIcon: "ura_logo_sidebar.png"
-  productLogo: "ura_logo_sidebar.png"
+  productIcon: "logo.svg"
+  productLogo: "logo.svg"
   productWallpaper: "wallpaper.svg"
   productWelcome: "welcome.svg"
 

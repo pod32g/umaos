@@ -1,18 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" viewBox="0 0 640 320">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#12301a"/>
-      <stop offset="60%" stop-color="#1e5a2a"/>
-      <stop offset="100%" stop-color="#42a54b"/>
+      <stop offset="0%" stop-color="#13301b"/>
+      <stop offset="60%" stop-color="#42a54b"/>
+      <stop offset="100%" stop-color="#75d46f"/>
     </linearGradient>
-    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#42a54b" stop-opacity="0.3"/>
-      <stop offset="100%" stop-color="#ff91c0" stop-opacity="0.2"/>
+    <radialGradient id="pinkGlow" cx="80%" cy="82%" r="58%">
+      <stop offset="0%" stop-color="#f2b4cf" stop-opacity="0.72"/>
+      <stop offset="48%" stop-color="#f2b4cf" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#f2b4cf" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shadowVeil" x1="0" y1="0.9" x2="0.8" y2="0.1">
+      <stop offset="0%" stop-color="#07110a" stop-opacity="0.56"/>
+      <stop offset="55%" stop-color="#07110a" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#07110a" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <rect width="640" height="320" rx="12" fill="url(#bg)"/>
-  <ellipse cx="500" cy="180" rx="200" ry="160" fill="url(#glow)"/>
-  <text x="320" y="130" text-anchor="middle" fill="#ffffff" font-size="42" font-family="Noto Sans, sans-serif" font-weight="bold">Welcome to UmaOS</text>
-  <text x="320" y="170" text-anchor="middle" fill="#7ab882" font-size="18" font-family="Noto Sans, sans-serif">&#x30A6;&#x30DE;&#x5A18; &#x30D7;&#x30EA;&#x30C6;&#x30A3;&#x30FC;&#x30C0;&#x30FC;&#x30D3;&#x30FC;</text>
-  <text x="320" y="210" text-anchor="middle" fill="#8ab892" font-size="14" font-family="Noto Sans, sans-serif">Easy install. Fast desktop. Racing-idol inspired style.</text>
+
+  <rect width="640" height="320" rx="14" fill="url(#bg)"/>
+  <rect width="640" height="320" rx="14" fill="url(#shadowVeil)"/>
+  <circle cx="520" cy="250" r="168" fill="url(#pinkGlow)"/>
+
+  <g transform="translate(320 140)">
+    <text y="0" text-anchor="middle" fill="#ffffff" font-size="36" font-family="Noto Sans, sans-serif" font-weight="700">
+      Welcome to UmaOS
+    </text>
+    <text y="30" text-anchor="middle" fill="#ebf7ec" fill-opacity="0.9" font-size="18" font-family="Noto Sans JP, Noto Sans, sans-serif">
+      ウマ娘 プリティーダービー
+    </text>
+    <text y="58" text-anchor="middle" fill="#ffffff" fill-opacity="0.72" font-size="14" font-family="Noto Sans, sans-serif">
+      Easy install. Fast desktop. Racing-idol inspired style.
+    </text>
+  </g>
 </svg>

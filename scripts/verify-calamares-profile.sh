@@ -128,8 +128,8 @@ if [[ -f "$SHELLPROCESS_POST" ]]; then
 fi
 
 if [[ -f "$BRANDING_DESC" ]]; then
-  check_contains "$BRANDING_DESC" 'productIcon:[[:space:]]*"ura_logo_sidebar\.png"' "Calamares product icon uses ura_logo_sidebar.png"
-  check_contains "$BRANDING_DESC" 'productLogo:[[:space:]]*"ura_logo_sidebar\.png"' "Calamares product logo uses ura_logo_sidebar.png"
+  check_contains "$BRANDING_DESC" 'productIcon:[[:space:]]*"logo\.svg"' "Calamares product icon uses logo.svg"
+  check_contains "$BRANDING_DESC" 'productLogo:[[:space:]]*"logo\.svg"' "Calamares product logo uses logo.svg"
 fi
 
 if [[ -d "$DEFAULTS_ROOT" ]]; then
