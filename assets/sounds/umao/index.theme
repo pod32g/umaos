@@ -1,0 +1,7 @@
+[Sound Theme]
+Name=UmaOS
+Comment=UmaOS custom sound theme
+Directories=stereo
+
+[stereo]
+OutputProfile=stereo
