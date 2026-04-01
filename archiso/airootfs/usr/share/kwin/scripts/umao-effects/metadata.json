@@ -1,0 +1,11 @@
+{
+    "KPlugin": {
+        "Id": "umao-effects",
+        "Name": "UmaOS Effects",
+        "Description": "Subtle racing-inspired window animation tweaks",
+        "Category": "Appearance",
+        "EnabledByDefault": true
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}
