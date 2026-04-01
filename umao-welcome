@@ -117,6 +117,29 @@ class WelcomeBackend(QObject):
         except Exception:
             pass
 
+    @pyqtSlot(str, result=str)
+    def applyProfiles(self, profile_names_json):
+        """Apply selected profiles via umao-profile CLI. Returns JSON result."""
+        names = json.loads(profile_names_json)
+        if not names:
+            return json.dumps({"status": "complete", "failures": [], "message": "No profiles selected."})
+
+        umao_profile = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umao-profile")
+        if not os.path.isfile(umao_profile):
+            umao_profile = "/usr/local/bin/umao-profile"
+
+        cmd = [sys.executable, umao_profile, "apply", "--json"] + names
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            lines = [l for l in result.stdout.strip().splitlines() if l.strip()]
+            if lines:
+                return lines[-1]
+            return json.dumps({"status": "error", "message": "No output from umao-profile"})
+        except subprocess.TimeoutExpired:
+            return json.dumps({"status": "error", "message": "Profile application timed out"})
+        except Exception as e:
+            return json.dumps({"status": "error", "message": str(e)})
+
 
 def main():
     app = QApplication(sys.argv)
