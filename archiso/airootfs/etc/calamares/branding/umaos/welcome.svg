@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="320" viewBox="0 0 640 320">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#13301b"/>
-      <stop offset="60%" stop-color="#42a54b"/>
-      <stop offset="100%" stop-color="#75d46f"/>
+      <stop offset="0%" stop-color="#132B4F"/>
+      <stop offset="60%" stop-color="#1F4F90"/>
+      <stop offset="100%" stop-color="#2F74CC"/>
     </linearGradient>
     <radialGradient id="pinkGlow" cx="80%" cy="82%" r="58%">
-      <stop offset="0%" stop-color="#f2b4cf" stop-opacity="0.72"/>
-      <stop offset="48%" stop-color="#f2b4cf" stop-opacity="0.2"/>
-      <stop offset="100%" stop-color="#f2b4cf" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#FFD6E8" stop-opacity="0.72"/>
+      <stop offset="48%" stop-color="#FFD6E8" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#FFD6E8" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="shadowVeil" x1="0" y1="0.9" x2="0.8" y2="0.1">
-      <stop offset="0%" stop-color="#07110a" stop-opacity="0.56"/>
-      <stop offset="55%" stop-color="#07110a" stop-opacity="0.12"/>
-      <stop offset="100%" stop-color="#07110a" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#0A1628" stop-opacity="0.56"/>
+      <stop offset="55%" stop-color="#0A1628" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#0A1628" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
@@ -25,7 +25,7 @@
     <text y="0" text-anchor="middle" fill="#ffffff" font-size="36" font-family="Noto Sans, sans-serif" font-weight="700">
       Welcome to UmaOS
     </text>
-    <text y="30" text-anchor="middle" fill="#ebf7ec" fill-opacity="0.9" font-size="18" font-family="Noto Sans JP, Noto Sans, sans-serif">
+    <text y="30" text-anchor="middle" fill="#F8FBFF" fill-opacity="0.9" font-size="18" font-family="Noto Sans JP, Noto Sans, sans-serif">
       ウマ娘 プリティーダービー
     </text>
     <text y="58" text-anchor="middle" fill="#ffffff" fill-opacity="0.72" font-size="14" font-family="Noto Sans, sans-serif">
