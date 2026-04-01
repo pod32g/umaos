@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Id": "org.umaos.racestats",
+        "Name": "UmaOS Race Stats",
+        "Description": "System monitor styled as Uma Musume race attributes",
+        "Category": "System Information",
+        "Icon": "speedometer",
+        "Authors": [
+            {
+                "Name": "UmaOS",
+                "Email": "umaos@example.com"
+            }
+        ],
+        "Version": "1.0.0",
+        "License": "MIT"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPackageStructure": "Plasma/Applet"
+}
