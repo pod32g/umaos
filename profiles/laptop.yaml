@@ -1,0 +1,15 @@
+name: Laptop
+version: 1
+icon: uma-laptop
+description: "Battery optimization and power management for portable use."
+packages:
+  pacman:
+    - auto-cpufreq
+    - power-profiles-daemon
+  flatpak: []
+  aur: []
+configs: []
+services:
+  enable:
+    - auto-cpufreq.service
+post_install: []

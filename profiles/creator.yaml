@@ -1,0 +1,17 @@
+name: Creator
+version: 1
+icon: uma-creator
+description: "OBS, GIMP, Kdenlive, and creative tools for content creation."
+packages:
+  pacman:
+    - obs-studio
+    - gimp
+    - kdenlive
+    - audacity
+    - inkscape
+  flatpak: []
+  aur: []
+configs: []
+services:
+  enable: []
+post_install: []

@@ -1,0 +1,23 @@
+name: Gaming
+version: 1
+icon: uma-gaming
+description: "Steam, Proton, and everything you need to race."
+packages:
+  pacman:
+    - steam
+    - gamemode
+    - lib32-gamemode
+    - mangohud
+    - lib32-mangohud
+  flatpak:
+    - net.lutris.Lutris
+  aur:
+    - protonup-qt
+configs:
+  - source: gaming/gamemode.ini
+    dest: ~/.config/gamemode.ini
+    conflict: skip
+services:
+  enable: []
+post_install:
+  - umao-ensure-proton-ge

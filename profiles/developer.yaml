@@ -1,0 +1,19 @@
+name: Developer
+version: 1
+icon: uma-developer
+description: "Editors, containers, and AI tools for software development."
+packages:
+  pacman:
+    - neovim
+    - podman
+    - distrobox
+    - python-pip
+    - nodejs
+    - npm
+  flatpak: []
+  aur:
+    - visual-studio-code-bin
+configs: []
+services:
+  enable: []
+post_install: []
