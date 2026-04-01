@@ -256,7 +256,7 @@ sync_user_customization() {
   done
 
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/autostart"
-  for src in umaos-first-login.desktop umao-umamusume-first-login.desktop umaos-welcome.desktop umaos-login-sound.desktop umaos-conky.desktop; do
+  for src in umaos-welcome.desktop umaos-login-sound.desktop umaos-conky.desktop; do
     if [[ -f "/etc/skel/.config/autostart/$src" ]]; then
       install -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$src" \
         "$user_home/.config/autostart/$src"
