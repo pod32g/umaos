@@ -2,10 +2,10 @@
     "name": "UmaOS Dynamic",
     "description": "Time-of-day wallpaper pack with abstract Uma-themed gradients",
     "variants": {
-        "morning": "morning.png",
-        "afternoon": "afternoon.png",
-        "evening": "evening.png",
-        "night": "night.png"
+        "morning": "morning.svg",
+        "afternoon": "afternoon.svg",
+        "evening": "evening.svg",
+        "night": "night.svg"
     },
     "transitions": {
         "morning": "06:00",

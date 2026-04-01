@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#132B4F"/>
+      <stop offset="35%" stop-color="#1F4F90"/>
+      <stop offset="65%" stop-color="#FF91C0"/>
+      <stop offset="100%" stop-color="#FFC66D"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.9" r="0.5">
+      <stop offset="0%" stop-color="#FFC66D" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#FFC66D" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mist" cx="0.3" cy="0.5" r="0.6">
+      <stop offset="0%" stop-color="#9B59B6" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#9B59B6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="haze" x1="0" y1="0.6" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF91C0" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#FF91C0" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <rect width="1920" height="1080" fill="url(#glow)"/>
+  <rect width="1920" height="1080" fill="url(#mist)"/>
+  <rect width="1920" height="1080" fill="url(#haze)"/>
+</svg>

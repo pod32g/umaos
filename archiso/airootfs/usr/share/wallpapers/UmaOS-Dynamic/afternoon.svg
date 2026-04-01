@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1F4F90"/>
+      <stop offset="40%" stop-color="#2F74CC"/>
+      <stop offset="100%" stop-color="#87CEEB"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.1" r="0.6">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="accent" cx="0.75" cy="0.7" r="0.4">
+      <stop offset="0%" stop-color="#FFD6E8" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#FFD6E8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cloud1" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#sky)"/>
+  <rect width="1920" height="1080" fill="url(#sun)"/>
+  <rect width="1920" height="1080" fill="url(#accent)"/>
+  <ellipse cx="300" cy="350" rx="280" ry="70" fill="url(#cloud1)"/>
+  <ellipse cx="1500" cy="250" rx="320" ry="80" fill="url(#cloud1)"/>
+</svg>
