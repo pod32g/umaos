@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""UmaOS Welcome App — first-login wizard and settings hub."""
+
+import os
+import sys
+import json
+import subprocess
+
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtQml import QQmlApplicationEngine
+from PyQt6.QtCore import QObject, pyqtSlot, pyqtProperty, pyqtSignal, QUrl
+
+
+class WelcomeBackend(QObject):
+    """Bridge between QML UI and system operations."""
+
+    modeChanged = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._first_run = not os.path.exists(self._state_path())
+
+    def _state_path(self):
+        return os.path.expanduser("~/.config/umaos/welcome-done")
+
+    @pyqtProperty(bool, notify=modeChanged)
+    def firstRun(self):
+        return self._first_run
+
+    @pyqtSlot()
+    def markFirstRunDone(self):
+        state_dir = os.path.dirname(self._state_path())
+        os.makedirs(state_dir, exist_ok=True)
+        with open(self._state_path(), "w") as f:
+            f.write("1")
+        self._first_run = False
+        self.modeChanged.emit()
+
+    @pyqtSlot(result=str)
+    def getVersion(self):
+        """Return UmaOS version string."""
+        for path in ["/etc/umaos-release", "/usr/share/umaos/version"]:
+            if os.path.isfile(path):
+                with open(path) as f:
+                    return f.read().strip()
+        return "dev"
+
+    @pyqtSlot(result=str)
+    def getSystemInfo(self):
+        """Return basic system info as JSON for the SystemInfo page."""
+        info = {}
+        try:
+            result = subprocess.run(
+                ["fastfetch", "--json"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0:
+                info["fastfetch"] = json.loads(result.stdout)
+        except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            info["fastfetch"] = None
+
+        try:
+            result = subprocess.run(
+                ["lspci", "-nn"],
+                capture_output=True, text=True, timeout=5,
+            )
+            gpu_lines = [
+                line for line in result.stdout.splitlines()
+                if "VGA" in line or "3D" in line or "Display" in line
+            ]
+            info["gpu"] = gpu_lines[0] if gpu_lines else "Unknown"
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            info["gpu"] = "Unknown"
+
+        return json.dumps(info)
+
+    @pyqtSlot(result=str)
+    def loadProfiles(self):
+        """Load all YAML profile manifests, searching known paths."""
+        import yaml
+
+        search_paths = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "profiles"),
+            "/usr/share/umaos/welcome/profiles",
+            os.path.expanduser("~/.config/umao/profiles"),
+        ]
+
+        profiles = []
+        seen = set()
+
+        for profiles_dir in search_paths:
+            if not os.path.isdir(profiles_dir):
+                continue
+            for fname in sorted(os.listdir(profiles_dir)):
+                if not fname.endswith(".yaml") or fname in seen:
+                    continue
+                seen.add(fname)
+                path = os.path.join(profiles_dir, fname)
+                try:
+                    with open(path) as f:
+                        data = yaml.safe_load(f)
+                    if isinstance(data, dict) and "name" in data:
+                        data["_filename"] = fname
+                        profiles.append(data)
+                except Exception:
+                    continue
+
+        return json.dumps(profiles)
+
+    @pyqtSlot(str)
+    def runCommand(self, cmd):
+        """Run a shell command async (fire-and-forget for quick actions)."""
+        import shlex
+        try:
+            args = shlex.split(cmd)
+            subprocess.Popen(args)
+        except Exception:
+            pass
+
+
+def main():
+    app = QApplication(sys.argv)
+    app.setApplicationName("UmaOS Welcome")
+    app.setOrganizationName("UmaOS")
+
+    engine = QQmlApplicationEngine()
+
+    backend = WelcomeBackend()
+    engine.rootContext().setContextProperty("backend", backend)
+
+    qml_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qml")
+    # Fallback: check system install path
+    if not os.path.isdir(qml_dir):
+        qml_dir = "/usr/share/umaos/welcome"
+
+    engine.load(QUrl.fromLocalFile(os.path.join(qml_dir, "Main.qml")))
+
+    if not engine.rootObjects():
+        print("ERROR: Failed to load QML", file=sys.stderr)
+        sys.exit(1)
+
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    main()
