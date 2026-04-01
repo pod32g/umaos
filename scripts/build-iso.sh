@@ -23,6 +23,7 @@ REQUIRED_REPO_PKGS=(
   helium-browser-bin
   umao-dev-setup
   umao-cursor-switcher
+  umao-welcome
 )
 MISSING_REQUIRED_PKGS=()
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"

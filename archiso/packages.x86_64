@@ -50,3 +50,5 @@ packagekit-qt6
 plymouth
 conky
 qt5-graphicaleffects
+umao-welcome
+python-pyyaml
