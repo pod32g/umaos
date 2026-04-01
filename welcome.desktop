@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=UmaOS Welcome
+Comment=UmaOS welcome wizard and settings
+Exec=/usr/local/bin/umao-welcome
+Icon=umaos-launcher
+Terminal=false
+Categories=Settings;System;
+Keywords=welcome;setup;settings;umaos;

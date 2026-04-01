@@ -1,10 +1,9 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Welcome to UmaOS
-Comment=Show welcome dialog on first login
+Name=UmaOS Welcome (First Login)
+Comment=Launch UmaOS welcome wizard on first login
 Exec=/usr/local/bin/umao-welcome
 Terminal=false
 OnlyShowIn=KDE;
-X-GNOME-Autostart-enabled=true
 X-KDE-autostart-phase=2
