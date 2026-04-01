@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""umao-profile — Apply UmaOS setup profiles."""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+
+import yaml
+
+
+def load_profile(path):
+    """Load and validate a profile YAML file."""
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict) or "name" not in data:
+        raise ValueError(f"Invalid profile: {path}")
+    return data
+
+
+def find_profile(name):
+    """Find a profile YAML by name across search paths."""
+    search_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "profiles"),
+        "/usr/share/umaos/welcome/profiles",
+        os.path.expanduser("~/.config/umao/profiles"),
+    ]
+    fname = f"{name.lower()}.yaml"
+    for d in search_paths:
+        path = os.path.join(d, fname)
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def emit(msg, json_mode=False):
+    """Print a status message."""
+    if json_mode:
+        print(json.dumps(msg), flush=True)
+    else:
+        status = msg.get("status", "info")
+        text = msg.get("message", "")
+        if status == "error":
+            print(f"ERROR: {text}", file=sys.stderr)
+        else:
+            print(text)
+
+
+def install_pacman(packages, dry_run=False, json_mode=False):
+    """Install packages via pacman."""
+    if not packages:
+        return []
+    emit({"status": "progress", "phase": "pacman", "message": f"Installing {len(packages)} pacman packages..."}, json_mode)
+    if dry_run:
+        emit({"status": "info", "message": f"  [dry-run] pacman -S --needed {' '.join(packages)}"}, json_mode)
+        return []
+
+    cmd = ["sudo", "pacman", "-S", "--needed", "--noconfirm"] + packages
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    failures = []
+    if result.returncode != 0:
+        emit({"status": "warning", "message": f"  pacman had errors: {result.stderr.strip()}"}, json_mode)
+        for pkg in packages:
+            r = subprocess.run(
+                ["sudo", "pacman", "-S", "--needed", "--noconfirm", pkg],
+                capture_output=True, text=True,
+            )
+            if r.returncode != 0:
+                failures.append(pkg)
+                emit({"status": "error", "message": f"  Failed to install: {pkg}"}, json_mode)
+    return failures
+
+
+def install_aur(packages, dry_run=False, json_mode=False):
+    """Install packages via yay (AUR helper)."""
+    if not packages:
+        return []
+    emit({"status": "progress", "phase": "aur", "message": f"Installing {len(packages)} AUR packages..."}, json_mode)
+    if dry_run:
+        emit({"status": "info", "message": f"  [dry-run] yay -S --needed {' '.join(packages)}"}, json_mode)
+        return []
+
+    failures = []
+    for pkg in packages:
+        cmd = ["yay", "-S", "--needed", "--noconfirm", pkg]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            failures.append(pkg)
+            emit({"status": "error", "message": f"  Failed to install AUR package: {pkg}"}, json_mode)
+    return failures
+
+
+def install_flatpak(packages, dry_run=False, json_mode=False):
+    """Install packages via flatpak."""
+    if not packages:
+        return []
+    emit({"status": "progress", "phase": "flatpak", "message": f"Installing {len(packages)} flatpak packages..."}, json_mode)
+    if dry_run:
+        for pkg in packages:
+            emit({"status": "info", "message": f"  [dry-run] flatpak install -y {pkg}"}, json_mode)
+        return []
+
+    failures = []
+    for pkg in packages:
+        result = subprocess.run(
+            ["flatpak", "install", "-y", pkg],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            failures.append(pkg)
+            emit({"status": "error", "message": f"  Failed to install flatpak: {pkg}"}, json_mode)
+    return failures
+
+
+def deploy_configs(configs, profile_dir, dry_run=False, json_mode=False):
+    """Deploy configuration files."""
+    if not configs:
+        return
+    emit({"status": "progress", "phase": "configs", "message": f"Deploying {len(configs)} config files..."}, json_mode)
+
+    for cfg in configs:
+        source = os.path.join(profile_dir, cfg.get("source", ""))
+        dest = os.path.expanduser(cfg.get("dest", ""))
+        conflict = cfg.get("conflict", "skip")
+
+        if not dest:
+            continue
+
+        if dry_run:
+            emit({"status": "info", "message": f"  [dry-run] {source} -> {dest} (conflict={conflict})"}, json_mode)
+            continue
+
+        if not os.path.isfile(source):
+            emit({"status": "warning", "message": f"  Config source not found: {source}"}, json_mode)
+            continue
+
+        if os.path.exists(dest):
+            if conflict == "skip":
+                emit({"status": "info", "message": f"  Skipping (exists): {dest}"}, json_mode)
+                continue
+            elif conflict == "merge":
+                with open(source) as f:
+                    new_lines = f.readlines()
+                with open(dest) as f:
+                    existing = set(f.readlines())
+                with open(dest, "a") as f:
+                    for line in new_lines:
+                        if line not in existing:
+                            f.write(line)
+                emit({"status": "info", "message": f"  Merged: {dest}"}, json_mode)
+                continue
+
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(source) as sf, open(dest, "w") as df:
+            df.write(sf.read())
+        emit({"status": "info", "message": f"  Deployed: {dest}"}, json_mode)
+
+
+def enable_services(services, dry_run=False, json_mode=False):
+    """Enable systemd services."""
+    if not services:
+        return
+    emit({"status": "progress", "phase": "services", "message": f"Enabling {len(services)} services..."}, json_mode)
+
+    for svc in services:
+        if dry_run:
+            emit({"status": "info", "message": f"  [dry-run] systemctl enable --now {svc}"}, json_mode)
+            continue
+        result = subprocess.run(
+            ["sudo", "systemctl", "enable", "--now", svc],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            emit({"status": "warning", "message": f"  Failed to enable service: {svc}"}, json_mode)
+
+
+def run_post_install(commands, dry_run=False, json_mode=False):
+    """Run post-install hook commands."""
+    if not commands:
+        return
+    emit({"status": "progress", "phase": "post_install", "message": f"Running {len(commands)} post-install hooks..."}, json_mode)
+
+    for cmd in commands:
+        if dry_run:
+            emit({"status": "info", "message": f"  [dry-run] {cmd}"}, json_mode)
+            continue
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            emit({"status": "warning", "message": f"  Post-install hook failed: {cmd}"}, json_mode)
+
+
+def apply_profile(profile_path, dry_run=False, json_mode=False):
+    """Apply a single profile."""
+    profile = load_profile(profile_path)
+    profile_dir = os.path.dirname(profile_path)
+    name = profile["name"]
+
+    emit({"status": "start", "profile": name, "message": f"Applying profile: {name}"}, json_mode)
+
+    pkgs = profile.get("packages", {})
+    all_failures = []
+
+    all_failures.extend(install_pacman(pkgs.get("pacman", []), dry_run, json_mode))
+    all_failures.extend(install_aur(pkgs.get("aur", []), dry_run, json_mode))
+    all_failures.extend(install_flatpak(pkgs.get("flatpak", []), dry_run, json_mode))
+
+    deploy_configs(profile.get("configs", []), profile_dir, dry_run, json_mode)
+    enable_services(profile.get("services", {}).get("enable", []), dry_run, json_mode)
+    run_post_install(profile.get("post_install", []), dry_run, json_mode)
+
+    if all_failures:
+        emit({"status": "done", "profile": name, "failures": all_failures,
+              "message": f"Profile {name} applied with {len(all_failures)} package failures: {', '.join(all_failures)}"}, json_mode)
+    else:
+        emit({"status": "done", "profile": name, "failures": [],
+              "message": f"Profile {name} applied successfully!"}, json_mode)
+
+    return all_failures
+
+
+def cmd_apply(args):
+    """Handle 'apply' subcommand."""
+    all_failures = []
+    for name in args.profiles:
+        path = find_profile(name)
+        if not path:
+            emit({"status": "error", "message": f"Profile not found: {name}"}, args.json)
+            all_failures.append(name)
+            continue
+        failures = apply_profile(path, dry_run=args.dry_run, json_mode=args.json)
+        all_failures.extend(failures)
+
+    if all_failures:
+        emit({"status": "complete", "failures": all_failures,
+              "message": f"Completed with {len(all_failures)} failures."}, args.json)
+        sys.exit(1)
+    else:
+        emit({"status": "complete", "failures": [],
+              "message": "All profiles applied successfully!"}, args.json)
+
+
+def cmd_list(args):
+    """Handle 'list' subcommand."""
+    search_paths = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "profiles"),
+        "/usr/share/umaos/welcome/profiles",
+        os.path.expanduser("~/.config/umao/profiles"),
+    ]
+    seen = set()
+    profiles = []
+    for d in search_paths:
+        if not os.path.isdir(d):
+            continue
+        for fname in sorted(os.listdir(d)):
+            if not fname.endswith(".yaml") or fname in seen:
+                continue
+            seen.add(fname)
+            try:
+                p = load_profile(os.path.join(d, fname))
+                profiles.append(p)
+            except Exception:
+                continue
+
+    if args.json:
+        print(json.dumps(profiles, indent=2))
+    else:
+        for p in profiles:
+            desc = p.get("description", "")
+            print(f"  {p['name']:12s} — {desc}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="umao-profile",
+        description="Apply UmaOS setup profiles",
+    )
+    sub = parser.add_subparsers(dest="command")
+
+    apply_p = sub.add_parser("apply", help="Apply one or more profiles")
+    apply_p.add_argument("profiles", nargs="+", help="Profile names to apply")
+    apply_p.add_argument("--dry-run", action="store_true", help="Show what would be done without doing it")
+    apply_p.add_argument("--json", action="store_true", help="Output JSON progress messages")
+
+    list_p = sub.add_parser("list", help="List available profiles")
+    list_p.add_argument("--json", action="store_true", help="Output as JSON")
+
+    args = parser.parse_args()
+    if args.command == "apply":
+        cmd_apply(args)
+    elif args.command == "list":
+        cmd_list(args)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
