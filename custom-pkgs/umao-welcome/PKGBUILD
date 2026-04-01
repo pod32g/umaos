@@ -19,6 +19,7 @@ package() {
 
     # Main executable
     install -Dm755 umao-welcome "$pkgdir/usr/local/bin/umao-welcome"
+    install -Dm755 umao-profile "$pkgdir/usr/local/bin/umao-profile"
 
     # QML files
     install -dm755 "$pkgdir/usr/share/umaos/welcome"
