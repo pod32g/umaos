@@ -20,6 +20,15 @@ package() {
     # Main executable
     install -Dm755 umao-welcome "$pkgdir/usr/local/bin/umao-welcome"
     install -Dm755 umao-profile "$pkgdir/usr/local/bin/umao-profile"
+    install -Dm755 umao-sdk "$pkgdir/usr/local/bin/umao-sdk"
+
+    # NeoVim config
+    install -dm755 "$pkgdir/usr/share/umaos/nvim"
+    install -Dm644 assets/nvim/init.lua "$pkgdir/usr/share/umaos/nvim/init.lua"
+
+    # VS Code theme
+    install -dm755 "$pkgdir/usr/share/umaos/vscode-theme"
+    cp -r assets/vscode/umaos-theme/* "$pkgdir/usr/share/umaos/vscode-theme/"
 
     # QML files
     install -dm755 "$pkgdir/usr/share/umaos/welcome"

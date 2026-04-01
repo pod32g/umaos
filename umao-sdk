@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# umao-sdk — UmaOS developer toolkit
+# v2 scope: only 'build-package' subcommand
+
+set -euo pipefail
+
+usage() {
+    cat <<EOF
+Usage: umao-sdk <command>
+
+Commands:
+    build-package    Build current directory into an Arch package
+
+Options:
+    -h, --help       Show this help
+EOF
+}
+
+cmd_build_package() {
+    if [[ ! -f PKGBUILD ]]; then
+        echo "ERROR: No PKGBUILD found in current directory" >&2
+        exit 1
+    fi
+
+    echo "Building package from $(pwd)..."
+
+    # Ensure build user if running as root
+    if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+        echo "Running as root — creating temp build user..."
+        useradd -m _umao_build 2>/dev/null || true
+        chown -R _umao_build:_umao_build .
+        sudo -u _umao_build makepkg -s --needed --noconfirm "$@"
+        chown -R root:root .
+    else
+        makepkg -s --needed --noconfirm "$@"
+    fi
+
+    echo ""
+    echo "Build complete! Package files:"
+    ls -la *.pkg.tar.* 2>/dev/null || echo "  (no package files produced)"
+}
+
+case "${1:-}" in
+    build-package)
+        shift
+        cmd_build_package "$@"
+        ;;
+    -h|--help|"")
+        usage
+        ;;
+    *)
+        echo "Unknown command: $1" >&2
+        usage
+        exit 1
+        ;;
+esac
