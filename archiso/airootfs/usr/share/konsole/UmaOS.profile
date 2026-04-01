@@ -1,18 +1,8 @@
 [Appearance]
-ColorScheme=UmaOS-GoldShip
-BackgroundImage=/usr/share/umaos/goldship.png
-BackgroundImageOpacity=0.3
-Font=JetBrainsMono Nerd Font,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+ColorScheme=UmaOS-Terminal
+Font=JetBrains Mono Nerd Font,11,-1,5,50,0,0,0,0,0,Regular
 
 [General]
 Name=UmaOS
+Parent=FALLBACK/
 Command=/bin/bash
-TerminalColumns=120
-TerminalRows=35
-
-[Scrolling]
-HistoryMode=1
-HistorySize=10000
-
-[Cursor Options]
-CursorShape=0
