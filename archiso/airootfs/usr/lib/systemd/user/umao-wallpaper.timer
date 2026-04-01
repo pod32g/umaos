@@ -1,0 +1,12 @@
+[Unit]
+Description=UmaOS Dynamic Wallpaper Timer
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+OnCalendar=*-*-* 12:00:00
+OnCalendar=*-*-* 18:00:00
+OnCalendar=*-*-* 22:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

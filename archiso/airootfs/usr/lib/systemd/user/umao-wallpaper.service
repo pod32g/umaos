@@ -1,0 +1,6 @@
+[Unit]
+Description=UmaOS Dynamic Wallpaper Switcher
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/umao-wallpaper-timer

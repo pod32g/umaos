@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# umao-wallpaper-timer — Switch wallpaper based on time of day
+# Called by umao-wallpaper.timer systemd user timer
+
+set -euo pipefail
+
+PACK_DIR="${UMAO_WALLPAPER_PACK:-/usr/share/wallpapers/UmaOS-Dynamic}"
+META="$PACK_DIR/metadata.json"
+
+if [[ ! -f "$META" ]]; then
+    exit 0
+fi
+
+hour=$(date +%H)
+
+if (( hour >= 6 && hour < 12 )); then
+    period="morning"
+elif (( hour >= 12 && hour < 18 )); then
+    period="afternoon"
+elif (( hour >= 18 && hour < 22 )); then
+    period="evening"
+else
+    period="night"
+fi
+
+wallpaper=$(python3 -c "
+import json, sys
+with open('$META') as f:
+    meta = json.load(f)
+variants = meta.get('variants', {})
+print(variants.get('$period', ''))
+")
+
+if [[ -n "$wallpaper" && -f "$PACK_DIR/$wallpaper" ]]; then
+    plasma-apply-wallpaperimage "$PACK_DIR/$wallpaper" 2>/dev/null || true
+fi
