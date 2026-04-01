@@ -17,13 +17,13 @@ Item {
             Layout.fillWidth: true
             Text {
                 text: statBar.label
-                color: "#4A6A8A"
+                color: "#3a5a3a"
                 font.pixelSize: 11
             }
             Item { Layout.fillWidth: true }
             Text {
                 text: statBar.suffix
-                color: "#F8FBFF"
+                color: "#f0f9f2"
                 font.pixelSize: 11
                 font.bold: true
             }
@@ -33,7 +33,7 @@ Item {
             Layout.fillWidth: true
             height: 8
             radius: 4
-            color: "#1F4F90"
+            color: "#12301a"
 
             Rectangle {
                 width: parent.width * Math.min(statBar.value, 1.0)
@@ -42,8 +42,8 @@ Item {
 
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "#2F74CC" }
-                    GradientStop { position: 1.0; color: statBar.value > 0.8 ? "#FF91C0" : "#2F74CC" }
+                    GradientStop { position: 0.0; color: "#42a54b" }
+                    GradientStop { position: 1.0; color: statBar.value > 0.8 ? "#FF91C0" : "#42a54b" }
                 }
 
                 Behavior on width {

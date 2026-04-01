@@ -21,7 +21,7 @@ Item {
                 text: "Theme Manager"
                 font.pixelSize: 24
                 font.bold: true
-                color: "#132B4F"
+                color: "#0e1f14"
             }
 
             Rectangle {
@@ -41,7 +41,7 @@ Item {
                             text: "Video Wallpaper"
                             font.pixelSize: 14
                             font.bold: true
-                            color: "#132B4F"
+                            color: "#0e1f14"
                         }
                         Label {
                             text: "Use animated video as desktop background"
@@ -83,7 +83,7 @@ Item {
                             text: "UmaOS Sounds"
                             font.pixelSize: 14
                             font.bold: true
-                            color: "#132B4F"
+                            color: "#0e1f14"
                         }
                         Label {
                             text: "Custom notification and system sounds"
@@ -119,7 +119,7 @@ Item {
                             text: "Cursor Theme"
                             font.pixelSize: 14
                             font.bold: true
-                            color: "#132B4F"
+                            color: "#0e1f14"
                         }
                         Label {
                             text: "Change your mouse cursor style"

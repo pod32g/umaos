@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 Rectangle {
     id: navRoot
-    color: "#1F4F90"
+    color: "#12301a"
 
     property int currentIndex: 0
     signal pageSelected(int index)
@@ -24,7 +24,7 @@ Rectangle {
 
         Label {
             text: "UmaOS"
-            color: "#F8FBFF"
+            color: "#f0f9f2"
             font.pixelSize: 22
             font.bold: true
             Layout.alignment: Qt.AlignHCenter
@@ -40,8 +40,8 @@ Rectangle {
                 Layout.rightMargin: 8
                 radius: 8
                 color: navRoot.currentIndex === index
-                    ? "#2F74CC"
-                    : mouseArea.containsMouse ? "#264a7a" : "transparent"
+                    ? "#42a54b"
+                    : mouseArea.containsMouse ? "#1a3a20" : "transparent"
 
                 RowLayout {
                     anchors.fill: parent
@@ -54,7 +54,7 @@ Rectangle {
                     }
                     Label {
                         text: modelData.label
-                        color: "#F8FBFF"
+                        color: "#f0f9f2"
                         font.pixelSize: 14
                         font.bold: navRoot.currentIndex === index
                     }

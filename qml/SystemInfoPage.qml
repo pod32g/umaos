@@ -22,7 +22,7 @@ Item {
             text: "System Info"
             font.pixelSize: 24
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
         }
 
         Rectangle {

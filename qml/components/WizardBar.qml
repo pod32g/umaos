@@ -41,7 +41,7 @@ Rectangle {
                     width: 10
                     height: 10
                     radius: 5
-                    color: index <= wizardBar.currentPage ? "#2F74CC" : "#D0D0D0"
+                    color: index <= wizardBar.currentPage ? "#42a54b" : "#D0D0D0"
                 }
             }
         }
@@ -53,7 +53,7 @@ Rectangle {
                 ? "Get Started!"
                 : "Next"
             highlighted: true
-            palette.button: "#2F74CC"
+            palette.button: "#42a54b"
             palette.buttonText: "#FFFFFF"
             onClicked: wizardBar.next()
         }

@@ -11,7 +11,7 @@ ApplicationWindow {
     minimumWidth: 700
     minimumHeight: 480
     title: "UmaOS Welcome"
-    color: "#F8FBFF"
+    color: "#f0f9f2"
 
     property bool wizardMode: backend.firstRun
     property int currentPage: 0

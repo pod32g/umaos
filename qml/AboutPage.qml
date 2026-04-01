@@ -14,7 +14,7 @@ Item {
             text: "UmaOS"
             font.pixelSize: 28
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
             Layout.alignment: Qt.AlignHCenter
         }
 
@@ -35,7 +35,7 @@ Item {
             text: "Legal Notice"
             font.pixelSize: 14
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
         }
 
         Label {
@@ -57,13 +57,13 @@ Item {
             Button {
                 text: "GitHub"
                 flat: true
-                palette.buttonText: "#2F74CC"
+                palette.buttonText: "#42a54b"
                 onClicked: backend.runCommand("xdg-open https://github.com/pod32g/umaos")
             }
             Button {
                 text: "Report Issue"
                 flat: true
-                palette.buttonText: "#2F74CC"
+                palette.buttonText: "#42a54b"
                 onClicked: backend.runCommand("xdg-open https://github.com/pod32g/umaos/issues")
             }
         }

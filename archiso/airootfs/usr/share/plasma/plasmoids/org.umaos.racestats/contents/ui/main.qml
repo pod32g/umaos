@@ -120,7 +120,7 @@ PlasmoidItem {
         Layout.preferredWidth: 220
         Layout.preferredHeight: 300
         radius: 12
-        color: "#132B4F"
+        color: "#0e1f14"
 
         ColumnLayout {
             anchors.fill: parent
@@ -130,13 +130,13 @@ PlasmoidItem {
             // Title
             Text {
                 text: "Race Stats"
-                color: "#F8FBFF"
+                color: "#f0f9f2"
                 font.pixelSize: 16
                 font.bold: true
                 Layout.alignment: Qt.AlignHCenter
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: "#1F4F90" }
+            Rectangle { Layout.fillWidth: true; height: 1; color: "#12301a" }
 
             // Speed (CPU)
             StatBar {
@@ -159,13 +159,13 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 Text {
                     text: "Race Time"
-                    color: "#4A6A8A"
+                    color: "#3a5a3a"
                     font.pixelSize: 11
                 }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: sysInfo.uptime
-                    color: "#F8FBFF"
+                    color: "#f0f9f2"
                     font.pixelSize: 13
                     font.bold: true
                 }

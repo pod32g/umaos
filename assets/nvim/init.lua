@@ -22,24 +22,24 @@ vim.opt.smartcase = true
 vim.opt.hlsearch = true
 vim.opt.incsearch = true
 
--- UmaOS color scheme (matching UmaSkyPink palette)
+-- UmaOS color scheme (matching UmaGreenPink palette)
 vim.cmd([[
-  highlight Normal guibg=#132B4F guifg=#F8FBFF
-  highlight CursorLine guibg=#1F4F90
-  highlight Visual guibg=#2F74CC guifg=#F8FBFF
-  highlight StatusLine guibg=#2F74CC guifg=#F8FBFF
-  highlight StatusLineNC guibg=#1F4F90 guifg=#F8FBFF
+  highlight Normal guibg=#0e1f14 guifg=#F8FBFF
+  highlight CursorLine guibg=#12301a
+  highlight Visual guibg=#42a54b guifg=#F8FBFF
+  highlight StatusLine guibg=#42a54b guifg=#F8FBFF
+  highlight StatusLineNC guibg=#12301a guifg=#F8FBFF
   highlight LineNr guifg=#4A6A8A
   highlight CursorLineNr guifg=#FF91C0
   highlight Comment guifg=#4A6A8A gui=italic
   highlight String guifg=#82C91E
   highlight Keyword guifg=#FF91C0
-  highlight Function guifg=#2F74CC
+  highlight Function guifg=#42a54b
   highlight Type guifg=#FFD6E8
   highlight Constant guifg=#FFC66D
-  highlight Pmenu guibg=#1F4F90 guifg=#F8FBFF
-  highlight PmenuSel guibg=#2F74CC guifg=#F8FBFF
-  highlight Search guibg=#FF91C0 guifg=#132B4F
+  highlight Pmenu guibg=#12301a guifg=#F8FBFF
+  highlight PmenuSel guibg=#42a54b guifg=#F8FBFF
+  highlight Search guibg=#FF91C0 guifg=#0e1f14
 ]])
 
 -- Key mappings

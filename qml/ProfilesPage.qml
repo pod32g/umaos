@@ -32,7 +32,7 @@ Item {
             text: "Choose Your Setup"
             font.pixelSize: 24
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
         }
 
         Label {
@@ -98,7 +98,7 @@ Item {
                 text: profilesRoot.applying ? "Applying..." : "Apply Selected Profiles"
                 enabled: !profilesRoot.applying && Object.keys(profilesRoot.selectedProfiles).length > 0
                 highlighted: true
-                palette.button: "#2F74CC"
+                palette.button: "#42a54b"
                 palette.buttonText: "#FFFFFF"
                 onClicked: {
                     var names = Object.keys(profilesRoot.selectedProfiles)

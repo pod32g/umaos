@@ -5,8 +5,8 @@ import QtQuick.Layouts
 Rectangle {
     id: card
     radius: 12
-    color: selected ? "#EBF2FF" : "#FFFFFF"
-    border.color: selected ? "#2F74CC" : "#E0E8F0"
+    color: selected ? "#ebf7ec" : "#FFFFFF"
+    border.color: selected ? "#42a54b" : "#E0E8F0"
     border.width: selected ? 2 : 1
 
     property string profileName: ""
@@ -35,7 +35,7 @@ Rectangle {
             text: card.profileName
             font.pixelSize: 16
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
         }
 
         Label {
@@ -52,8 +52,8 @@ Rectangle {
             width: 24
             height: 24
             radius: 12
-            color: card.selected ? "#2F74CC" : "transparent"
-            border.color: card.selected ? "#2F74CC" : "#C0C8D0"
+            color: card.selected ? "#42a54b" : "transparent"
+            border.color: card.selected ? "#42a54b" : "#C0C8D0"
             border.width: 2
             Layout.alignment: Qt.AlignRight
 

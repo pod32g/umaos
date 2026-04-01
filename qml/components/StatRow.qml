@@ -20,7 +20,7 @@ Rectangle {
             text: statRow.label
             font.pixelSize: 13
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
             Layout.preferredWidth: 140
         }
 

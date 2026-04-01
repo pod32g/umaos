@@ -2,18 +2,18 @@
 
 ## Goal
 
-Define a cohesive KDE visual baseline for UmaOS using a sky-blue and pink accent palette.
+Define a cohesive KDE visual baseline for UmaOS using a green and pink accent palette.
 
 ## Palette tokens
 
 | Token | Hex | Usage |
 |---|---|---|
-| `uma.sky.500` | `#2F74CC` | primary controls, focus, highlights |
-| `uma.sky.700` | `#1F4F90` | dark primary surfaces |
+| `uma.green.500` | `#42a54b` | primary controls, focus, highlights |
+| `uma.green.700` | `#12301a` | dark primary surfaces |
 | `uma.pink.400` | `#FF91C0` | accent, selection emphasis |
 | `uma.pink.300` | `#FFD6E8` | soft accent backgrounds |
-| `uma.ink.900` | `#132B4F` | dark text on light backgrounds |
-| `uma.cloud.050` | `#F8FBFF` | light backgrounds |
+| `uma.ink.900` | `#0e1f14` | dark text on light backgrounds |
+| `uma.cloud.050` | `#f0f9f2` | light backgrounds |
 
 ## Typography direction
 

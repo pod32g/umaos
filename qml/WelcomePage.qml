@@ -14,21 +14,21 @@ Item {
             text: "Welcome, Trainer!"
             font.pixelSize: 32
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
             Layout.alignment: Qt.AlignHCenter
         }
 
         Label {
             text: "Version " + backend.getVersion()
             font.pixelSize: 14
-            color: "#4A6A8A"
+            color: "#3a5a3a"
             Layout.alignment: Qt.AlignHCenter
         }
 
         Label {
             text: "UmaOS is ready for you."
             font.pixelSize: 16
-            color: "#4A6A8A"
+            color: "#3a5a3a"
             Layout.alignment: Qt.AlignHCenter
         }
 
@@ -44,7 +44,7 @@ Item {
             text: "Quick Links"
             font.pixelSize: 14
             font.bold: true
-            color: "#132B4F"
+            color: "#0e1f14"
         }
 
         GridLayout {
@@ -65,7 +65,7 @@ Item {
                     text: modelData.label
                     Layout.fillWidth: true
                     flat: true
-                    palette.buttonText: "#2F74CC"
+                    palette.buttonText: "#42a54b"
                     onClicked: backend.runCommand(modelData.cmd)
                 }
             }
