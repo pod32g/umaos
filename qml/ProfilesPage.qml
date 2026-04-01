@@ -8,6 +8,8 @@ Item {
 
     property var selectedProfiles: ({})
     property var profiles: []
+    property bool applying: false
+    property string resultMessage: ""
 
     Component.onCompleted: {
         var data = backend.loadProfiles()
@@ -55,6 +57,7 @@ Item {
                     profileDesc: modelData.description || ""
                     profileIcon: profilesRoot.iconMap[modelData.name] || "\u{1F4E6}"
                     selected: !!profilesRoot.selectedProfiles[modelData.name]
+                    enabled: !profilesRoot.applying
                     onToggled: {
                         var s = profilesRoot.selectedProfiles
                         if (s[modelData.name]) {
@@ -63,7 +66,48 @@ Item {
                             s[modelData.name] = true
                         }
                         profilesRoot.selectedProfiles = s
+                        profilesRoot.resultMessage = ""
                     }
+                }
+            }
+        }
+
+        Label {
+            visible: profilesRoot.resultMessage !== ""
+            text: profilesRoot.resultMessage
+            font.pixelSize: 13
+            color: profilesRoot.resultMessage.indexOf("success") >= 0 ? "#2E7D32" : "#C62828"
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+
+            Item { Layout.fillWidth: true }
+
+            BusyIndicator {
+                visible: profilesRoot.applying
+                running: profilesRoot.applying
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+            }
+
+            Button {
+                text: profilesRoot.applying ? "Applying..." : "Apply Selected Profiles"
+                enabled: !profilesRoot.applying && Object.keys(profilesRoot.selectedProfiles).length > 0
+                highlighted: true
+                palette.button: "#2F74CC"
+                palette.buttonText: "#FFFFFF"
+                onClicked: {
+                    var names = Object.keys(profilesRoot.selectedProfiles)
+                    profilesRoot.applying = true
+                    profilesRoot.resultMessage = ""
+                    var result = backend.applyProfiles(JSON.stringify(names))
+                    var parsed = JSON.parse(result)
+                    profilesRoot.resultMessage = parsed.message || "Done"
+                    profilesRoot.applying = false
                 }
             }
         }
