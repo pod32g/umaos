@@ -1,0 +1,17 @@
+{
+    "KPlugin": {
+        "Id": "umaos",
+        "Name": "UmaOS",
+        "Description": "Dark green panel theme for UmaOS",
+        "Authors": [
+            {
+                "Name": "UmaOS"
+            }
+        ],
+        "Category": "Plasma Theme",
+        "License": "MIT",
+        "Version": "1.0.0"
+    },
+    "X-Plasma-API": "5.0",
+    "X-KDE-PluginInfo-EnabledByDefault": true
+}

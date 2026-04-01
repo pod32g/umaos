@@ -7,8 +7,8 @@ var panelScreen = panel.screen
 
 panel.location = "bottom"
 
-// Match default Plasma sizing: round up to next even gridUnit multiple
-panel.height = 2 * Math.ceil(gridUnit * 2.5 / 2)
+// Fixed 44px height to match UmaOS design
+panel.height = 44
 
 // Restrict horizontal panel to a maximum size of a 21:9 monitor
 var maximumAspectRatio = 21 / 9;

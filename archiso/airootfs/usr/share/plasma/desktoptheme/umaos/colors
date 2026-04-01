@@ -1,0 +1,17 @@
+[Colors:Window]
+BackgroundNormal=14,31,20
+ForegroundNormal=232,245,234
+
+[Colors:Button]
+BackgroundNormal=66,165,75
+ForegroundNormal=255,255,255
+DecorationFocus=66,165,75
+DecorationHover=255,145,192
+
+[Colors:View]
+BackgroundNormal=14,31,20
+ForegroundNormal=232,245,234
+
+[Colors:Complementary]
+BackgroundNormal=14,31,20
+ForegroundNormal=232,245,234

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <!-- Plasma panel background: opaque dark green #0E1F14 -->
+  <!-- 9-patch elements for Plasma theme framework -->
+
+  <!-- Center fill -->
+  <rect id="center" x="8" y="8" width="32" height="32" fill="#0e1f14"/>
+
+  <!-- Edges -->
+  <rect id="top" x="8" y="0" width="32" height="8" fill="#0e1f14"/>
+  <rect id="bottom" x="8" y="40" width="32" height="8" fill="#0e1f14"/>
+  <rect id="left" x="0" y="8" width="8" height="32" fill="#0e1f14"/>
+  <rect id="right" x="40" y="8" width="8" height="32" fill="#0e1f14"/>
+
+  <!-- Corners -->
+  <rect id="topleft" x="0" y="0" width="8" height="8" fill="#0e1f14"/>
+  <rect id="topright" x="40" y="0" width="8" height="8" fill="#0e1f14"/>
+  <rect id="bottomleft" x="0" y="40" width="8" height="8" fill="#0e1f14"/>
+  <rect id="bottomright" x="40" y="40" width="8" height="8" fill="#0e1f14"/>
+
+  <!-- Margins hint: how much of each edge is "border" vs content area -->
+  <rect id="hint-top-margin" x="0" y="0" width="1" height="2" fill="none"/>
+  <rect id="hint-bottom-margin" x="0" y="0" width="1" height="2" fill="none"/>
+  <rect id="hint-left-margin" x="0" y="0" width="2" height="1" fill="none"/>
+  <rect id="hint-right-margin" x="0" y="0" width="2" height="1" fill="none"/>
+</svg>

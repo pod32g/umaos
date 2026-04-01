@@ -166,6 +166,13 @@ if ((has_graphical_session == 1)) && command -v plasma-apply-colorscheme >/dev/n
   fi
 fi
 
+# Apply UmaOS Plasma desktop theme (panel background, widget styling)
+if ((has_graphical_session == 1)) && command -v plasma-apply-desktoptheme >/dev/null 2>&1; then
+  if ! plasma-apply-desktoptheme umaos >/dev/null 2>&1; then
+    log_debug "WARNING: Failed to apply UmaOS desktop theme."
+  fi
+fi
+
 if ((has_graphical_session == 1)) && ((apply_video == 1)) && [[ -f "$wallpaper_video" ]] && [[ -d "$video_plugin_dir" ]]; then
   qdbus_cmd="$(find_qdbus_cmd || true)"
   old_pid="$(pgrep -n -u "$(id -u)" plasmashell 2>/dev/null || true)"
