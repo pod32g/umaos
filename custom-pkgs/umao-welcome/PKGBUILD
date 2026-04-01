@@ -1,0 +1,38 @@
+# Maintainer: pod32g
+pkgname=umao-welcome
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="UmaOS welcome wizard and settings hub"
+arch=('any')
+url="https://github.com/pod32g/$pkgname"
+license=('MIT')
+depends=('python' 'python-pyqt6' 'python-pyyaml' 'qt6-declarative')
+optdepends=(
+    'fastfetch: hardware detection on System Info page'
+    'konsole: terminal quick action'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/pod32g/$pkgname/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "$pkgname-$pkgver"
+
+    # Main executable
+    install -Dm755 umao-welcome "$pkgdir/usr/local/bin/umao-welcome"
+
+    # QML files
+    install -dm755 "$pkgdir/usr/share/umaos/welcome"
+    install -Dm644 qml/*.qml "$pkgdir/usr/share/umaos/welcome/"
+
+    # QML components + qmldir
+    install -dm755 "$pkgdir/usr/share/umaos/welcome/components"
+    install -Dm644 qml/components/*.qml "$pkgdir/usr/share/umaos/welcome/components/"
+    install -Dm644 qml/components/qmldir "$pkgdir/usr/share/umaos/welcome/components/qmldir"
+
+    # Profile manifests
+    install -dm755 "$pkgdir/usr/share/umaos/welcome/profiles"
+    install -Dm644 profiles/*.yaml "$pkgdir/usr/share/umaos/welcome/profiles/"
+
+    # Desktop entry (app menu)
+    install -Dm644 welcome.desktop "$pkgdir/usr/share/applications/umaos-welcome.desktop"
+}
