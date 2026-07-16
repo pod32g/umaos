@@ -37,18 +37,6 @@ require_file() {
   fi
 }
 
-# Like require_file, but only warns when absent. Use for artifacts that are
-# gitignored / developer-local and are NOT produced by build-iso.sh, so they
-# are absent from both a clean checkout and a freshly built profile.
-soft_require_file() {
-  local f="$1"
-  if [[ -f "$f" ]]; then
-    pass "Found $(realpath --relative-to="$ROOT_DIR" "$f" 2>/dev/null || echo "$f")"
-  else
-    warn "Optional (dev-local, not build-generated) file absent: $f"
-  fi
-}
-
 check_contains() {
   local f="$1"
   local pat="$2"
@@ -92,8 +80,8 @@ motd="$AIROOTFS/etc/motd"
 require_file "$sddm_theme_live"
 require_file "$finalizer"
 require_file "$apply_theme"
-soft_require_file "$AIROOTFS/usr/local/bin/umao-debug"
-soft_require_file "$AIROOTFS/usr/local/bin/umao-debug-upload"
+require_file "$AIROOTFS/usr/local/bin/umao-debug"
+require_file "$AIROOTFS/usr/local/bin/umao-debug-upload"
 require_file "$AIROOTFS/usr/local/bin/umao-ensure-proton-ge"
 require_file "$AIROOTFS/usr/local/bin/neofetch"
 require_file "$postboot"

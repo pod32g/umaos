@@ -52,3 +52,6 @@ conky
 qt5-graphicaleffects
 umao-welcome
 python-pyyaml
+# Enables `umao-debug-upload --password` (SSH password auth); scp itself comes
+# from openssh in the releng base profile.
+sshpass

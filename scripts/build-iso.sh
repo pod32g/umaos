@@ -1306,6 +1306,8 @@ chmod +x "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-grub-branding" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-driver-setup" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-audio-doctor" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-debug" \
+  "$BUILD_PROFILE/airootfs/usr/local/bin/umao-debug-upload" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-installer-autostart" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-apply-theme" \
   "$BUILD_PROFILE/airootfs/usr/local/bin/umao-install-steam-root" \

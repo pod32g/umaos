@@ -65,7 +65,7 @@ jobs:
 
       # Supplementary parity audit (not run by build-iso.sh). Reconciled with the
       # current tree, so it can gate here. It runs against the checked-in
-      # archiso/airootfs — no build-generated files are required (the only
-      # dev-local artifacts, umao-debug*, are soft-checked and only warn).
+      # archiso/airootfs — every audited artifact is committed to the tree, so
+      # no build-generated files are required.
       - name: Audit customization parity
         run: scripts/audit-customization-parity.sh archiso/airootfs

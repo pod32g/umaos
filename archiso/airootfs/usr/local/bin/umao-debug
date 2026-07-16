@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# umao-debug — collect a UmaOS diagnostics bundle (.tar.gz).
+#
+# Gathers system, hardware, driver, audio, desktop, package, network, and
+# UmaOS-specific state into a single compressed archive that can be attached to
+# a bug report or handed off to `umao-debug-upload`.
+#
+# Runs unprivileged: it captures whatever the current user can read and notes
+# anything it could not collect, rather than escalating. Run with sudo if you
+# need root-only logs (full journal, dmesg).
+#
+# Progress goes to stderr; the final line printed to stdout is the bundle path,
+# so it composes cleanly:
+#   bundle="$(umao-debug --journal-lines 800 | tail -n1)"
+
+UMAO_DEBUG_VERSION="1.0.0"
+
+JOURNAL_LINES=2000
+OUTPUT=""
+DEFAULT_DIR="${TMPDIR:-/tmp}"
+
+log() {
+  printf '[umao-debug] %s\n' "$*" >&2
+}
+
+usage() {
+  cat <<'EOF'
+Usage: umao-debug [--journal-lines N] [--output PATH] [--help]
+
+Collects a UmaOS diagnostics bundle (.tar.gz).
+
+Options:
+  --journal-lines N   Recent journal lines to capture per boot (default: 2000)
+  --output PATH       Write the bundle to PATH
+                      (default: $TMPDIR/umao-debug-<host>-<timestamp>.tar.gz)
+  --help              Show this help
+
+The bundle path is printed on stdout as the final line, e.g.:
+  bundle="$(umao-debug --journal-lines 800 | tail -n1)"
+  umao-debug-upload --host 192.168.68.225 --user pod32g --file "$bundle"
+EOF
+}
+
+while (($# > 0)); do
+  case "$1" in
+    --journal-lines)
+      [[ $# -ge 2 ]] || { log "Missing value for --journal-lines"; exit 2; }
+      JOURNAL_LINES="$2"; shift 2 ;;
+    --journal-lines=*)
+      JOURNAL_LINES="${1#*=}"; shift ;;
+    --output|-o)
+      [[ $# -ge 2 ]] || { log "Missing value for --output"; exit 2; }
+      OUTPUT="$2"; shift 2 ;;
+    --output=*)
+      OUTPUT="${1#*=}"; shift ;;
+    --help|-h)
+      usage; exit 0 ;;
+    *)
+      log "Unknown argument: $1"; usage >&2; exit 2 ;;
+  esac
+done
+
+if ! [[ "$JOURNAL_LINES" =~ ^[0-9]+$ ]]; then
+  log "--journal-lines must be a non-negative integer (got: $JOURNAL_LINES)"
+  exit 2
+fi
+
+host="$(hostname 2>/dev/null || cat /etc/hostname 2>/dev/null || echo umaos)"
+stamp="$(date +%Y%m%d-%H%M%S)"
+name="umao-debug-${host}-${stamp}"
+
+if [[ -z "$OUTPUT" ]]; then
+  OUTPUT="${DEFAULT_DIR%/}/${name}.tar.gz"
+fi
+
+workdir="$(mktemp -d "${TMPDIR:-/tmp}/umao-debug.XXXXXX")"
+bundle_dir="$workdir/$name"
+mkdir -p "$bundle_dir"/{system,hardware,drivers,audio,desktop,network,packages,umaos,logs}
+trap 'rm -rf "$workdir"' EXIT
+
+# run <relpath> <command...> — record the command line then its combined output
+# to <relpath> inside the bundle. Missing commands and non-zero exits are noted,
+# never fatal (this whole tool is best-effort).
+run() {
+  local rel="$1"; shift
+  local out="$bundle_dir/$rel"
+  mkdir -p "$(dirname "$out")"
+  {
+    printf '# %s\n\n' "$*"
+    if command -v "$1" >/dev/null 2>&1; then
+      "$@" 2>&1 || printf '\n[umao-debug] (%s exited %s)\n' "$1" "$?"
+    else
+      printf '[umao-debug] (%s not installed)\n' "$1"
+    fi
+  } >"$out" 2>&1 || true
+}
+
+# copy_file <src> <relpath> — copy a file or directory into the bundle if it
+# exists and is readable.
+copy_file() {
+  local src="$1" rel="$2"
+  [[ -e "$src" && -r "$src" ]] || return 0
+  local dst="$bundle_dir/$rel"
+  mkdir -p "$(dirname "$dst")"
+  cp -a "$src" "$dst" 2>/dev/null || cp -r "$src" "$dst" 2>/dev/null || true
+}
+
+log "collecting UmaOS diagnostics (journal lines: $JOURNAL_LINES) ..."
+
+# ── Manifest ────────────────────────────────────────────────────────────────
+{
+  printf 'umao-debug bundle\n'
+  printf 'version:       %s\n' "$UMAO_DEBUG_VERSION"
+  printf 'host:          %s\n' "$host"
+  printf 'collected:     %s\n' "$(date -Is 2>/dev/null || date)"
+  printf 'user:          %s (uid %s)\n' "$(id -un 2>/dev/null || echo '?')" "$(id -u 2>/dev/null || echo '?')"
+  printf 'journal lines: %s\n' "$JOURNAL_LINES"
+} >"$bundle_dir/MANIFEST.txt" 2>&1 || true
+
+# ── System ──────────────────────────────────────────────────────────────────
+log "collecting: system"
+run system/uname.txt uname -a
+run system/hostnamectl.txt hostnamectl
+run system/timedatectl.txt timedatectl
+run system/uptime.txt uptime
+run system/locale.txt locale
+copy_file /etc/os-release system/os-release
+copy_file /etc/lsb-release system/lsb-release
+copy_file /proc/cmdline system/proc-cmdline
+# printenv, minus anything that looks like a secret.
+{
+  printf '# printenv (secret-looking variables redacted)\n\n'
+  printenv | grep -viE '(PASS|PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL|AUTH)' || true
+} >"$bundle_dir/system/env.txt" 2>&1 || true
+
+# ── Hardware ────────────────────────────────────────────────────────────────
+log "collecting: hardware"
+{
+  for f in sys_vendor product_name product_version board_name bios_version bios_date chassis_type; do
+    printf '%-16s %s\n' "$f:" "$(cat "/sys/class/dmi/id/$f" 2>/dev/null || echo unknown)"
+  done
+} >"$bundle_dir/hardware/dmi.txt" 2>&1 || true
+run hardware/lscpu.txt lscpu
+run hardware/lspci.txt lspci -nnk
+run hardware/lsusb.txt lsusb
+run hardware/lsblk.txt lsblk -f
+run hardware/free.txt free -h
+run hardware/sensors.txt sensors
+
+# ── Drivers / graphics ──────────────────────────────────────────────────────
+log "collecting: drivers"
+run drivers/lsmod.txt lsmod
+run drivers/glxinfo.txt glxinfo -B
+run drivers/vulkaninfo.txt vulkaninfo --summary
+run drivers/nvidia-smi.txt nvidia-smi
+
+# ── Audio ───────────────────────────────────────────────────────────────────
+log "collecting: audio"
+if command -v umao-audio-doctor >/dev/null 2>&1; then
+  run audio/audio-doctor.txt umao-audio-doctor --report
+else
+  run audio/aplay.txt aplay -l
+  run audio/pactl-info.txt pactl info
+  run audio/pactl-sinks.txt pactl list short sinks
+fi
+
+# ── Desktop / KDE ───────────────────────────────────────────────────────────
+log "collecting: desktop"
+run desktop/plasmashell-version.txt plasmashell --version
+{
+  for v in XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP DISPLAY WAYLAND_DISPLAY DESKTOP_SESSION; do
+    printf '%-20s %s\n' "$v:" "${!v:-}"
+  done
+} >"$bundle_dir/desktop/session-env.txt" 2>&1 || true
+if [[ -n "${HOME:-}" && -d "$HOME/.config" ]]; then
+  for cfg in plasmashellrc kwinrc kdeglobals ksplashrc kscreenlockerrc kcminputrc konsolerc mimeapps.list; do
+    copy_file "$HOME/.config/$cfg" "desktop/config/$cfg"
+  done
+  run desktop/autostart-list.txt ls -la "$HOME/.config/autostart"
+fi
+
+# ── Network ─────────────────────────────────────────────────────────────────
+log "collecting: network"
+run network/ip-addr.txt ip addr
+run network/ip-route.txt ip route
+run network/resolvectl.txt resolvectl status
+run network/nmcli-device.txt nmcli -t device status
+
+# ── Packages ────────────────────────────────────────────────────────────────
+log "collecting: packages"
+run packages/pacman-Qe.txt pacman -Qe
+run packages/pacman-Qm.txt pacman -Qm
+if [[ -r /var/log/pacman.log ]]; then
+  tail -n 500 /var/log/pacman.log >"$bundle_dir/packages/pacman.log.tail" 2>&1 || true
+fi
+
+# ── UmaOS-specific ──────────────────────────────────────────────────────────
+log "collecting: umaos"
+run umaos/local-bin.txt ls -la /usr/local/bin
+run umaos/systemctl-failed.txt systemctl --failed --no-pager
+run umaos/systemctl-user-failed.txt systemctl --user --failed --no-pager
+copy_file /etc/umaos umaos/etc-umaos
+if [[ -n "${HOME:-}" ]]; then
+  # Captures video-wallpaper.disabled / .failcount markers and other user state.
+  copy_file "$HOME/.config/umaos" umaos/user-config
+fi
+
+# ── Logs ────────────────────────────────────────────────────────────────────
+log "collecting: logs"
+{
+  printf '# journalctl -b -n %s --no-pager\n\n' "$JOURNAL_LINES"
+  journalctl -b -n "$JOURNAL_LINES" --no-pager 2>&1 \
+    || printf '\n[umao-debug] (journalctl current boot exited %s)\n' "$?"
+} >"$bundle_dir/logs/journal-current-boot.txt" 2>&1 || true
+{
+  printf '# journalctl -b -1 -p warning -n %s --no-pager\n\n' "$JOURNAL_LINES"
+  journalctl -b -1 -p warning -n "$JOURNAL_LINES" --no-pager 2>&1 \
+    || printf '\n[umao-debug] (journalctl previous boot unavailable, exited %s)\n' "$?"
+} >"$bundle_dir/logs/journal-previous-boot-warnings.txt" 2>&1 || true
+run logs/dmesg.txt dmesg
+copy_file /var/log/Xorg.0.log logs/Xorg.0.log
+copy_file /var/log/sddm.log logs/sddm.log
+if [[ -n "${HOME:-}" && -d "$HOME/.local/share/sddm" ]]; then
+  copy_file "$HOME/.local/share/sddm" logs/sddm-user
+fi
+
+# ── Package it up ───────────────────────────────────────────────────────────
+mkdir -p "$(dirname "$OUTPUT")"
+tar -czf "$OUTPUT" -C "$workdir" "$name"
+
+log "diagnostics bundle written to: $OUTPUT"
+size="$(du -h "$OUTPUT" 2>/dev/null | cut -f1 || true)"
+[[ -n "$size" ]] && log "bundle size: $size"
+log "upload it with: umao-debug-upload --host <ip> --user <user> --file \"$OUTPUT\""
+
+printf '%s\n' "$OUTPUT"
