@@ -46,15 +46,14 @@ jobs:
           echo "name=$(basename "$iso")" >> "$GITHUB_OUTPUT"
           ls -lh out/
 
-      - name: Verify ISO branding
-        run: scripts/verify-iso-branding.sh "${{ steps.iso.outputs.path }}"
-
       - name: Checksum
         run: |
           set -euo pipefail
           cd out
           sha256sum *.iso | tee SHA256SUMS.txt
 
+      # Upload BEFORE the branding check so a failed check never costs us the
+      # built ISO artifact.
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
@@ -64,3 +63,12 @@ jobs:
             out/SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error
+
+      # verify-iso-branding.sh needs bsdtar, which the runner host does not have.
+      # Run it inside the archiso builder image (present after the build step),
+      # which ships libarchive/bsdtar — keeps the runner host dependency-free.
+      - name: Verify ISO branding
+        run: |
+          docker run --rm -v "$PWD:/workspace" -w /workspace \
+            "${UMAOS_DOCKER_IMAGE:-umaos-archiso-builder:latest}" \
+            scripts/verify-iso-branding.sh "${{ steps.iso.outputs.path }}"
