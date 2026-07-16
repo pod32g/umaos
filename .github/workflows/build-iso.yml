@@ -1,0 +1,66 @@
+name: Build ISO
+
+# Full UmaOS ISO build via the Dockerised archiso pipeline. Heavy and slow, so
+# it does NOT run on every push — only:
+#   * manual dispatch (Actions tab -> Build ISO -> Run workflow)
+#   * version tags (v*)
+#   * a weekly schedule, to catch breakage from Arch's rolling packages
+#
+# Output is uploaded as a private workflow artifact only. It is intentionally
+# NOT published to GitHub Releases: docs/ASSET-LICENSES.md marks the bundled
+# wallpapers/branding as "private build only" with public redistribution still
+# blocked. Revisit once those assets are cleared for redistribution.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  schedule:
+    - cron: '0 4 * * 1'   # Mondays 04:00 UTC
+
+concurrency:
+  group: build-iso
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: [self-hosted, umaos]
+    timeout-minutes: 240
+    env:
+      # calamares / helium / yay are not in Arch's official repos; the build
+      # compiles them from AUR + custom-pkgs/ inside the container.
+      UMAOS_ALLOW_AUR: "1"
+      DOCKER_PLATFORM: linux/amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ISO (Dockerised mkarchiso)
+        run: scripts/build-iso-docker.sh
+
+      - name: Locate ISO
+        id: iso
+        run: |
+          set -euo pipefail
+          iso="$(ls -1t out/*.iso | head -n1)"
+          echo "path=$iso" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$iso")" >> "$GITHUB_OUTPUT"
+          ls -lh out/
+
+      - name: Verify ISO branding
+        run: scripts/verify-iso-branding.sh "${{ steps.iso.outputs.path }}"
+
+      - name: Checksum
+        run: |
+          set -euo pipefail
+          cd out
+          sha256sum *.iso | tee SHA256SUMS.txt
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: umaos-iso-${{ github.run_number }}
+          path: |
+            out/*.iso
+            out/SHA256SUMS.txt
+          retention-days: 14
+          if-no-files-found: error

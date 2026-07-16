@@ -216,17 +216,16 @@ else
   fail "Steam root helper is missing extended 32-bit Proton runtime dependency install logic"
 fi
 
-check_desktop_exec_target "/etc/skel/.config/autostart/umaos-first-login.desktop"
-check_desktop_exec_target "/etc/skel/.config/autostart/umao-umamusume-first-login.desktop"
+check_desktop_exec_target "/home/arch/.config/autostart/umaos-theme-first-login.desktop"
+check_executable_file "/etc/skel/Desktop/Install Uma Musume.sh"
 check_desktop_exec_target "/home/arch/.config/autostart/umaos-installer-autostart.desktop"
 check_executable_file "/home/arch/Desktop/Install Uma Musume.sh"
 
 if grep -q '/usr/local/bin/umao-ensure-proton-ge' "$ROOT/etc/skel/Desktop/Install Uma Musume.sh" \
-  && grep -q '/usr/local/bin/umao-ensure-proton-ge' "$ROOT/home/arch/Desktop/Install Uma Musume.sh" \
-  && grep -q 'ensure_proton_ge' "$ROOT/usr/local/bin/umao-first-login-umamusume"; then
-  pass "Umamusume launchers and first-login flow require Proton GE setup"
+  && grep -q '/usr/local/bin/umao-ensure-proton-ge' "$ROOT/home/arch/Desktop/Install Uma Musume.sh"; then
+  pass "Umamusume desktop launchers require Proton GE setup"
 else
-  fail "Umamusume flows are missing Proton GE setup integration"
+  fail "Umamusume launchers are missing Proton GE setup integration"
 fi
 
 if grep -Eq '^x-scheme-handler/http=helium-browser\.desktop$' "$ROOT/etc/skel/.config/mimeapps.list" \

@@ -10,6 +10,10 @@ WORK_VOLUME="${UMAOS_DOCKER_WORK_VOLUME:-umaos-work-volume}"
 ALLOW_AUR="${UMAOS_ALLOW_AUR:-0}"
 SKIP_IMAGE_BUILD="${UMAOS_SKIP_DOCKER_BUILD:-0}"
 ARCHISO_MODES="${MKARCHISO_MODES:-iso}"
+# Cache-bust key for the builder image. Defaults to today's date so each day's
+# build refreshes the archiso toolchain / keyring instead of reusing a stale
+# cached layer. Override (e.g. UMAOS_CACHEBUST=force) to force a rebuild sooner.
+CACHEBUST="${UMAOS_CACHEBUST:-$(date +%Y%m%d)}"
 
 HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
@@ -25,8 +29,10 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 if [[ "$SKIP_IMAGE_BUILD" != "1" ]]; then
-  echo "[umaos] Building Docker image: $IMAGE_NAME ($DOCKER_PLATFORM)"
+  echo "[umaos] Building Docker image: $IMAGE_NAME ($DOCKER_PLATFORM) [cachebust=$CACHEBUST]"
   docker build \
+    --pull \
+    --build-arg CACHEBUST="$CACHEBUST" \
     --platform "$DOCKER_PLATFORM" \
     -t "$IMAGE_NAME" \
     -f "$ROOT_DIR/scripts/docker/archiso-builder.Dockerfile" \

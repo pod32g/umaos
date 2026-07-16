@@ -1,0 +1,71 @@
+name: CI
+
+# Fast, build-free checks: shell/python syntax + the repo's static profile
+# verifiers. Runs on every push to main and on pull requests. The heavy ISO
+# build lives in build-iso.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: [self-hosted, umaos]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell syntax check (bash -n)
+        run: |
+          set -euo pipefail
+          rc=0
+          while IFS= read -r -d '' f; do
+            case "$(head -c 120 "$f")" in
+              *"bin/bash"*|*"bin/sh"*|*"env bash"*|*"env sh"*)
+                if ! bash -n "$f"; then
+                  echo "::error file=$f::shell syntax error"
+                  rc=1
+                fi
+                ;;
+            esac
+          done < <(find . -type f -not -path './.git/*' -print0)
+          exit $rc
+
+      - name: Shellcheck (containerized, errors only)
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find scripts -type f -name '*.sh')
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
+            --severity=error "${files[@]}"
+
+      - name: Python syntax check
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          py=(scripts/*.py)
+          if ((${#py[@]})); then
+            python3 -m py_compile "${py[@]}"
+          fi
+
+  verify:
+    runs-on: [self-hosted, umaos]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Calamares profile
+        run: scripts/verify-calamares-profile.sh archiso/airootfs
+
+      - name: Verify customization profile
+        run: scripts/verify-customization-profile.sh archiso/airootfs archiso/packages.x86_64 0
+
+      # NOTE: scripts/audit-customization-parity.sh is intentionally NOT gated here.
+      # It is a supplementary audit (not run by build-iso.sh) that has drifted from
+      # the current tree — it still expects the pre-rework palette (UmaSkyPink vs the
+      # current UmaOS-Dark), the old helium.desktop name (now helium-browser.desktop),
+      # and build-generated files (umao-debug*). It needs a dedicated reconciliation
+      # pass before it can gate CI; some of its failures may be real design questions.

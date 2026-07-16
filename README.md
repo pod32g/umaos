@@ -193,7 +193,7 @@ scripts/audit-customization-parity.sh
 First-login theme apply hook:
 
 - `/usr/local/bin/umao-apply-theme --once`
-- autostarted from `/etc/skel/.config/autostart/umaos-first-login.desktop`
+- autostarted from `/home/arch/.config/autostart/umaos-theme-first-login.desktop` (installed-user first-login setup is driven by the Welcome app, `umaos-welcome.desktop`)
 
 Quick runtime checks (inside live/installed UmaOS):
 
