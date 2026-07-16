@@ -106,13 +106,20 @@ prepare_local_repo_pacman_conf() {
     return 0
   fi
 
-  cat > "$patched_conf" <<PACCONF
+  # Append (not prepend) the local repo so it sits BELOW [core]/[extra] in
+  # pacman's resolution order. Prepended, any package sitting in the persistent
+  # build/localrepo volume — which is never cleaned between builds — would
+  # shadow the official package of the same name with zero signature checking.
+  # The packages here are built from source by this same run and never reach
+  # the shipped image (airootfs/etc/pacman.conf is the curated one), which is
+  # why TrustAll is tolerable; signing them would need build-time key material.
+  cp "$pacman_conf" "$patched_conf"
+  cat >> "$patched_conf" <<PACCONF
+
 [$LOCAL_REPO_NAME]
 SigLevel = Optional TrustAll
 Server = file://$LOCAL_REPO_DIR
-
 PACCONF
-  cat "$pacman_conf" >> "$patched_conf"
   mv "$patched_conf" "$pacman_conf"
   chmod 644 "$pacman_conf"
 
@@ -171,6 +178,20 @@ install_wallhaven_wallpapers() {
 
   while IFS=$'\t' read -r id width height ext filename url; do
     [[ -z "$id" || "$id" == "id" ]] && continue
+
+    # The manifest is generated from third-party API data and is just a file on
+    # disk (possibly stale or hand-edited), so don't trust it: $id is
+    # interpolated into `rm -rf` below and $filename into a read path. Mirror
+    # the generator's charset rather than relying on it.
+    if [[ ! "$id" =~ ^[A-Za-z0-9_-]{1,32}$ ]]; then
+      warn "Skipping Wallhaven entry with unsafe id: $id"
+      continue
+    fi
+    if [[ "$filename" == */* || "$filename" == *..* || -z "$filename" ]]; then
+      warn "Skipping Wallhaven entry with unsafe filename: $filename"
+      continue
+    fi
+
     src="$WALLHAVEN_IMAGES_DIR/$filename"
     if [[ ! -s "$src" ]]; then
       warn "Skipping missing Wallhaven file for id=$id: $src"
