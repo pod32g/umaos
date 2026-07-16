@@ -41,6 +41,15 @@ URA_LOGO_SRC="$ROOT_DIR/ura_logo.png"
 # Cursor themes are bundled in the umao-cursor-switcher package
 EXPECTED_WALLHAVEN_COUNT=0
 
+# Scratch space for the script's temp files, reclaimed on any exit. The script
+# previously had no EXIT/ERR trap at all, so temp files leaked whenever a step
+# aborted under set -e.
+UMAOS_TMPDIR="$(mktemp -d)"
+cleanup_umaos_tmpdir() {
+  rm -rf "$UMAOS_TMPDIR"
+}
+trap cleanup_umaos_tmpdir EXIT
+
 log() {
   echo "[umaos] $*"
 }
@@ -1148,10 +1157,12 @@ apply_grub_theme_block() {
     return 0
   fi
 
-  tmp_file="$(mktemp)"
-  # Without this the temp file leaks whenever awk fails (set -e aborts before
-  # the mv below); RETURN scopes the cleanup to this function.
-  trap 'rm -f "$tmp_file"' RETURN
+  # Allocated inside UMAOS_TMPDIR so the script-level EXIT trap reclaims it if
+  # awk fails (set -e aborts before the mv below). A RETURN trap here is wrong:
+  # bash keeps it registered for subsequent function returns, where this local
+  # is out of scope, so it blows up with "tmp_file: unbound variable" under
+  # set -u in an unrelated function.
+  tmp_file="$(mktemp -p "$UMAOS_TMPDIR")"
   awk '
     { print }
     /^timeout_style=menu$/ {
