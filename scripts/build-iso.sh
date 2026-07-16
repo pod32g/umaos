@@ -1149,6 +1149,9 @@ apply_grub_theme_block() {
   fi
 
   tmp_file="$(mktemp)"
+  # Without this the temp file leaks whenever awk fails (set -e aborts before
+  # the mv below); RETURN scopes the cleanup to this function.
+  trap 'rm -f "$tmp_file"' RETURN
   awk '
     { print }
     /^timeout_style=menu$/ {
@@ -1254,14 +1257,40 @@ if [[ ! -d "$RELENG_DIR" ]]; then
   die "releng profile not found at $RELENG_DIR. Install archiso: sudo pacman -S --needed archiso"
 fi
 
-# Refresh package database to avoid stale mirror 404s (especially in Docker)
-pacman -Sy --noconfirm 2>/dev/null || true
-
 require_cmd rsync
 require_cmd sed
 require_cmd mkarchiso
 require_cmd pacman
 require_cmd grub-mkstandalone
+# python3 drives the GRUB theme asset generation and imagemagick the KSplash
+# logo resize; both were invoked unconditionally but never checked, so hosts
+# without them died mid-build with a raw command-not-found.
+require_cmd python3
+
+# mkarchiso needs root. Check up front rather than after burning the whole
+# multi-minute AUR build phase.
+if [[ "$EUID" -ne 0 ]]; then
+  die "This script must run as root (mkarchiso requires it). Use sudo, or ./scripts/build-iso-docker.sh."
+fi
+
+# Refresh the package database so `pacman -Si` availability checks and the
+# mkarchiso pacstrap do not hit stale mirrors / 404s. Must run AFTER
+# require_cmd pacman, and its failure must not be swallowed: silently ignoring
+# a sync error means every later availability check consults a stale/absent DB.
+#
+# -Syu rather than a bare -Sy: this script goes on to install makepkg build
+# dependencies on this system, and -Sy followed by installing is the classic
+# Arch partial-upgrade hazard. That is harmless in the intended environment
+# (the disposable container from build-iso-docker.sh) but does upgrade the host
+# when run natively, so allow opting out.
+if [[ "${UMAOS_SKIP_DB_REFRESH:-0}" == "1" ]]; then
+  log "Skipping package database refresh (UMAOS_SKIP_DB_REFRESH=1); availability checks may use stale data."
+else
+  log "Refreshing package database (pacman -Syu; set UMAOS_SKIP_DB_REFRESH=1 to skip)..."
+  if ! pacman -Syu --noconfirm; then
+    warn "Package database refresh failed; availability checks may use stale data."
+  fi
+fi
 
 find_missing_required_packages
 if ((${#MISSING_REQUIRED_PKGS[@]} > 0)); then

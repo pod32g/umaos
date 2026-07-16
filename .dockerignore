@@ -1,0 +1,22 @@
+# The whole repo is the Docker build context for scripts/docker/*.Dockerfile,
+# and the images only need the Dockerfile itself — everything sent here is
+# copied to the Docker daemon on every build. Without this, ~40MB of .git,
+# ~15MB of assets and any multi-GB ISO in out/ were shipped each time.
+.git
+.github
+out
+work
+build
+assets
+docs
+archiso
+qml
+profiles
+custom-pkgs
+cursors
+*.iso
+*.img
+*.pkg.tar.*
+__pycache__
+*.pyc
+.DS_Store

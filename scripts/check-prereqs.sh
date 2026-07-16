@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-required=(mkarchiso rsync pacman grub-mkstandalone)
+# python3 drives GRUB theme asset generation in build-iso.sh and is invoked
+# unconditionally; omitting it here meant "Prerequisites OK" passed on hosts
+# where the build then died with a raw command-not-found.
+required=(mkarchiso rsync pacman grub-mkstandalone python3)
 missing=()
 
 for cmd in "${required[@]}"; do
@@ -25,7 +28,7 @@ fi
 
 if ((${#missing[@]} > 0)); then
   echo "Missing required tools: ${missing[*]}" >&2
-  echo "Install base tools with: sudo pacman -S --needed archiso rsync pacman grub" >&2
+  echo "Install base tools with: sudo pacman -S --needed archiso rsync pacman grub python" >&2
   if [[ "${UMAOS_ALLOW_AUR:-0}" == "1" ]]; then
     echo "AUR fallback also needs: sudo pacman -S --needed git base-devel pacman-contrib sudo" >&2
   fi
