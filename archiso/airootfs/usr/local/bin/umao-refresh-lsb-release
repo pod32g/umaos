@@ -9,6 +9,10 @@ DISTRIB_CODENAME=uma
 DISTRIB_DESCRIPTION="UmaOS"
 EOF
 
+# On stock Arch /etc/os-release is a symlink to the filesystem-package-owned
+# /usr/lib/os-release; writing through it would clobber the package file.
+# Remove the (possibly restored) symlink so we create a real file instead.
+rm -f /etc/os-release
 cat > /etc/os-release <<'EOF'
 NAME="UmaOS"
 PRETTY_NAME="UmaOS"

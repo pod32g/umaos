@@ -124,8 +124,9 @@ case "$mode" in
       answer=${answer:-Y}
       if [[ "$answer" =~ ^[Yy]$ ]]; then
         run_cli
+      else
+        echo "Installer canceled."
       fi
-      echo "Installer canceled."
       exit 0
     fi
 
@@ -146,7 +147,8 @@ case "$mode" in
     answer=${answer:-Y}
     if [[ "$answer" =~ ^[Yy]$ ]]; then
       run_cli
+    else
+      echo "Installer canceled."
     fi
-    echo "Installer canceled."
     ;;
 esac

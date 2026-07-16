@@ -114,6 +114,9 @@ prepare_unpackfs_config() {
   [[ -n "$initramfs_source" ]] && log "Initramfs source: $initramfs_source"
   [[ -z "$vmlinuz_source" ]] && warn "Kernel image not found on live media; relying on package-provided kernel."
   [[ -z "$initramfs_source" ]] && warn "Initramfs image not found on live media; relying on target generation."
+  # The && lists above return 1 when their guard is false; without this the
+  # function's exit status trips set -e on the normal success path.
+  return 0
 }
 
 prepare_unpackfs_config

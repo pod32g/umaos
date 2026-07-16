@@ -160,7 +160,10 @@ mapfile -t runtime_pkgs < <(build_runtime_pkg_plan "$gpu_vendor")
 
 log "Detected GPU vendor: $gpu_vendor"
 log "Refreshing package database and installing Steam + Proton runtime stack..."
-pacman -Sy --noconfirm --needed "${runtime_pkgs[@]}"
+# -Syu, not -Sy: syncing the DB and installing without upgrading is the
+# classic Arch partial-upgrade hazard (new packages linked against newer
+# libs than the installed system has).
+pacman -Syu --noconfirm --needed "${runtime_pkgs[@]}"
 ensure_protonup_qt_flatpak
 
 log "Steam/runtime installation complete."

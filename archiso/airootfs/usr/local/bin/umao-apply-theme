@@ -78,7 +78,10 @@ fi
 if [[ "${UMAOS_VIDEO_WALLPAPER:-1}" == "0" ]] || ((disable_video == 1)); then
   apply_video=0
 fi
-if ((force_video == 1)) || [[ "${UMAOS_VIDEO_WALLPAPER:-1}" == "1" ]]; then
+if ((force_video == 1)) || [[ "${UMAOS_VIDEO_WALLPAPER:-}" == "1" ]]; then
+  # Only an explicit --force-video or an explicitly exported
+  # UMAOS_VIDEO_WALLPAPER=1 may override --no-video; the unset-default must
+  # not re-enable what the flag just disabled.
   apply_video=1
 fi
 if [[ "${UMAOS_DEBUG_VIDEO_WALLPAPER:-0}" == "1" ]]; then

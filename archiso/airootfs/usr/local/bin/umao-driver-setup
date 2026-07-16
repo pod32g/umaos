@@ -170,7 +170,10 @@ fi
 
 require_cmd pacman
 
-pacman_cmd=(pacman -S --needed)
+# -Syu, not plain -S: the ISO's package DB is frozen at build time, so
+# installs from an aged ISO 404 on pruned package versions; refresh and
+# upgrade together to avoid the partial-upgrade hazard.
+pacman_cmd=(pacman -Syu --needed)
 if ((yes == 1)); then
   pacman_cmd+=(--noconfirm)
 fi

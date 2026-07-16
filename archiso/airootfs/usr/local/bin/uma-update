@@ -113,6 +113,10 @@ skipped=0
 sync_dir_files() {
   local src_dir="$1"
   local dst_dir="$2"
+  # Optional forced mode: GitHub tarballs preserve git modes, and several
+  # shipped helpers are committed 0644 (the ISO fixes them up at build time,
+  # so the tarball x-bit cannot be trusted for bin/hook directories).
+  local forced_mode="${3:-}"
   local file
   local dst_file
   local mode
@@ -130,8 +134,15 @@ sync_dir_files() {
     if [[ -x "$file" ]]; then
       mode="0755"
     fi
+    if [[ -n "$forced_mode" ]]; then
+      mode="$forced_mode"
+    fi
 
     if cmp -s "$file" "$dst_file" 2>/dev/null; then
+      # Content identical — but self-heal a wrong mode left by earlier runs.
+      if [[ -n "$forced_mode" ]] && ((dry_run == 0)); then
+        chmod "$mode" "$dst_file" 2>/dev/null || true
+      fi
       skipped=$((skipped + 1))
       continue
     fi
@@ -188,7 +199,7 @@ plymouth_changed=0
 theme_changed_before=$updated
 
 # ── 1. Runtime scripts ──
-sync_dir_files "$airootfs/usr/local/bin" "/usr/local/bin"
+sync_dir_files "$airootfs/usr/local/bin" "/usr/local/bin" 0755
 sync_dir_files "$airootfs/etc/profile.d" "/etc/profile.d"
 sync_dir_files "$airootfs/usr/share/applications" "/usr/share/applications"
 
@@ -283,7 +294,7 @@ sync_dir_files "$airootfs/etc/sudoers.d" "/etc/sudoers.d"
 sync_dir_recursive "$airootfs/etc/helium" "/etc/helium"
 
 # ── 14. System-sleep hooks (touchpad resume fix, etc.) ──
-sync_dir_files "$airootfs/usr/lib/systemd/system-sleep" "/usr/lib/systemd/system-sleep"
+sync_dir_files "$airootfs/usr/lib/systemd/system-sleep" "/usr/lib/systemd/system-sleep" 0755
 
 # ── Post-sync: propagate theme changes to existing users ──
 propagate_to_users() {
