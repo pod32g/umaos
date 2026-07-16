@@ -16,7 +16,6 @@ ISO_LABEL="UMAOS_$(date +%Y%m)"
 
 REQUIRED_REPO_PKGS=(
   calamares
-  helium
   xorg-xkbcomp
   plasma6-wallpapers-smart-video-wallpaper-reborn
   yay
