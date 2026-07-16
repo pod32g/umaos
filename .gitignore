@@ -14,3 +14,5 @@ archiso/airootfs/usr/share/grub/themes/umaos/accent_line.png
 archiso/airootfs/usr/share/grub/themes/umaos/menu_*.png
 archiso/airootfs/usr/share/grub/themes/umaos/select_*.png
 archiso/airootfs/usr/share/grub/themes/umaos/*.pf2
+__pycache__/
+*.pyc

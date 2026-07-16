@@ -47,6 +47,45 @@ def emit(msg, json_mode=False):
             print(text)
 
 
+def priv_prefix():
+    """Privilege-escalation prefix for pacman/systemctl.
+
+    sudo can only prompt on a TTY; when launched from the welcome app
+    (no terminal) it fails instantly with 'a terminal is required'.
+    pkexec authenticates through the polkit GUI agent instead, which is
+    always present in a Plasma session.
+    """
+    if os.geteuid() == 0:
+        return []
+    if sys.stdin.isatty():
+        return ["sudo"]
+    return ["pkexec"]
+
+
+ASKPASS_CANDIDATES = [
+    "/usr/bin/ksshaskpass",
+    "/usr/lib/ssh/x11-ssh-askpass",
+    "/usr/bin/ssh-askpass",
+]
+
+
+def yay_env_and_flags():
+    """Environment and extra flags so yay's internal sudo can prompt.
+
+    yay refuses to run as root, so pkexec is not an option; without a TTY
+    its sudo needs an askpass helper. Returns (env, extra_flags) or
+    (None, None) if AUR installs cannot work in this session.
+    """
+    if sys.stdin.isatty():
+        return dict(os.environ), []
+    for helper in ASKPASS_CANDIDATES:
+        if os.path.isfile(helper):
+            env = dict(os.environ)
+            env["SUDO_ASKPASS"] = helper
+            return env, ["--sudoflags", "-A"]
+    return None, None
+
+
 def install_pacman(packages, dry_run=False, json_mode=False):
     """Install packages via pacman."""
     if not packages:
@@ -56,14 +95,15 @@ def install_pacman(packages, dry_run=False, json_mode=False):
         emit({"status": "info", "message": f"  [dry-run] pacman -S --needed {' '.join(packages)}"}, json_mode)
         return []
 
-    cmd = ["sudo", "pacman", "-S", "--needed", "--noconfirm"] + packages
+    priv = priv_prefix()
+    cmd = priv + ["pacman", "-S", "--needed", "--noconfirm"] + packages
     result = subprocess.run(cmd, capture_output=True, text=True)
     failures = []
     if result.returncode != 0:
         emit({"status": "warning", "message": f"  pacman had errors: {result.stderr.strip()}"}, json_mode)
         for pkg in packages:
             r = subprocess.run(
-                ["sudo", "pacman", "-S", "--needed", "--noconfirm", pkg],
+                priv + ["pacman", "-S", "--needed", "--noconfirm", pkg],
                 capture_output=True, text=True,
             )
             if r.returncode != 0:
@@ -81,10 +121,15 @@ def install_aur(packages, dry_run=False, json_mode=False):
         emit({"status": "info", "message": f"  [dry-run] yay -S --needed {' '.join(packages)}"}, json_mode)
         return []
 
+    env, extra_flags = yay_env_and_flags()
+    if env is None:
+        emit({"status": "error", "message": "  AUR installs need a password prompt but no terminal or askpass helper is available; skipping: " + ", ".join(packages)}, json_mode)
+        return list(packages)
+
     failures = []
     for pkg in packages:
-        cmd = ["yay", "-S", "--needed", "--noconfirm", pkg]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        cmd = ["yay", "-S", "--needed", "--noconfirm", *extra_flags, pkg]
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
         if result.returncode != 0:
             failures.append(pkg)
             emit({"status": "error", "message": f"  Failed to install AUR package: {pkg}"}, json_mode)
@@ -168,7 +213,7 @@ def enable_services(services, dry_run=False, json_mode=False):
             emit({"status": "info", "message": f"  [dry-run] systemctl enable --now {svc}"}, json_mode)
             continue
         result = subprocess.run(
-            ["sudo", "systemctl", "enable", "--now", svc],
+            priv_prefix() + ["systemctl", "enable", "--now", svc],
             capture_output=True, text=True,
         )
         if result.returncode != 0:

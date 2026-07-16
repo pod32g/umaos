@@ -52,7 +52,9 @@ Item {
                         var ff = sysRoot.sysInfo.fastfetch
                         if (ff && Array.isArray(ff)) {
                             var k = ff.find(function(m) { return m.type === "Kernel" })
-                            return k ? k.result : "Unknown"
+                            // fastfetch's Kernel result is an object
+                            // ({name, release, version, ...}), not a string
+                            return (k && k.result) ? (k.result.release || "Unknown") : "Unknown"
                         }
                         return "Unknown"
                     }

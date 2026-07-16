@@ -16,6 +16,15 @@ Item {
         profiles = JSON.parse(data)
     }
 
+    Connections {
+        target: backend
+        function onApplyFinished(result) {
+            var parsed = JSON.parse(result)
+            profilesRoot.resultMessage = parsed.message || "Done"
+            profilesRoot.applying = false
+        }
+    }
+
     property var iconMap: ({
         "Gaming": "\u{1F3AE}",
         "Creator": "\u{1F3AC}",
@@ -104,10 +113,8 @@ Item {
                     var names = Object.keys(profilesRoot.selectedProfiles)
                     profilesRoot.applying = true
                     profilesRoot.resultMessage = ""
-                    var result = backend.applyProfiles(JSON.stringify(names))
-                    var parsed = JSON.parse(result)
-                    profilesRoot.resultMessage = parsed.message || "Done"
-                    profilesRoot.applying = false
+                    // Async: result arrives via backend.applyFinished
+                    backend.applyProfiles(JSON.stringify(names))
                 }
             }
         }

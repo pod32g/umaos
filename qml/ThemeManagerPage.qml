@@ -10,11 +10,11 @@ Item {
         contentWidth: availableWidth
 
         ColumnLayout {
-            width: parent.width
-            anchors.margins: 32
-            anchors.leftMargin: 32
-            anchors.rightMargin: 32
-            anchors.topMargin: 32
+            // anchors.margins are no-ops without anchors; inset via x/width
+            // so this page matches the other pages' 32 px padding.
+            x: 32
+            y: 32
+            width: parent.width - 64
             spacing: 24
 
             Label {
@@ -54,8 +54,12 @@ Item {
 
                     Switch {
                         id: videoToggle
-                        checked: true
-                        onCheckedChanged: {
+                        // Reflect the real system state instead of a
+                        // hardcoded ON (set in onCompleted, and onToggled
+                        // instead of onCheckedChanged, so no command fires
+                        // during initialization).
+                        Component.onCompleted: checked = backend.videoWallpaperEnabled()
+                        onToggled: {
                             if (checked) {
                                 backend.runCommand("umao-apply-theme --video")
                             } else {

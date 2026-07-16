@@ -1302,6 +1302,10 @@ fi
 # pacman file-conflict failures during mkarchiso package installation.
 rm -f "$BUILD_PROFILE/airootfs/etc/skel/.zshrc"
 
+# Stamp the build version where the welcome app looks for it
+# (umao-welcome getVersion probes /etc/umaos-release).
+printf '%s\n' "$DATE_TAG" > "$BUILD_PROFILE/airootfs/etc/umaos-release"
+
 sync_calamares_defaults
 if [[ -x "$ROOT_DIR/scripts/verify-calamares-profile.sh" ]]; then
   bash "$ROOT_DIR/scripts/verify-calamares-profile.sh" "$BUILD_PROFILE/airootfs"

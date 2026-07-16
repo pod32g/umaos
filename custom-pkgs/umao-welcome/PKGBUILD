@@ -44,9 +44,9 @@ package() {
     install -Dm644 "$_root"/qml/components/*.qml "$pkgdir/usr/share/umaos/welcome/components/"
     install -Dm644 "$_root/qml/components/qmldir" "$pkgdir/usr/share/umaos/welcome/components/qmldir"
 
-    # Profile manifests
+    # Profile manifests + their config payloads (subdirs like gaming/)
     install -dm755 "$pkgdir/usr/share/umaos/welcome/profiles"
-    install -Dm644 "$_root"/profiles/*.yaml "$pkgdir/usr/share/umaos/welcome/profiles/"
+    cp -r "$_root/profiles/." "$pkgdir/usr/share/umaos/welcome/profiles/"
 
     # Desktop entry (app menu)
     install -Dm644 "$_root/welcome.desktop" "$pkgdir/usr/share/applications/umaos-welcome.desktop"
