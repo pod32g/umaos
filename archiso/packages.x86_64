@@ -35,6 +35,7 @@ neovim
 ripgrep
 gcc
 make
+base-devel
 ttf-jetbrains-mono-nerd
 wget
 curl

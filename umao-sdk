@@ -22,15 +22,30 @@ cmd_build_package() {
         exit 1
     fi
 
+    if ! command -v makepkg >/dev/null 2>&1 || ! command -v fakeroot >/dev/null 2>&1; then
+        echo "ERROR: makepkg/fakeroot not available. Install the build toolchain first:" >&2
+        echo "  sudo pacman -S --needed base-devel" >&2
+        exit 1
+    fi
+
     echo "Building package from $(pwd)..."
 
-    # Ensure build user if running as root
+    # makepkg refuses to run as root; hand the tree to a temp build user,
+    # restoring the original ownership afterwards even if the build fails.
     if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-        echo "Running as root — creating temp build user..."
+        echo "Running as root — building via temp build user..."
+        local orig_owner
+        orig_owner="$(stat -c '%u:%g' .)"
         useradd -m _umao_build 2>/dev/null || true
+        # Allow the build user to install build deps (makepkg -s calls
+        # sudo pacman); scoped to pacman only and removed on exit.
+        printf '_umao_build ALL=(ALL) NOPASSWD: /usr/bin/pacman\n' \
+            > /etc/sudoers.d/50-umao-build
+        chmod 0440 /etc/sudoers.d/50-umao-build
+        # shellcheck disable=SC2064  -- expand orig_owner/pwd now, on purpose
+        trap "chown -R '$orig_owner' '$(pwd)'; rm -f /etc/sudoers.d/50-umao-build" EXIT
         chown -R _umao_build:_umao_build .
         sudo -u _umao_build makepkg -s --needed --noconfirm "$@"
-        chown -R root:root .
     else
         makepkg -s --needed --noconfirm "$@"
     fi

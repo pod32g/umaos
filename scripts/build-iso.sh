@@ -116,16 +116,24 @@ PACCONF
   mv "$patched_conf" "$pacman_conf"
   chmod 644 "$pacman_conf"
 
-  # Save a clean copy (without local repo) to ship in the ISO so that
-  # yay / pacman work for regular users on the live and installed system.
-  # mkarchiso uses the profile-level pacman.conf for installing packages,
-  # but airootfs/etc/pacman.conf (if present) is what ends up in the image.
+  # The shipped image must not contain the [umaos-local] repo. The repo
+  # overlay ships a curated /etc/pacman.conf (UmaOS cosmetics + the
+  # commented multilib block that umao-install-steam-root uncomments);
+  # keep it when present — only synthesize a clean copy from the releng
+  # profile conf when the overlay doesn't provide one. mkarchiso uses the
+  # profile-level pacman.conf for installing packages, but
+  # airootfs/etc/pacman.conf (if present) is what ends up in the image.
   install -d "$BUILD_PROFILE/airootfs/etc"
-  grep -v "^\[$LOCAL_REPO_NAME\]" "$pacman_conf" \
-    | grep -v "^SigLevel = Optional TrustAll" \
-    | grep -v "^Server = file://$LOCAL_REPO_DIR" \
-    > "$BUILD_PROFILE/airootfs/etc/pacman.conf"
-  chmod 644 "$BUILD_PROFILE/airootfs/etc/pacman.conf"
+  if [[ -f "$ROOT_DIR/archiso/airootfs/etc/pacman.conf" ]]; then
+    install -m 644 "$ROOT_DIR/archiso/airootfs/etc/pacman.conf" \
+      "$BUILD_PROFILE/airootfs/etc/pacman.conf"
+  else
+    grep -v "^\[$LOCAL_REPO_NAME\]" "$pacman_conf" \
+      | grep -v "^SigLevel = Optional TrustAll" \
+      | grep -v "^Server = file://$LOCAL_REPO_DIR" \
+      > "$BUILD_PROFILE/airootfs/etc/pacman.conf"
+    chmod 644 "$BUILD_PROFILE/airootfs/etc/pacman.conf"
+  fi
 
   log "Injected local repo '$LOCAL_REPO_NAME' into build pacman.conf (clean copy in airootfs)"
 }
@@ -980,12 +988,19 @@ build_missing_required_from_aur() {
   fi
 
   for pkg in "${MISSING_REQUIRED_PKGS[@]}"; do
-    cached_pkg="$(find "$LOCAL_REPO_DIR" -maxdepth 1 -type f -name "$pkg-*.pkg.tar.*" \
-      ! -name "*.sig" ! -name "*-debug-*.pkg.tar.*" | sort | tail -n 1)"
-    if [[ -n "$cached_pkg" ]]; then
-      built_pkg_files+=("$cached_pkg")
-      log "Reusing cached local package for '$pkg': $(basename "$cached_pkg")"
-      continue
+    # Never reuse the cache for packages with a local custom PKGBUILD:
+    # umao-welcome builds from the working tree with a static pkgver, so a
+    # cached artifact silently ships stale sources. Custom packages are
+    # cheap to rebuild; the cache exists for expensive AUR builds
+    # (calamares). sort -V so e.g. 3.3.10 outranks 3.3.9.
+    if [[ ! -f "$CUSTOM_PKGS_DIR/$pkg/PKGBUILD" ]]; then
+      cached_pkg="$(find "$LOCAL_REPO_DIR" -maxdepth 1 -type f -name "$pkg-*.pkg.tar.*" \
+        ! -name "*.sig" ! -name "*-debug-*.pkg.tar.*" | sort -V | tail -n 1)"
+      if [[ -n "$cached_pkg" ]]; then
+        built_pkg_files+=("$cached_pkg")
+        log "Reusing cached local package for '$pkg': $(basename "$cached_pkg")"
+        continue
+      fi
     fi
 
     pkg_src="$AUR_SRC_DIR/$pkg"
@@ -1259,6 +1274,19 @@ if compgen -G "$WORK_DIR/base.*" >/dev/null 2>&1 || \
 fi
 
 rsync -a --delete "$RELENG_DIR/" "$BUILD_PROFILE/"
+
+# Generate the GRUB theme PNG assets before boot branding: the syslinux
+# splash selection inside configure_boot_branding prefers the generated
+# theme gradient (background.png), which is not checked in. Without this,
+# clean checkouts (CI) silently fall back to the static uma1 splash while
+# dev machines pick up whatever stale asset a previous run left behind.
+# install_grub_theme re-runs the generator later; it is idempotent.
+if [[ -f "$ROOT_DIR/archiso/airootfs/usr/share/grub/themes/umaos/theme.txt" \
+   && -f "$ROOT_DIR/scripts/generate-grub-theme-assets.py" ]]; then
+  log "Pre-generating GRUB theme assets for boot branding..."
+  python3 "$ROOT_DIR/scripts/generate-grub-theme-assets.py" \
+    "$ROOT_DIR/archiso/airootfs/usr/share/grub/themes/umaos"
+fi
 
 configure_boot_branding
 
