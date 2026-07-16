@@ -3,16 +3,16 @@ version: 1
 icon: uma-gaming
 description: "Steam, Proton, and everything you need to race."
 packages:
+  # Only [extra] packages belong here. steam, lib32-gamemode and lib32-mangohud
+  # live in [multilib], which is shipped commented out and is enabled by
+  # umao-install-steam-root — invoked from post_install below. Listing them
+  # here made the whole pacman phase fail with "target not found".
   pacman:
-    - steam
     - gamemode
-    - lib32-gamemode
     - mangohud
-    - lib32-mangohud
-  flatpak:
-    - net.lutris.Lutris
-  aur:
-    - protonup-qt
+    - lutris
+  flatpak: []
+  aur: []
 configs:
   - source: gaming/gamemode.ini
     dest: ~/.config/gamemode.ini
@@ -20,4 +20,8 @@ configs:
 services:
   enable: []
 post_install:
+  # Enables multilib, installs Steam + the GPU-appropriate lib32 runtime,
+  # adds the Flathub remote and installs the ProtonUp-Qt flatpak.
+  - pkexec /usr/local/bin/umao-install-steam-root
+  # Depends on the ProtonUp-Qt flatpak the step above installs.
   - umao-ensure-proton-ge

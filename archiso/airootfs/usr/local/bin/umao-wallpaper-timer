@@ -11,7 +11,10 @@ if [[ ! -f "$META" ]]; then
     exit 0
 fi
 
-hour=$(date +%H)
+# `date +%H` is zero-padded, and bash reads a leading zero as octal — "08"
+# and "09" are invalid octal, so every comparison below errored out and the
+# 08:00-09:59 window fell through to "night". Force base 10.
+hour=$((10#$(date +%H)))
 
 if (( hour >= 6 && hour < 12 )); then
     period="morning"

@@ -154,18 +154,38 @@ class WelcomeBackend(QObject):
         proc.setProgram(sys.executable)
         proc.setArguments([umao_profile, "apply", "--json"] + names)
 
-        def on_finished(_code, _status):
+        def on_finished(code, _status):
             out = bytes(proc.readAllStandardOutput()).decode(errors="replace")
+            err = bytes(proc.readAllStandardError()).decode(errors="replace").strip()
             self._apply_proc = None
             proc.deleteLater()
             lines = [l for l in out.strip().splitlines() if l.strip()]
             if lines:
                 self.applyFinished.emit(lines[-1])
+            elif err:
+                # Surface stderr instead of degrading a real failure (pacman
+                # errors, tracebacks) to a generic "no output" message.
+                self.applyFinished.emit(json.dumps(
+                    {"status": "error",
+                     "message": f"umao-profile failed (exit {code}): {err.splitlines()[-1][:300]}"}))
             else:
                 self.applyFinished.emit(json.dumps(
                     {"status": "error", "message": "No output from umao-profile"}))
 
+        def on_error(_err):
+            # Without this, a process that never starts (missing python or
+            # umao-profile) never emits finished(): _apply_proc would stay set
+            # and the UI would sit on "Applying..." forever, blocking retries.
+            if self._apply_proc is None:
+                return
+            self._apply_proc = None
+            proc.deleteLater()
+            self.applyFinished.emit(json.dumps(
+                {"status": "error",
+                 "message": f"Could not run umao-profile ({proc.errorString()})"}))
+
         proc.finished.connect(on_finished)
+        proc.errorOccurred.connect(on_error)
         proc.start()
 
 

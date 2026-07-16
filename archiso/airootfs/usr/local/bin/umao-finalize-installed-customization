@@ -256,7 +256,11 @@ sync_user_customization() {
   done
 
   install -d -m 700 -o "$uid" -g "$gid" "$user_home/.config/autostart"
-  for src in umaos-welcome.desktop umaos-login-sound.desktop umaos-conky.desktop umao-first-login-umamusume.desktop; do
+  # umaos-theme-first-login.desktop must be included: it runs
+  # `umao-apply-theme --once`, which is what actually applies the video
+  # wallpaper, floating panel and pinned launchers. Without it installed
+  # users silently never receive any of that customization.
+  for src in umaos-welcome.desktop umaos-theme-first-login.desktop umaos-login-sound.desktop umaos-conky.desktop umao-first-login-umamusume.desktop; do
     if [[ -f "/etc/skel/.config/autostart/$src" ]]; then
       install -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$src" \
         "$user_home/.config/autostart/$src"
@@ -313,10 +317,14 @@ sync_user_customization() {
   fi
 
   # Sync Dolphin sidebar bookmarks.
+  # XBEL hrefs are absolute URLs with no $HOME expansion, so the skel copy
+  # carries a __UMAOS_HOME__ token that must be resolved per user; without
+  # this every sidebar entry points at /home instead of the user's home.
   if [[ -f "/etc/skel/.local/share/user-places.xbel" ]]; then
     install -d -m 700 -o "$uid" -g "$gid" "$user_home/.local/share"
     install -m 600 -o "$uid" -g "$gid" "/etc/skel/.local/share/user-places.xbel" \
       "$user_home/.local/share/user-places.xbel"
+    sed -i "s#__UMAOS_HOME__#${user_home#/}#g" "$user_home/.local/share/user-places.xbel"
   fi
 
   cat > "$user_home/.icons/default/index.theme" <<'EOF'

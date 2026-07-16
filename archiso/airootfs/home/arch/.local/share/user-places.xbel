@@ -3,7 +3,7 @@
 <xbel xmlns:bookmark="http://www.freedesktop.org/standards/desktop-bookmarks"
       xmlns:kdeconnect="http://www.kde.org"
       xmlns:mime="http://www.freedesktop.org/standards/shared-mime-info">
- <bookmark href="file:///home">
+ <bookmark href="file:///home/arch">
   <title>Home</title>
   <info>
    <metadata owner="http://freedesktop.org">
@@ -14,7 +14,7 @@
    </metadata>
   </info>
  </bookmark>
- <bookmark href="file:///home/Desktop">
+ <bookmark href="file:///home/arch/Desktop">
   <title>Desktop</title>
   <info>
    <metadata owner="http://freedesktop.org">
@@ -25,7 +25,7 @@
    </metadata>
   </info>
  </bookmark>
- <bookmark href="file:///home/Documents">
+ <bookmark href="file:///home/arch/Documents">
   <title>Documents</title>
   <info>
    <metadata owner="http://freedesktop.org">
@@ -36,7 +36,7 @@
    </metadata>
   </info>
  </bookmark>
- <bookmark href="file:///home/Downloads">
+ <bookmark href="file:///home/arch/Downloads">
   <title>Downloads</title>
   <info>
    <metadata owner="http://freedesktop.org">
@@ -48,7 +48,7 @@
   </info>
  </bookmark>
  <separator/>
- <bookmark href="file:///home/.local/share/Steam/steamapps/common">
+ <bookmark href="file:///home/arch/.local/share/Steam/steamapps/common">
   <title>Steam Games</title>
   <info>
    <metadata owner="http://freedesktop.org">

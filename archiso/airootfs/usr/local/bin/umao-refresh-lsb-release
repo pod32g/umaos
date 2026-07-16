@@ -19,9 +19,10 @@ PRETTY_NAME="UmaOS"
 ID=umaos
 ID_LIKE=arch
 BUILD_ID=rolling
-ANSI_COLOR="0;32"
-HOME_URL="https://example.com/umaos"
-SUPPORT_URL="https://example.com/umaos/support"
-BUG_REPORT_URL="https://example.com/umaos/issues"
-LOGO=umaos
+ANSI_COLOR="38;2;66;165;75"
+HOME_URL="https://github.com/pod32g/umaos"
+DOCUMENTATION_URL="https://github.com/pod32g/umaos#readme"
+SUPPORT_URL="https://github.com/pod32g/umaos/issues"
+BUG_REPORT_URL="https://github.com/pod32g/umaos/issues"
+LOGO=umaos-launcher
 EOF
