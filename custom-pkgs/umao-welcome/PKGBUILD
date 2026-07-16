@@ -4,45 +4,49 @@ pkgver=1.0.0
 pkgrel=1
 pkgdesc="UmaOS welcome wizard and settings hub"
 arch=('any')
-url="https://github.com/pod32g/$pkgname"
+url="https://github.com/pod32g/umaos"
 license=('MIT')
 depends=('python' 'python-pyqt6' 'python-pyyaml' 'qt6-declarative')
 optdepends=(
     'fastfetch: hardware detection on System Info page'
     'konsole: terminal quick action'
 )
-source=("$pkgname-$pkgver.tar.gz::https://github.com/pod32g/$pkgname/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+# Unlike umao-dev-setup / umao-cursor-switcher, umao-welcome has no standalone
+# repo — its source lives in the umaos repo root. scripts/build-iso.sh stages
+# this PKGBUILD at <repo>/build/aur-src/umao-welcome and runs makepkg there, so
+# the repo root is three levels up from $startdir. Build straight from it; no
+# download, no source=()/sha256sums needed.
+source=()
 
 package() {
-    cd "$pkgname-$pkgver"
+    local _root
+    _root="$(cd "$startdir/../../.." && pwd)"
 
-    # Main executable
-    install -Dm755 umao-welcome "$pkgdir/usr/local/bin/umao-welcome"
-    install -Dm755 umao-profile "$pkgdir/usr/local/bin/umao-profile"
-    install -Dm755 umao-sdk "$pkgdir/usr/local/bin/umao-sdk"
+    # Main executables
+    install -Dm755 "$_root/umao-welcome" "$pkgdir/usr/local/bin/umao-welcome"
+    install -Dm755 "$_root/umao-profile" "$pkgdir/usr/local/bin/umao-profile"
+    install -Dm755 "$_root/umao-sdk"     "$pkgdir/usr/local/bin/umao-sdk"
 
     # NeoVim config
-    install -dm755 "$pkgdir/usr/share/umaos/nvim"
-    install -Dm644 assets/nvim/init.lua "$pkgdir/usr/share/umaos/nvim/init.lua"
+    install -Dm644 "$_root/assets/nvim/init.lua" "$pkgdir/usr/share/umaos/nvim/init.lua"
 
     # VS Code theme
     install -dm755 "$pkgdir/usr/share/umaos/vscode-theme"
-    cp -r assets/vscode/umaos-theme/* "$pkgdir/usr/share/umaos/vscode-theme/"
+    cp -r "$_root/assets/vscode/umaos-theme/." "$pkgdir/usr/share/umaos/vscode-theme/"
 
     # QML files
     install -dm755 "$pkgdir/usr/share/umaos/welcome"
-    install -Dm644 qml/*.qml "$pkgdir/usr/share/umaos/welcome/"
+    install -Dm644 "$_root"/qml/*.qml "$pkgdir/usr/share/umaos/welcome/"
 
     # QML components + qmldir
     install -dm755 "$pkgdir/usr/share/umaos/welcome/components"
-    install -Dm644 qml/components/*.qml "$pkgdir/usr/share/umaos/welcome/components/"
-    install -Dm644 qml/components/qmldir "$pkgdir/usr/share/umaos/welcome/components/qmldir"
+    install -Dm644 "$_root"/qml/components/*.qml "$pkgdir/usr/share/umaos/welcome/components/"
+    install -Dm644 "$_root/qml/components/qmldir" "$pkgdir/usr/share/umaos/welcome/components/qmldir"
 
     # Profile manifests
     install -dm755 "$pkgdir/usr/share/umaos/welcome/profiles"
-    install -Dm644 profiles/*.yaml "$pkgdir/usr/share/umaos/welcome/profiles/"
+    install -Dm644 "$_root"/profiles/*.yaml "$pkgdir/usr/share/umaos/welcome/profiles/"
 
     # Desktop entry (app menu)
-    install -Dm644 welcome.desktop "$pkgdir/usr/share/applications/umaos-welcome.desktop"
+    install -Dm644 "$_root/welcome.desktop" "$pkgdir/usr/share/applications/umaos-welcome.desktop"
 }
