@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import stat
 import subprocess
 import sys
 
@@ -159,11 +160,12 @@ def install_flatpak(packages, dry_run=False, json_mode=False):
 
 
 def deploy_configs(configs, profile_dir, dry_run=False, json_mode=False):
-    """Deploy configuration files."""
+    """Deploy configuration files. Returns a list of failures."""
     if not configs:
-        return
+        return []
     emit({"status": "progress", "phase": "configs", "message": f"Deploying {len(configs)} config files..."}, json_mode)
 
+    failures = []
     for cfg in configs:
         source = os.path.join(profile_dir, cfg.get("source", ""))
         dest = os.path.expanduser(cfg.get("dest", ""))
@@ -178,36 +180,60 @@ def deploy_configs(configs, profile_dir, dry_run=False, json_mode=False):
 
         if not os.path.isfile(source):
             emit({"status": "warning", "message": f"  Config source not found: {source}"}, json_mode)
+            failures.append(f"config (missing source): {cfg.get('source', '')}")
             continue
 
-        if os.path.exists(dest):
-            if conflict == "skip":
-                emit({"status": "info", "message": f"  Skipping (exists): {dest}"}, json_mode)
-                continue
-            elif conflict == "merge":
-                with open(source) as f:
-                    new_lines = f.readlines()
-                with open(dest) as f:
-                    existing = set(f.readlines())
-                with open(dest, "a") as f:
-                    for line in new_lines:
-                        if line not in existing:
-                            f.write(line)
-                emit({"status": "info", "message": f"  Merged: {dest}"}, json_mode)
-                continue
+        if conflict not in ("skip", "merge", "overwrite"):
+            # Unrecognized values silently fell through to overwrite.
+            emit({"status": "warning",
+                  "message": f"  Unknown conflict mode '{conflict}' for {dest}; treating as 'skip'"}, json_mode)
+            conflict = "skip"
 
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        with open(source) as sf, open(dest, "w") as df:
-            df.write(sf.read())
-        emit({"status": "info", "message": f"  Deployed: {dest}"}, json_mode)
+        # Config payloads are copied byte-for-byte: reading as text broke on any
+        # binary file with an uncaught UnicodeDecodeError mid-apply.
+        try:
+            if os.path.exists(dest):
+                if conflict == "skip":
+                    emit({"status": "info", "message": f"  Skipping (exists): {dest}"}, json_mode)
+                    continue
+                if conflict == "merge":
+                    with open(source, "rb") as f:
+                        new_lines = f.readlines()
+                    with open(dest, "rb") as f:
+                        existing_raw = f.read()
+                    existing = set(existing_raw.splitlines(keepends=True))
+                    # If the destination lacks a trailing newline the first
+                    # appended line would otherwise be glued onto its last line.
+                    needs_nl = bool(existing_raw) and not existing_raw.endswith(b"\n")
+                    with open(dest, "ab") as f:
+                        if needs_nl:
+                            f.write(b"\n")
+                        for line in new_lines:
+                            if line not in existing:
+                                f.write(line)
+                    emit({"status": "info", "message": f"  Merged: {dest}"}, json_mode)
+                    continue
+
+            parent = os.path.dirname(dest)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(source, "rb") as sf, open(dest, "wb") as df:
+                df.write(sf.read())
+            emit({"status": "info", "message": f"  Deployed: {dest}"}, json_mode)
+        except OSError as e:
+            emit({"status": "warning", "message": f"  Failed to deploy {dest}: {e}"}, json_mode)
+            failures.append(f"config: {dest}")
+
+    return failures
 
 
 def enable_services(services, dry_run=False, json_mode=False):
-    """Enable systemd services."""
+    """Enable systemd services. Returns a list of failures."""
     if not services:
-        return
+        return []
     emit({"status": "progress", "phase": "services", "message": f"Enabling {len(services)} services..."}, json_mode)
 
+    failures = []
     for svc in services:
         if dry_run:
             emit({"status": "info", "message": f"  [dry-run] systemctl enable --now {svc}"}, json_mode)
@@ -217,22 +243,68 @@ def enable_services(services, dry_run=False, json_mode=False):
             capture_output=True, text=True,
         )
         if result.returncode != 0:
-            emit({"status": "warning", "message": f"  Failed to enable service: {svc}"}, json_mode)
+            detail = (result.stderr or "").strip().splitlines()
+            tail = f": {detail[-1][:160]}" if detail else ""
+            emit({"status": "warning", "message": f"  Failed to enable service: {svc}{tail}"}, json_mode)
+            failures.append(f"service: {svc}")
+    return failures
 
 
-def run_post_install(commands, dry_run=False, json_mode=False):
+def profile_is_root_safe(profile_path):
+    """True if `profile_path` cannot be modified by a non-root user.
+
+    post_install entries are arbitrary shell strings. Profiles are searched in
+    ~/.config/umao/profiles too, so when this runs with euid 0 (e.g. someone
+    does `sudo -E umao-profile apply ...`, preserving HOME) an unprivileged
+    user could otherwise hand us root code to execute. Require that the file
+    and every parent directory are root-owned and not group/world writable.
+    """
+    path = os.path.abspath(profile_path)
+    while True:
+        try:
+            st = os.stat(path)
+        except OSError:
+            return False
+        if st.st_uid != 0:
+            return False
+        if st.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            return False
+        parent = os.path.dirname(path)
+        if parent == path:
+            return True
+        path = parent
+
+
+def run_post_install(commands, profile_path=None, dry_run=False, json_mode=False):
     """Run post-install hook commands."""
     if not commands:
         return
     emit({"status": "progress", "phase": "post_install", "message": f"Running {len(commands)} post-install hooks..."}, json_mode)
 
+    if (not dry_run and os.geteuid() == 0 and profile_path
+            and not profile_is_root_safe(profile_path)):
+        emit({"status": "error",
+              "message": ("  Refusing to run post-install hooks as root from a "
+                          f"user-writable profile: {profile_path}. Run without root, or "
+                          "install the profile under /usr/share/umaos/welcome/profiles.")},
+             json_mode)
+        return [f"post_install skipped (untrusted profile path): {profile_path}"]
+
+    failures = []
     for cmd in commands:
         if dry_run:
             emit({"status": "info", "message": f"  [dry-run] {cmd}"}, json_mode)
             continue
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         if result.returncode != 0:
-            emit({"status": "warning", "message": f"  Post-install hook failed: {cmd}"}, json_mode)
+            # Previously only warned and was excluded from the failure list, so
+            # a profile whose hooks all failed still reported "applied
+            # successfully!".
+            detail = (result.stderr or result.stdout or "").strip().splitlines()
+            tail = f": {detail[-1][:160]}" if detail else ""
+            emit({"status": "warning", "message": f"  Post-install hook failed: {cmd}{tail}"}, json_mode)
+            failures.append(f"post_install: {cmd}")
+    return failures
 
 
 def apply_profile(profile_path, dry_run=False, json_mode=False):
@@ -250,13 +322,16 @@ def apply_profile(profile_path, dry_run=False, json_mode=False):
     all_failures.extend(install_aur(pkgs.get("aur", []), dry_run, json_mode))
     all_failures.extend(install_flatpak(pkgs.get("flatpak", []), dry_run, json_mode))
 
-    deploy_configs(profile.get("configs", []), profile_dir, dry_run, json_mode)
-    enable_services(profile.get("services", {}).get("enable", []), dry_run, json_mode)
-    run_post_install(profile.get("post_install", []), dry_run, json_mode)
+    # Config deploys, service enables and post-install hooks used to only emit
+    # warnings and were excluded from the failure list, so a run whose every
+    # non-package step failed still reported "applied successfully!".
+    all_failures.extend(deploy_configs(profile.get("configs", []), profile_dir, dry_run, json_mode))
+    all_failures.extend(enable_services(profile.get("services", {}).get("enable", []), dry_run, json_mode))
+    all_failures.extend(run_post_install(profile.get("post_install", []), profile_path, dry_run, json_mode))
 
     if all_failures:
         emit({"status": "done", "profile": name, "failures": all_failures,
-              "message": f"Profile {name} applied with {len(all_failures)} package failures: {', '.join(all_failures)}"}, json_mode)
+              "message": f"Profile {name} applied with {len(all_failures)} failure(s): {', '.join(all_failures)}"}, json_mode)
     else:
         emit({"status": "done", "profile": name, "failures": [],
               "message": f"Profile {name} applied successfully!"}, json_mode)
