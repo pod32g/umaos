@@ -65,9 +65,14 @@ failures=0
 extract_from_iso "boot/grub/grub.cfg"
 extract_from_iso "boot/grub/loopback.cfg"
 extract_from_iso "boot/syslinux/archiso_sys-linux.cfg"
+extract_from_iso "boot/syslinux/archiso_head.cfg"
 extract_from_iso "boot/syslinux/splash.png"
 extract_from_iso "loader/entries/01-archiso-linux.conf"
 extract_from_iso "loader/entries/02-archiso-speech-linux.conf"
+# The GRUB theme payload itself: grub.cfg is checked for a themes/umaos
+# reference below, but without extracting the theme a missing payload passed
+# verification and GRUB silently fell back to the stock menu.
+extract_from_iso "boot/grub/themes/umaos"
 
 grub_cfg="$tmp_dir/boot/grub/grub.cfg"
 loopback_cfg="$tmp_dir/boot/grub/loopback.cfg"
@@ -78,7 +83,55 @@ loader_entry_2="$tmp_dir/loader/entries/02-archiso-speech-linux.conf"
 
 [[ -f "$loopback_cfg" ]] && pass "Found boot/grub/loopback.cfg" || fail "Missing boot/grub/loopback.cfg"
 [[ -f "$syslinux_cfg" ]] && pass "Found boot/syslinux/archiso_sys-linux.cfg" || fail "Missing boot/syslinux/archiso_sys-linux.cfg"
-[[ -f "$syslinux_bg" ]] && pass "Found boot/syslinux/splash.png" || fail "Missing boot/syslinux/splash.png"
+
+# Presence alone proves nothing: stock releng ships its own
+# boot/syslinux/splash.png, so this check passed with the unbranded Arch splash
+# even when configure_boot_branding's override was silently skipped. Compare
+# against the source image the build is supposed to have installed.
+if [[ -f "$syslinux_bg" ]]; then
+  pass "Found boot/syslinux/splash.png"
+  # configure_boot_branding picks whichever source is available (the generated
+  # GRUB gradient if present, else the static uma1 art), so accept ANY of them:
+  # the question this answers is "is the splash ours, or stock releng's?".
+  syslinux_matched=""
+  syslinux_available=0
+  for cand in "$ROOT_DIR/archiso/airootfs/usr/share/grub/themes/umaos/background.png" \
+              "$ROOT_DIR/assets/boot/uma1-syslinux.png" \
+              "$ROOT_DIR/assets/boot/uma1.png"; do
+    [[ -f "$cand" ]] || continue
+    syslinux_available=1
+    if cmp -s "$syslinux_bg" "$cand"; then
+      syslinux_matched="$cand"
+      break
+    fi
+  done
+  if ((syslinux_available == 0)); then
+    echo "[umaos-verify] WARN: no UmaOS syslinux splash source available to compare against" >&2
+  elif [[ -n "$syslinux_matched" ]]; then
+    pass "Syslinux splash matches a UmaOS source image ($(basename "$syslinux_matched"))"
+  else
+    fail "Syslinux splash matches no UmaOS source image — the branding override was skipped and the stock Arch splash shipped"
+  fi
+else
+  fail "Missing boot/syslinux/splash.png"
+fi
+
+# GRUB theme payload (grub.cfg only *references* it; without these the theme
+# can be absent from the ISO and GRUB silently falls back).
+if [[ -f "$grub_cfg" ]]; then
+  iso_theme_dir="$tmp_dir/boot/grub/themes/umaos"
+  [[ -f "$iso_theme_dir/theme.txt" ]] \
+    && pass "GRUB theme payload present (boot/grub/themes/umaos/theme.txt)" \
+    || fail "GRUB theme payload missing from ISO (boot/grub/themes/umaos/theme.txt) — grub.cfg references a theme that is not there"
+  [[ -f "$iso_theme_dir/background.png" ]] \
+    && pass "GRUB theme background present" \
+    || fail "GRUB theme background.png missing from ISO"
+  if compgen -G "$iso_theme_dir/*.pf2" >/dev/null 2>&1; then
+    pass "GRUB theme fonts (.pf2) present"
+  else
+    fail "GRUB theme fonts (.pf2) missing from ISO — theme text will not render"
+  fi
+fi
 
 uefi_mode=""
 if [[ -f "$grub_cfg" ]]; then
