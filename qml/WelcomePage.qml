@@ -26,9 +26,10 @@ Item {
         }
 
         Label {
-            text: "UmaOS is ready for you."
+            text: "UmaOS is ready for you. Pick a setup profile on the next page,\nor jump straight in with the shortcuts below."
             font.pixelSize: 16
             color: "#3a5a3a"
+            horizontalAlignment: Text.AlignHCenter
             Layout.alignment: Qt.AlignHCenter
         }
 
@@ -55,10 +56,14 @@ Item {
 
             Repeater {
                 model: [
-                    { label: "Documentation", cmd: "xdg-open https://github.com/pod32g/umaos" },
-                    { label: "Report a Bug", cmd: "xdg-open https://github.com/pod32g/umaos/issues" },
-                    { label: "Open Terminal", cmd: "konsole" },
-                    { label: "System Settings", cmd: "systemsettings" }
+                    { label: "\u{1F3AE} Install Uma Musume", cmd: "bash \"/etc/skel/Desktop/Install Uma Musume.sh\"" },
+                    { label: "\u{1F6E0} Developer Setup", cmd: "umao-dev-setup" },
+                    { label: "\u{1F400} Cursor Themes", cmd: "umao-cursor-switcher" },
+                    { label: "\u{1F3A8} Change Wallpaper", cmd: "plasma-open-settings kcm_wallpaper" },
+                    { label: "\u{1F4D6} Documentation", cmd: "xdg-open https://github.com/pod32g/umaos" },
+                    { label: "\u{1F41B} Report a Bug", cmd: "xdg-open https://github.com/pod32g/umaos/issues" },
+                    { label: "\u{2328} Open Terminal", cmd: "konsole" },
+                    { label: "\u{2699} System Settings", cmd: "systemsettings" }
                 ]
 
                 delegate: Button {

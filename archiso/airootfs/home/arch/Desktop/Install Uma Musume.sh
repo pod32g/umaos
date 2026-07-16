@@ -4,8 +4,25 @@ set -euo pipefail
 APP_ID="3224770"
 GAME_NAME="Umamusume: Pretty Derby"
 
+# Double-clicking on the desktop runs this with no terminal: every log line
+# and error would be invisible. Re-exec inside konsole so the user can see
+# progress and failures.
+if [[ ! -t 1 && -z "${UMAOS_NO_REEXEC:-}" ]] && command -v konsole >/dev/null 2>&1; then
+  export UMAOS_NO_REEXEC=1
+  exec konsole --hold -e bash "$0" "$@"
+fi
+
 log() {
   printf '[UmaOS Umamusume] %s\n' "$*"
+}
+
+fail_dialog() {
+  local msg="$1"
+  if [[ ! -t 1 ]] && command -v kdialog >/dev/null 2>&1; then
+    kdialog --title "UmaOS Game Installer" --error "$msg" || true
+  fi
+  log "$msg"
+  exit 1
 }
 
 ensure_steam_runtime() {
@@ -19,15 +36,18 @@ ensure_steam_runtime() {
     if pkexec /usr/local/bin/umao-install-steam-root; then
       return 0
     fi
+    # Don't fall through to bare sudo: without a terminal sudo cannot
+    # prompt, and with one, retrying via sudo after an explicit polkit
+    # cancel/failure just hides the real error.
+    fail_dialog "Steam runtime setup failed or was cancelled. Re-run the installer to try again."
   fi
 
-  if command -v sudo >/dev/null 2>&1; then
+  if [[ -t 0 ]] && command -v sudo >/dev/null 2>&1; then
     sudo /usr/local/bin/umao-install-steam-root
     return 0
   fi
 
-  log "Cannot install Steam automatically (sudo not available)."
-  exit 1
+  fail_dialog "Cannot install Steam automatically (no pkexec, and sudo needs a terminal)."
 }
 
 ensure_proton_ge() {

@@ -1,6 +1,6 @@
 # Maintainer: pod32g
 pkgname=umao-dev-setup
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="UmaOS development environment setup wizard"
 arch=('any')
