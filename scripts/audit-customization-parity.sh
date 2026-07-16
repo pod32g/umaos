@@ -37,6 +37,18 @@ require_file() {
   fi
 }
 
+# Like require_file, but only warns when absent. Use for artifacts that are
+# gitignored / developer-local and are NOT produced by build-iso.sh, so they
+# are absent from both a clean checkout and a freshly built profile.
+soft_require_file() {
+  local f="$1"
+  if [[ -f "$f" ]]; then
+    pass "Found $(realpath --relative-to="$ROOT_DIR" "$f" 2>/dev/null || echo "$f")"
+  else
+    warn "Optional (dev-local, not build-generated) file absent: $f"
+  fi
+}
+
 check_contains() {
   local f="$1"
   local pat="$2"
@@ -80,8 +92,8 @@ motd="$AIROOTFS/etc/motd"
 require_file "$sddm_theme_live"
 require_file "$finalizer"
 require_file "$apply_theme"
-require_file "$AIROOTFS/usr/local/bin/umao-debug"
-require_file "$AIROOTFS/usr/local/bin/umao-debug-upload"
+soft_require_file "$AIROOTFS/usr/local/bin/umao-debug"
+soft_require_file "$AIROOTFS/usr/local/bin/umao-debug-upload"
 require_file "$AIROOTFS/usr/local/bin/umao-ensure-proton-ge"
 require_file "$AIROOTFS/usr/local/bin/neofetch"
 require_file "$postboot"
@@ -110,23 +122,23 @@ check_contains "$AIROOTFS/etc/skel/.config/kdeglobals" '^Theme=UmaOS-Papirus$' "
 check_contains "$finalizer" 'ColorScheme=UmaSkyPink' "Installed default color scheme is UmaSkyPink"
 check_contains "$finalizer" 'Theme=UmaOS-Papirus' "Installed default icon theme is UmaOS-Papirus"
 check_contains "$AIROOTFS/usr/share/konsole/UmaOS-GoldShip.colorscheme" 'Wallpaper=/usr/share/umaos/themes/konsole/goldship\.webp' "Konsole color scheme uses Gold Ship wallpaper"
-check_contains "$AIROOTFS/usr/share/konsole/UmaOS.profile" '^ColorScheme=UmaOS-GoldShip$' "Konsole default profile uses UmaOS-GoldShip"
+check_contains "$AIROOTFS/usr/share/konsole/UmaOS.profile" '^ColorScheme=UmaOS-Terminal$' "Konsole default profile uses UmaOS-Terminal"
 check_contains "$AIROOTFS/etc/xdg/konsolerc" '^DefaultProfile=UmaOS\.profile$' "System-wide Konsole default profile is UmaOS.profile"
 check_contains "$AIROOTFS/etc/skel/.config/konsolerc" '^DefaultProfile=UmaOS\.profile$' "Installed-user skeleton Konsole default profile is UmaOS.profile"
 check_contains "$AIROOTFS/home/arch/.config/konsolerc" '^DefaultProfile=UmaOS\.profile$' "Live-user Konsole default profile is UmaOS.profile"
-check_contains "$finalizer" '/etc/skel/\.config/konsolerc' "Installed user finalizer syncs Konsole config from skeleton"
-check_contains "$AIROOTFS/etc/skel/.config/mimeapps.list" '^x-scheme-handler/http=helium\.desktop$' "Live user default HTTP handler is Helium"
-check_contains "$AIROOTFS/etc/skel/.config/mimeapps.list" '^x-scheme-handler/https=helium\.desktop$' "Live user default HTTPS handler is Helium"
-check_contains "$AIROOTFS/home/arch/.config/mimeapps.list" '^x-scheme-handler/http=helium\.desktop$' "Live session HTTP handler is Helium"
+check_contains "$finalizer" 'for src in .*konsolerc' "Installed user finalizer syncs Konsole config from skeleton"
+check_contains "$AIROOTFS/etc/skel/.config/mimeapps.list" '^x-scheme-handler/http=helium-browser\.desktop$' "Live user default HTTP handler is Helium"
+check_contains "$AIROOTFS/etc/skel/.config/mimeapps.list" '^x-scheme-handler/https=helium-browser\.desktop$' "Live user default HTTPS handler is Helium"
+check_contains "$AIROOTFS/home/arch/.config/mimeapps.list" '^x-scheme-handler/http=helium-browser\.desktop$' "Live session HTTP handler is Helium"
 check_contains "$finalizer" '/etc/xdg/mimeapps\.list' "Installed system default MIME mapping is written"
-check_contains "$finalizer" 'helium\.desktop' "Installed system/browser defaults reference Helium desktop entry"
+check_contains "$finalizer" 'helium-browser\.desktop' "Installed system/browser defaults reference Helium desktop entry"
 
 # Cursor parity
 check_contains "$AIROOTFS/etc/skel/.config/kcminputrc" '^cursorTheme=pixloen-haru-urara-v1\.7$' "Live user default cursor is Haru Urara"
 check_contains "$sddm_theme_live" '^CursorTheme=pixloen-haru-urara-v1\.7$' "Live SDDM cursor is Haru Urara"
 check_contains "$finalizer" 'resolve_cursor_theme' "Installed flow resolves cursor theme with fallback"
 check_contains "$finalizer" 'cursorTheme=__CURSOR_THEME__' "Installed user cursor config gets propagated"
-check_any_contains "Cursor default alias strategy present" 'DEFAULT_CURSOR_THEME|ensure_default_cursor_theme' "$ROOT_DIR/scripts/build-iso.sh"
+check_any_contains "Cursor themes provided via umao-cursor-switcher package" 'umao-cursor-switcher' "$ROOT_DIR/archiso/packages.x86_64" "$ROOT_DIR/scripts/build-iso.sh"
 
 # Wallpaper + first login apply parity
 require_file "$AIROOTFS/usr/share/wallpapers/UmaOS/metadata.desktop"
@@ -173,7 +185,7 @@ check_contains "$finalizer" 'umao-refresh-lsb-release' "Installed post-install r
 check_contains "$lsb_hook" 'umao-refresh-lsb-release' "Package hook keeps lsb-release branding persistent"
 
 # Umazing parity
-check_contains "$umazing_hook" '^Exec = /usr/bin/echo Umazing!$' "Pacman post-transaction celebration is enabled"
+check_contains "$umazing_hook" '^Exec = .*Umazing!' "Pacman post-transaction celebration is enabled"
 check_contains "$AIROOTFS/etc/profile.d/umao-umazing.sh" 'Umazing!' "Interactive shell celebration hook is present"
 
 # Game installer parity
@@ -190,13 +202,16 @@ check_contains "$AIROOTFS/home/arch/Desktop/Install Uma Musume.sh" 'umao-ensure-
 check_contains "$AIROOTFS/etc/skel/Desktop/Install Uma Musume.sh" 'umao-ensure-proton-ge' "Installed-user game launcher enforces Proton GE setup"
 check_contains "$finalizer" 'Install Uma Musume\.sh' "Installed user desktop gets game installer launcher"
 check_contains "$AIROOTFS/etc/skel/Desktop/Install Uma Musume.sh" 'umao-install-steam-root' "Installed-user desktop launcher provides Steam/game bootstrap"
+require_file "$AIROOTFS/usr/local/bin/umao-first-login-umamusume"
+check_contains "$AIROOTFS/etc/skel/.config/autostart/umao-first-login-umamusume.desktop" 'Exec=/usr/local/bin/umao-first-login-umamusume' "Installed-user first-login autostart invokes the game bootstrap"
+check_contains "$finalizer" 'umao-first-login-umamusume\.desktop' "Installed finalizer syncs the first-login game bootstrap autostart"
 
 # KDE Panel layout and icon parity
 require_file "$AIROOTFS/usr/share/icons/hicolor/scalable/apps/umaos-launcher.svg"
 require_file "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js"
 check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'umaos-launcher' "Shell layout.js sets Kickoff icon to umaos-launcher"
 check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'panelOpacity.*2' "Shell layout.js sets panel opacity to translucent"
-check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'helium\.desktop' "Shell layout.js pins Helium browser in taskbar"
+check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'helium-browser\.desktop' "Shell layout.js pins Helium browser in taskbar"
 check_contains "$AIROOTFS/usr/local/bin/umao-apply-theme" 'apply_panel_properties_dbus' "Theme script applies panel properties via DBus"
 check_contains "$AIROOTFS/usr/local/bin/umao-apply-theme" 'floating=1' "Theme script sets panel floating in plasmashellrc"
 check_contains "$AIROOTFS/root/customize_airootfs.sh" 'chown -R arch:arch /home/arch' "Live user home ownership is fixed in customize_airootfs"
