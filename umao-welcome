@@ -156,7 +156,7 @@ class WelcomeBackend(QObject):
 
         umao_profile = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umao-profile")
         if not os.path.isfile(umao_profile):
-            umao_profile = "/usr/local/bin/umao-profile"
+            umao_profile = "/usr/bin/umao-profile"
 
         proc = QProcess(self)
         self._apply_proc = proc

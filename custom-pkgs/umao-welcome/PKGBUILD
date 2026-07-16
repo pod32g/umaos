@@ -6,11 +6,19 @@ pkgdesc="UmaOS welcome wizard and settings hub"
 arch=('any')
 url="https://github.com/pod32g/umaos"
 license=('MIT')
-depends=('python' 'python-pyqt6' 'python-pyyaml' 'qt6-declarative')
+# pciutils (lspci) is used by getSystemInfo, polkit (pkexec) by umao-profile to
+# escalate, and xdg-utils (xdg-open) by the Welcome quick links — all executed
+# at runtime, so they are hard deps rather than assumed transitive ones.
+depends=('python' 'python-pyqt6' 'python-pyyaml' 'qt6-declarative'
+         'pciutils' 'polkit' 'xdg-utils')
 optdepends=(
     'fastfetch: hardware detection on System Info page'
     'konsole: terminal quick action'
     'base-devel: required by umao-sdk build-package (makepkg/fakeroot)'
+    'yay: install AUR packages listed in profile manifests'
+    'flatpak: install flatpak packages listed in profile manifests'
+    'umao-dev-setup: Developer Setup quick link'
+    'umao-cursor-switcher: Cursor Themes quick link / Theme page'
 )
 # Unlike umao-dev-setup / umao-cursor-switcher, umao-welcome has no standalone
 # repo — its source lives in the umaos repo root. scripts/build-iso.sh stages
@@ -24,9 +32,9 @@ package() {
     _root="$(cd "$startdir/../../.." && pwd)"
 
     # Main executables
-    install -Dm755 "$_root/umao-welcome" "$pkgdir/usr/local/bin/umao-welcome"
-    install -Dm755 "$_root/umao-profile" "$pkgdir/usr/local/bin/umao-profile"
-    install -Dm755 "$_root/umao-sdk"     "$pkgdir/usr/local/bin/umao-sdk"
+    install -Dm755 "$_root/umao-welcome" "$pkgdir/usr/bin/umao-welcome"
+    install -Dm755 "$_root/umao-profile" "$pkgdir/usr/bin/umao-profile"
+    install -Dm755 "$_root/umao-sdk"     "$pkgdir/usr/bin/umao-sdk"
 
     # NeoVim config
     install -Dm644 "$_root/assets/nvim/init.lua" "$pkgdir/usr/share/umaos/nvim/init.lua"
@@ -50,4 +58,12 @@ package() {
 
     # Desktop entry (app menu)
     install -Dm644 "$_root/welcome.desktop" "$pkgdir/usr/share/applications/umaos-welcome.desktop"
+
+    # MIT is declared in license=(); Arch requires shipping the text.
+    install -Dm644 "$_root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+    # profiles/ is copied with cp -r, which preserves working-tree modes;
+    # normalize so stray exec/group-write bits don't ship in the package.
+    find "$pkgdir/usr/share/umaos/welcome/profiles" -type d -exec chmod 755 {} +
+    find "$pkgdir/usr/share/umaos/welcome/profiles" -type f -exec chmod 644 {} +
 }
