@@ -21,7 +21,7 @@ This is a v1 integration scaffold. It is intended for VM validation and iterativ
 On an Arch-based build machine:
 
 ```bash
-sudo pacman -S --needed archiso rsync pacman
+sudo pacman -S --needed archiso rsync pacman grub
 ./scripts/check-prereqs.sh
 ./scripts/build-iso.sh
 ./scripts/run-qemu.sh
@@ -95,10 +95,14 @@ UmaOS prefers official Arch repos.
 - Default behavior: fail build if required packages are unavailable in official repos.
 - Optional fallback: set `UMAOS_ALLOW_AUR=1` to build missing packages from AUR into a local repo used by `mkarchiso`.
 - AUR fallback auto-imports `validpgpkeys` from each PKGBUILD before `makepkg` runs.
+- `UMAOS_ALLOW_AUR=1` is effectively mandatory: several required packages are not in the official
+  repositories, so a plain `./scripts/build-iso.sh` will stop and tell you to re-run with it.
 - Current AUR-backed requirements:
+  - `calamares` (graphical installer)
   - `plasma6-wallpapers-smart-video-wallpaper-reborn` (video wallpaper plugin)
   - `yay` (AUR helper included in live and installed UmaOS)
   - `helium-browser-bin` (default browser)
+  - `umao-welcome`, `umao-dev-setup`, `umao-cursor-switcher` (built from `custom-pkgs/`)
 
 Example:
 
@@ -122,7 +126,7 @@ In the live KDE session:
 - Calamares auto-launches once at login.
 - Users can relaunch from `Install UmaOS` desktop icon or app menu entry.
 - Desktop includes `Install Uma Musume.sh` to install the game via Steam (`steam://install/3224770`).
-- Default browser is Helium (`helium-browser-bin`), with MIME handlers preconfigured to `helium.desktop`.
+- Default browser is Helium (`helium-browser-bin`), with MIME handlers preconfigured to `helium-browser.desktop`.
 - On first login of an installed system, UmaOS now attempts to:
   - install Steam automatically (enabling `multilib` if needed),
   - install ProtonUp-Qt from Flathub (`net.davidotek.pupgui2`),
@@ -131,7 +135,8 @@ In the live KDE session:
   - open `steam://install/3224770` for Umamusume.
 - Default wallpaper target is video: `/usr/share/wallpapers/UmaOS/contents/videos/qloo.mp4`.
 - In virtual machines, video wallpaper is skipped by default (use `umao-apply-theme --video` to force it).
-- If Plasma crashes/restarts after applying video wallpaper, UmaOS auto-falls back to static SVG, clears `VideoUrls`, and records a disable marker at `~/.config/umaos/video-wallpaper.disabled`.
+- If Plasma crashes/restarts after applying video wallpaper, UmaOS auto-falls back to static SVG, clears `VideoUrls`, and records a disable marker at `~/.config/umaos/video-wallpaper.disabled`. That marker is managed automatically and is self-healed away once the failure count drops below the threshold.
+- `umao-apply-theme --no-video` records a separate, sticky opt-out at `~/.config/umaos/video-wallpaper.optout`, which is never auto-cleared; `--video` removes it. The Welcome app's Theme toggle reflects either marker.
 - Manual controls: `umao-apply-theme --video`, `umao-apply-theme --no-video`, `umao-apply-theme --debug-video`.
 - `umao-install` defaults to GUI-first and falls back to `archinstall` if Calamares is unavailable or exits with an error.
 - Before launching Calamares, `umao-install` re-syncs UmaOS Calamares defaults (`umao-sync-calamares-config`).
@@ -188,7 +193,8 @@ scripts/audit-customization-parity.sh
 - SDDM theme: `archiso/airootfs/usr/share/sddm/themes/umaos-race`
 - Plasma startup splash (KSplash): generated at build time from `ura_logo.png`
 - Icon mapping overlay: `archiso/airootfs/usr/share/icons/UmaOS-Papirus`
-- Custom cursor packs: place `.tar.gz`/`.tgz` archives in `assets/cursors/`; build imports them into `/usr/share/icons`.
+- Cursor packs: shipped by the `umao-cursor-switcher` package (listed in `archiso/packages.x86_64`),
+  which installs them into `/usr/share/icons`. They are no longer imported from this repo.
 
 First-login theme apply hook:
 
@@ -201,7 +207,7 @@ Quick runtime checks (inside live/installed UmaOS):
 sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/umaos-race
 umao-apply-theme --debug-video
 umao-debug --journal-lines 800
-umao-debug-upload --host 192.168.68.225 --user pod32g --password '<password>'
+umao-debug-upload --host <host> --user <user>   # prompts for credentials; avoid passing --password on the command line
 ```
 
 ## Repository layout
@@ -210,7 +216,6 @@ umao-debug-upload --host 192.168.68.225 --user pod32g --password '<password>'
 - `archiso/` ArchISO overlay and package list
 - `docs/` roadmap, theme spec, and licensing gates
 - `assets/boot/` GRUB and Syslinux source images (`uma1*.png`)
-- `assets/cursors/` cursor theme archives imported during build
 - `assets/wallpapers/` source wallpaper/video files
 - `assets/ascii/` terminal splash art sources
 
@@ -226,4 +231,6 @@ If Cygames (or another valid rights holder) requests removal, the maintainers wi
 
 ## Acknowledgements
 
-- Cursor theme packs (`assets/cursors/*.tar.gz`) are credited to the artist at: https://ko-fi.com/N4N8U8SL2
+- Cursor theme packs (bundled in the [umao-cursor-switcher](https://github.com/pod32g/umao-cursor-switcher)
+  repository) are credited to the artist at: https://ko-fi.com/N4N8U8SL2 — redistribution rights are
+  unresolved; see `docs/ASSET-LICENSES.md`.
