@@ -3,15 +3,21 @@ version: 1
 icon: uma-laptop
 description: "Battery optimization and power management for portable use."
 packages:
+  # power-profiles-daemon only. auto-cpufreq was also installed AND enabled
+  # here, but the two are mutually exclusive CPU power managers that fight over
+  # the scaling governor — auto-cpufreq's own docs tell you to remove
+  # power-profiles-daemon first. power-profiles-daemon is the one Plasma's
+  # powerdevil talks to (it drives the battery/performance switcher in the
+  # system tray) and it is in [extra] rather than the AUR, so it is the
+  # sensible default for a KDE distro. Swap the two if you prefer
+  # auto-cpufreq's aggressive tuning — but do not enable both.
   pacman:
     - power-profiles-daemon
   flatpak: []
-  aur:
-    # AUR-only package (not in official repos); under pacman: it failed the
-    # whole batch and the auto-cpufreq.service enable that follows.
-    - auto-cpufreq
+  aur: []
 configs: []
 services:
-  enable:
-    - auto-cpufreq.service
+  # power-profiles-daemon is D-Bus activated and is started on demand by
+  # powerdevil, so it needs no explicit enable.
+  enable: []
 post_install: []

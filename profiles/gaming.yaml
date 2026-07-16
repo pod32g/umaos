@@ -11,6 +11,8 @@ packages:
     - gamemode
     - mangohud
     - lutris
+    # gamemode.ini's start/end hooks call notify-send.
+    - libnotify
   flatpak: []
   aur: []
 configs:
@@ -23,5 +25,9 @@ post_install:
   # Enables multilib, installs Steam + the GPU-appropriate lib32 runtime,
   # adds the Flathub remote and installs the ProtonUp-Qt flatpak.
   - pkexec /usr/local/bin/umao-install-steam-root
+  # gamemode.ini sets renice=10, which Arch gates behind the `gamemode` group
+  # via /etc/security/limits.d — without membership the renice silently does
+  # nothing. Takes effect on next login.
+  - pkexec usermod -aG gamemode "$(id -un)"
   # Depends on the ProtonUp-Qt flatpak the step above installs.
   - umao-ensure-proton-ge
