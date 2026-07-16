@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Uma Musume First-Login Setup
+Comment=Bootstrap Steam, Proton GE, and the Umamusume install on first login
+Exec=/usr/local/bin/umao-first-login-umamusume
+Terminal=false
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
