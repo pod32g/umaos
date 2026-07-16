@@ -34,12 +34,16 @@ Collects a UmaOS diagnostics bundle (.tar.gz).
 Options:
   --journal-lines N   Recent journal lines to capture per boot (default: 2000)
   --output PATH       Write the bundle to PATH
-                      (default: $TMPDIR/umao-debug-<host>-<timestamp>.tar.gz)
+                      (default: ${XDG_STATE_HOME:-~/.local/state}/umaos/
+                       umao-debug-<host>-<timestamp>.tar.gz)
   --help              Show this help
+
+The bundle contains journals, environment and network details. It is written
+owner-readable only; treat it as sensitive before sharing.
 
 The bundle path is printed on stdout as the final line, e.g.:
   bundle="$(umao-debug --journal-lines 800 | tail -n1)"
-  umao-debug-upload --host 192.168.68.225 --user pod32g --file "$bundle"
+  umao-debug-upload --host <host> --user <user> --file "$bundle"
 EOF
 }
 
@@ -72,8 +76,27 @@ stamp="$(date +%Y%m%d-%H%M%S)"
 name="umao-debug-${host}-${stamp}"
 
 if [[ -z "$OUTPUT" ]]; then
-  OUTPUT="${DEFAULT_DIR%/}/${name}.tar.gz"
+  # The default lands in world-writable /tmp under a fully predictable name
+  # (hostname + timestamp). Run as root, another local user could pre-create a
+  # symlink there and have tar clobber whatever it points at. Bundles also
+  # contain journals, environment and network details, so a predictable
+  # world-readable path leaks them to every local user.
+  #
+  # Prefer the invoking user's XDG state dir; only fall back to a private
+  # mktemp -d under /tmp (0700) when that is unavailable.
+  default_dir="$DEFAULT_DIR"
+  state_home="${XDG_STATE_HOME:-${HOME:-}/.local/state}"
+  if [[ -n "${HOME:-}" ]] && mkdir -p "$state_home/umaos" 2>/dev/null; then
+    default_dir="$state_home/umaos"
+  else
+    default_dir="$(mktemp -d "${TMPDIR:-/tmp}/umao-debug-out.XXXXXX")"
+  fi
+  OUTPUT="${default_dir%/}/${name}.tar.gz"
 fi
+
+# Diagnostics contain journals/env/network detail: keep them owner-only rather
+# than inheriting a 0644 umask in a shared directory.
+umask 077
 
 workdir="$(mktemp -d "${TMPDIR:-/tmp}/umao-debug.XXXXXX")"
 bundle_dir="$workdir/$name"
