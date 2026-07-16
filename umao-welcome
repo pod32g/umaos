@@ -16,6 +16,7 @@ class WelcomeBackend(QObject):
 
     modeChanged = pyqtSignal()
     applyFinished = pyqtSignal(str)
+    commandFailed = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -31,10 +32,17 @@ class WelcomeBackend(QObject):
 
     @pyqtSlot()
     def markFirstRunDone(self):
-        state_dir = os.path.dirname(self._state_path())
-        os.makedirs(state_dir, exist_ok=True)
-        with open(self._state_path(), "w") as f:
-            f.write("1")
+        # An exception escaping a pyqtSlot aborts the whole application, so a
+        # read-only home or a full disk would crash the wizard on its final
+        # "Get Started!" click. Failing to persist the marker just means the
+        # wizard shows again next login — not worth taking the app down.
+        try:
+            state_dir = os.path.dirname(self._state_path())
+            os.makedirs(state_dir, exist_ok=True)
+            with open(self._state_path(), "w") as f:
+                f.write("1")
+        except OSError:
+            pass
         self._first_run = False
         self.modeChanged.emit()
 
@@ -42,14 +50,21 @@ class WelcomeBackend(QObject):
     def getVersion(self):
         """Return UmaOS version string."""
         for path in ["/etc/umaos-release", "/usr/share/umaos/version"]:
-            if os.path.isfile(path):
-                with open(path) as f:
-                    return f.read().strip()
+            try:
+                if os.path.isfile(path):
+                    with open(path) as f:
+                        return f.read().strip()
+            except OSError:
+                continue
         return "dev"
 
     @pyqtSlot(result=str)
     def getSystemInfo(self):
         """Return basic system info as JSON for the SystemInfo page."""
+        # OSError/PermissionError were not in these handlers, and anything
+        # escaping a pyqtSlot aborts the application — so a exec-permission
+        # problem on fastfetch/lspci would take the whole app down rather than
+        # showing "Unknown".
         info = {}
         try:
             result = subprocess.run(
@@ -58,7 +73,9 @@ class WelcomeBackend(QObject):
             )
             if result.returncode == 0:
                 info["fastfetch"] = json.loads(result.stdout)
-        except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            else:
+                info["fastfetch"] = None
+        except (OSError, subprocess.SubprocessError, json.JSONDecodeError):
             info["fastfetch"] = None
 
         try:
@@ -71,7 +88,7 @@ class WelcomeBackend(QObject):
                 if "VGA" in line or "3D" in line or "Display" in line
             ]
             info["gpu"] = gpu_lines[0] if gpu_lines else "Unknown"
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except (OSError, subprocess.SubprocessError):
             info["gpu"] = "Unknown"
 
         return json.dumps(info)
@@ -111,13 +128,18 @@ class WelcomeBackend(QObject):
 
     @pyqtSlot(str)
     def runCommand(self, cmd):
-        """Run a shell command async (fire-and-forget for quick actions)."""
+        """Run a command async (fire-and-forget for quick actions)."""
         import shlex
         try:
             args = shlex.split(cmd)
-            subprocess.Popen(args)
-        except Exception:
-            pass
+            # start_new_session detaches the child so it is not left as a
+            # zombie for the lifetime of the app (these are never reaped).
+            subprocess.Popen(args, start_new_session=True)
+        except (OSError, ValueError) as e:
+            # Previously swallowed silently, so a missing binary looked like a
+            # dead button. Surface it through the same channel the UI already
+            # listens on.
+            self.commandFailed.emit(f"Could not run '{cmd}': {e}")
 
     @pyqtSlot(result=bool)
     def videoWallpaperEnabled(self):
@@ -144,7 +166,12 @@ class WelcomeBackend(QObject):
         mid-run would orphan the underlying pacman/yay transaction.
         Emits applyFinished(jsonResult) when done.
         """
-        names = json.loads(profile_names_json)
+        try:
+            names = json.loads(profile_names_json)
+        except (json.JSONDecodeError, TypeError):
+            self.applyFinished.emit(json.dumps(
+                {"status": "error", "message": "Internal error: bad profile selection payload."}))
+            return
         if not names:
             self.applyFinished.emit(json.dumps(
                 {"status": "complete", "failures": [], "message": "No profiles selected."}))

@@ -10,18 +10,41 @@ Item {
     property var profiles: []
     property bool applying: false
     property string resultMessage: ""
+    // Set from the backend's structured status/failures fields rather than by
+    // sniffing the message text for the word "success".
+    property bool failed: false
 
     Component.onCompleted: {
-        var data = backend.loadProfiles()
-        profiles = JSON.parse(data)
+        // A malformed payload here used to throw and leave the page blank
+        // with no explanation.
+        try {
+            profiles = JSON.parse(backend.loadProfiles())
+        } catch (e) {
+            profiles = []
+            profilesRoot.resultMessage = "Could not load setup profiles."
+        }
     }
 
     Connections {
         target: backend
         function onApplyFinished(result) {
-            var parsed = JSON.parse(result)
+            // Guarded: a single non-JSON line would otherwise throw here and
+            // leave `applying` true forever — spinner stuck, cards disabled,
+            // and no way to retry.
+            var parsed
+            try {
+                parsed = JSON.parse(result)
+            } catch (e) {
+                parsed = { message: "Profile application returned an unreadable result." }
+            }
             profilesRoot.resultMessage = parsed.message || "Done"
+            profilesRoot.failed = !!(parsed.failures && parsed.failures.length) ||
+                                  parsed.status === "error"
             profilesRoot.applying = false
+        }
+        function onCommandFailed(msg) {
+            profilesRoot.resultMessage = msg
+            profilesRoot.failed = true
         }
     }
 
@@ -85,7 +108,7 @@ Item {
             visible: profilesRoot.resultMessage !== ""
             text: profilesRoot.resultMessage
             font.pixelSize: 13
-            color: profilesRoot.resultMessage.indexOf("success") >= 0 ? "#2E7D32" : "#C62828"
+            color: profilesRoot.failed ? "#C62828" : "#2E7D32"
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
         }
@@ -113,6 +136,7 @@ Item {
                     var names = Object.keys(profilesRoot.selectedProfiles)
                     profilesRoot.applying = true
                     profilesRoot.resultMessage = ""
+                    profilesRoot.failed = false
                     // Async: result arrives via backend.applyFinished
                     backend.applyProfiles(JSON.stringify(names))
                 }
