@@ -48,6 +48,10 @@ state_file="$state_dir/theme-applied"
 mkdir -p "$state_dir"
 log_file="$state_dir/video-wallpaper-debug.log"
 video_disabled_marker="$state_dir/video-wallpaper.disabled"
+# Distinct from the marker above: .disabled is managed automatically when the
+# video plugin crashes plasmashell (and is self-healed away below), whereas
+# .optout records a deliberate user choice and must never be auto-cleared.
+video_optout_marker="$state_dir/video-wallpaper.optout"
 video_fail_file="$state_dir/video-wallpaper.failcount"
 
 if (($once == 1)) && [[ -f "$state_file" ]]; then
@@ -101,6 +105,21 @@ if ((force_video == 0)) && [[ -f "$video_disabled_marker" ]]; then
         "Cleared stale video disable marker (failcount=${video_fail_count})." >> "$log_file"
     fi
   fi
+fi
+
+# Sticky user opt-out. Must be evaluated AFTER the self-heal above, which
+# unconditionally re-enables video whenever the auto-disable marker is present
+# below the failure threshold — that would otherwise undo an explicit
+# --no-video on the very next run.
+if ((disable_video == 1)) || [[ "${UMAOS_VIDEO_WALLPAPER:-}" == "0" ]]; then
+  mkdir -p "$state_dir"
+  touch "$video_optout_marker"
+fi
+if ((force_video == 1)) || [[ "${UMAOS_VIDEO_WALLPAPER:-}" == "1" ]]; then
+  rm -f "$video_optout_marker"
+fi
+if ((force_video == 0)) && [[ -f "$video_optout_marker" ]]; then
+  apply_video=0
 fi
 
 log_debug() {
@@ -174,6 +193,13 @@ if ((has_graphical_session == 1)) && command -v plasma-apply-desktoptheme >/dev/
   if ! plasma-apply-desktoptheme umaos >/dev/null 2>&1; then
     log_debug "WARNING: Failed to apply UmaOS desktop theme."
   fi
+fi
+
+if ((apply_video == 0)) && [[ -f "$video_optout_marker" ]]; then
+  # Honour a sticky opt-out: drop any video wallpaper still configured from a
+  # previous run so the choice takes effect immediately, not just next login.
+  clear_video_urls_config
+  log_debug "Video wallpaper opted out; cleared configured video URLs."
 fi
 
 if ((has_graphical_session == 1)) && ((apply_video == 1)) && [[ -f "$wallpaper_video" ]] && [[ -d "$video_plugin_dir" ]]; then

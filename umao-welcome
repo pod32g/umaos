@@ -121,9 +121,18 @@ class WelcomeBackend(QObject):
 
     @pyqtSlot(result=bool)
     def videoWallpaperEnabled(self):
-        """Whether the video wallpaper is currently enabled (no disable marker)."""
-        marker = os.path.expanduser("~/.config/umaos/video-wallpaper.disabled")
-        return not os.path.exists(marker)
+        """Whether the video wallpaper is currently enabled.
+
+        Two markers matter, and they mean different things:
+          * video-wallpaper.optout   — the user turned it off (sticky)
+          * video-wallpaper.disabled — auto-disabled after repeated
+            plasmashell crashes
+        Either one means the video is not in effect, so the toggle must
+        reflect both or it will show ON while the wallpaper is off.
+        """
+        state = os.path.expanduser("~/.config/umaos")
+        return not (os.path.exists(os.path.join(state, "video-wallpaper.optout"))
+                    or os.path.exists(os.path.join(state, "video-wallpaper.disabled")))
 
     @pyqtSlot(str)
     def applyProfiles(self, profile_names_json):
