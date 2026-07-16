@@ -385,12 +385,44 @@ main() {
   fi
 
   # Add plymouth hook to mkinitcpio for boot splash.
-  if [[ -f /etc/mkinitcpio.conf ]] && ! grep -q 'plymouth' /etc/mkinitcpio.conf; then
-    sed -i 's/^HOOKS=(\(base udev\)/HOOKS=(\1 plymouth/' /etc/mkinitcpio.conf
-    log "Added plymouth hook to mkinitcpio.conf."
-    if command -v mkinitcpio >/dev/null 2>&1; then
-      mkinitcpio -P 2>&1 | tail -5 || log "WARNING: mkinitcpio rebuild returned errors."
-      log "Rebuilt initramfs with plymouth hook."
+  #
+  # The guard greps for 'plymouth' anywhere in the file, which also matches
+  # commented-out lines (stock mkinitcpio.conf documents the hook in its
+  # comments), so this could decide the hook was already present and do
+  # nothing. Anchor on the real HOOKS= line instead.
+  #
+  # The old sed only matched `HOOKS=(base udev ...` and silently no-op'd on
+  # `base systemd` or reordered layouts — while still logging success. Insert
+  # after whichever of udev/systemd is actually present, and only claim to
+  # have done it once the file really changed.
+  if [[ -f /etc/mkinitcpio.conf ]]; then
+    local hooks_line
+    hooks_line="$(grep -m1 '^HOOKS=' /etc/mkinitcpio.conf || true)"
+    if [[ -z "$hooks_line" ]]; then
+      log "WARNING: no HOOKS= line in /etc/mkinitcpio.conf; skipping plymouth hook."
+    elif [[ "$hooks_line" == *plymouth* ]]; then
+      log "plymouth hook already present in mkinitcpio.conf."
+    else
+      if [[ "$hooks_line" == *systemd* ]]; then
+        sed -i 's/^\(HOOKS=([^)]*\bsystemd\b\)/\1 plymouth/' /etc/mkinitcpio.conf
+      elif [[ "$hooks_line" == *udev* ]]; then
+        sed -i 's/^\(HOOKS=([^)]*\budev\b\)/\1 plymouth/' /etc/mkinitcpio.conf
+      else
+        log "WARNING: HOOKS= has neither udev nor systemd; skipping plymouth hook."
+      fi
+
+      if grep -m1 '^HOOKS=' /etc/mkinitcpio.conf | grep -q 'plymouth'; then
+        log "Added plymouth hook to mkinitcpio.conf."
+        if command -v mkinitcpio >/dev/null 2>&1; then
+          if mkinitcpio -P 2>&1 | tail -5; then
+            log "Rebuilt initramfs with plymouth hook."
+          else
+            log "WARNING: mkinitcpio rebuild failed; boot splash may not appear."
+          fi
+        fi
+      else
+        log "WARNING: could not insert plymouth hook into HOOKS=; boot splash disabled."
+      fi
     fi
   fi
 
