@@ -1,6 +1,10 @@
 import QtQuick 2.15
 import SddmComponents 2.0
-import QtGraphicalEffects 1.0
+// QtGraphicalEffects is Qt5-only and does not exist under Qt6; importing it
+// made this whole theme fail to load on Arch's Qt6 sddm greeter, silently
+// falling back to the default theme. QtQuick.Effects (Qt 6.5+) is the
+// native replacement for the blur and the circular avatar mask.
+import QtQuick.Effects
 
 Rectangle {
     id: root
@@ -37,12 +41,14 @@ Rectangle {
         visible: false  // hidden — used as source for blur
     }
 
-    // Frosted glass blur on wallpaper
-    FastBlur {
+    // Frosted glass blur on wallpaper (Qt6 MultiEffect; was Qt5 FastBlur)
+    MultiEffect {
         id: blurredBg
         anchors.fill: parent
         source: background
-        radius: 48
+        blurEnabled: true
+        blur: 1.0
+        blurMax: 48
     }
 
     // Dark overlay for readability
@@ -165,24 +171,27 @@ Rectangle {
             function onTextChanged() { faceImage.attempt = 0; }
         }
 
-        // Circular clip via inline GLSL shader (Qt5 ShaderEffect).
-        // Discards pixels outside a circle of radius 0.5 in UV space.
-        ShaderEffect {
+        // Circular clip. Qt6 requires precompiled .qsb shaders, so the old
+        // inline-GLSL ShaderEffect could never work here; MultiEffect's mask
+        // does the same job natively with no shader toolchain.
+        Item {
+            id: faceCircleMask
+            anchors.fill: parent
+            layer.enabled: true
+            visible: false
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: "white"
+            }
+        }
+
+        MultiEffect {
             anchors.fill: parent
             visible: faceImage.status === Image.Ready
-            property variant src: faceImage
-
-            fragmentShader: "
-                varying highp vec2 qt_TexCoord0;
-                uniform sampler2D src;
-                uniform lowp float qt_Opacity;
-                void main() {
-                    highp vec2 uv = qt_TexCoord0 - vec2(0.5);
-                    if (length(uv) > 0.5)
-                        discard;
-                    gl_FragColor = texture2D(src, qt_TexCoord0) * qt_Opacity;
-                }
-            "
+            source: faceImage
+            maskEnabled: true
+            maskSource: faceCircleMask
         }
 
         // Circular border ring

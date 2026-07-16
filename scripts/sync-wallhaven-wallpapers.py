@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import re
 import shutil
 import sys
 import time
@@ -92,8 +93,18 @@ def fetch_page(query: str, purity: str, page: int) -> dict:
 def normalize_item(item: dict) -> Wallpaper | None:
     wallhaven_id = str(item.get("id", "")).strip()
     url = str(item.get("path", "")).strip()
-    width = int(item.get("dimension_x", 0) or 0)
-    height = int(item.get("dimension_y", 0) or 0)
+    # The id comes straight from the API and flows into on-disk filenames, the
+    # manifest, and (via build-iso.sh) `rm -rf "$wallpapers_root/Wallhaven-$id"`.
+    # Anything but a plain slug could traverse out of the wallpapers dir or
+    # break the TSV/JSON it is interpolated into.
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", wallhaven_id):
+        return None
+    try:
+        width = int(item.get("dimension_x", 0) or 0)
+        height = int(item.get("dimension_y", 0) or 0)
+    except (TypeError, ValueError):
+        # Malformed dimensions must skip the item, not kill the whole sync.
+        return None
     if not wallhaven_id or not url:
         return None
     ext = Path(url).suffix.lower()

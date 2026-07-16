@@ -242,7 +242,11 @@ install_uma_ksplash_theme() {
     return 0
   fi
 
-  rm -rf "$theme_root"
+  # Only reset the splash subtree this function owns. Wiping $theme_root
+  # deleted the rest of the look-and-feel package that airootfs ships
+  # (notably contents/lockscreen/LockScreenUi.qml), so the custom lockscreen
+  # never reached a built ISO.
+  rm -rf "$splash_dir"
   mkdir -p "$images_dir"
   # Pre-resize logo to 120px so it doesn't render at native 872×1000
   # even if QML sourceSize is ignored by the renderer.

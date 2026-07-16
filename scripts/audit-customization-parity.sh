@@ -198,7 +198,10 @@ check_contains "$finalizer" 'umao-first-login-umamusume\.desktop' "Installed fin
 require_file "$AIROOTFS/usr/share/icons/hicolor/scalable/apps/umaos-launcher.svg"
 require_file "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js"
 check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'umaos-launcher' "Shell layout.js sets Kickoff icon to umaos-launcher"
-check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'panelOpacity.*2' "Shell layout.js sets panel opacity to translucent"
+# Anchor on the actual writeConfig call: 'panelOpacity.*2' also matched the
+# explanatory comment ("2 = translucent"), so the check passed unconditionally
+# while the panel was in fact configured opaque (1).
+check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'writeConfig\("panelOpacity", 1\)' "Shell layout.js sets panel opacity to opaque"
 check_contains "$AIROOTFS/usr/share/plasma/shells/org.kde.plasma.desktop/contents/layout.js" 'helium-browser\.desktop' "Shell layout.js pins Helium browser in taskbar"
 check_contains "$AIROOTFS/usr/local/bin/umao-apply-theme" 'apply_panel_properties_dbus' "Theme script applies panel properties via DBus"
 check_contains "$AIROOTFS/usr/local/bin/umao-apply-theme" 'floating=1' "Theme script sets panel floating in plasmashellrc"

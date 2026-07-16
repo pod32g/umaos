@@ -16,6 +16,13 @@ concurrency:
 
 jobs:
   lint:
+    # These jobs run on a self-hosted runner on the maintainer's LAN, so they
+    # must never execute code from a fork PR (which could run arbitrary
+    # commands on that machine). Same-repo branches and pushes only; fork PRs
+    # are skipped and must be reviewed before being run from a local branch.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, umaos]
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +60,10 @@ jobs:
           fi
 
   verify:
+    # Same fork-PR guard as `lint` — see the comment there.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, umaos]
     steps:
       - uses: actions/checkout@v4
