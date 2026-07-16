@@ -327,12 +327,22 @@ sync_user_customization() {
     sed -i "s#__UMAOS_HOME__#${user_home#/}#g" "$user_home/.local/share/user-places.xbel"
   fi
 
-  cat > "$user_home/.icons/default/index.theme" <<'EOF'
+  # `cat >` follows a symlink at the destination, so a local user could point
+  # ~/.icons/default/index.theme at an arbitrary path and have this root-run
+  # script write it (and then chown it to them). Unlike this, `install` unlinks
+  # its destination first and is safe. Write to a temp file and install it.
+  #
+  # This script normally runs from Calamares against a freshly created user, but
+  # it is re-runnable on a live system, where that ordering no longer holds.
+  local icons_tmp
+  icons_tmp="$(mktemp)"
+  cat > "$icons_tmp" <<EOF
 [Icon Theme]
-Inherits=__CURSOR_THEME__
+Inherits=${cursor_theme}
 EOF
-  sed -i "s/__CURSOR_THEME__/${cursor_theme}/g" "$user_home/.icons/default/index.theme"
-  chown "$uid:$gid" "$user_home/.icons/default/index.theme"
+  install -d -m 700 -o "$uid" -g "$gid" "$user_home/.icons" "$user_home/.icons/default"
+  install -m 644 -o "$uid" -g "$gid" "$icons_tmp" "$user_home/.icons/default/index.theme"
+  rm -f "$icons_tmp"
 
   # Ensure first login retries full theme application and video wallpaper setup.
   rm -f \

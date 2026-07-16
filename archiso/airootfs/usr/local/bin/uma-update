@@ -297,6 +297,30 @@ sync_dir_recursive "$airootfs/etc/helium" "/etc/helium"
 sync_dir_files "$airootfs/usr/lib/systemd/system-sleep" "/usr/lib/systemd/system-sleep" 0755
 
 # ── Post-sync: propagate theme changes to existing users ──
+
+# Install a file into a user's home AS THAT USER.
+#
+# Doing this as root with `install -o uid -g gid` follows any symlink the user
+# has planted at the destination: a local user could point
+# ~/.config/kdeglobals at an arbitrary path and have root write — and chown —
+# that file on the next `sudo uma-update`. Dropping to the user's own uid means
+# a planted symlink can only reach files that user could already write.
+install_as_user() {
+  local user_name="$1" mode="$2" src="$3" dest="$4"
+  local dest_dir
+  dest_dir="$(dirname "$dest")"
+  if ! runuser -u "$user_name" -- mkdir -p "$dest_dir" 2>/dev/null; then
+    log "WARNING: could not create $dest_dir for user '$user_name'"
+    return 0
+  fi
+  # Remove an existing entry first (rm does not traverse a symlink), so we
+  # replace the link itself rather than writing through it.
+  runuser -u "$user_name" -- rm -f "$dest" 2>/dev/null || true
+  if ! runuser -u "$user_name" -- install -m "$mode" "$src" "$dest" 2>/dev/null; then
+    log "WARNING: could not install $dest for user '$user_name'"
+  fi
+}
+
 propagate_to_users() {
   log "Propagating updated configs to existing users..."
   local user_name user_home uid gid
@@ -310,13 +334,13 @@ propagate_to_users() {
     # user preference that should not be overwritten on update.
     for src in kdeglobals ksplashrc kscreenlockerrc kwinrc konsolerc mimeapps.list; do
       if [[ -f "/etc/skel/.config/$src" ]]; then
-        install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/$src" "$user_home/.config/$src"
+        install_as_user "$user_name" 600 "/etc/skel/.config/$src" "$user_home/.config/$src"
       fi
     done
 
     # Sync fastfetch config
     if [[ -f "/etc/skel/.config/fastfetch/config.jsonc" ]]; then
-      install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/fastfetch/config.jsonc" \
+      install_as_user "$user_name" 600 "/etc/skel/.config/fastfetch/config.jsonc" \
         "$user_home/.config/fastfetch/config.jsonc"
     fi
 
@@ -327,14 +351,14 @@ propagate_to_users() {
     # Sync desktop launchers
     for launcher in "Install Uma Musume.sh" "UmaOS Update.desktop" "Driver Setup.desktop" "Audio Doctor.desktop" "Change Cursor.desktop" "Dev Setup.desktop"; do
       if [[ -f "/etc/skel/Desktop/$launcher" ]]; then
-        install -D -m 755 -o "$uid" -g "$gid" "/etc/skel/Desktop/$launcher" \
+        install_as_user "$user_name" 755 "/etc/skel/Desktop/$launcher" \
           "$user_home/Desktop/$launcher"
       fi
     done
 
     # Sync conky config
     if [[ -f "/etc/skel/.config/conky/conky.conf" ]]; then
-      install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.config/conky/conky.conf" \
+      install_as_user "$user_name" 600 "/etc/skel/.config/conky/conky.conf" \
         "$user_home/.config/conky/conky.conf"
     fi
 
@@ -344,31 +368,35 @@ propagate_to_users() {
       local nvim_dst="$user_home/.config/nvim"
       for nvim_file in init.lua .stylua.toml; do
         if [[ -f "$nvim_src/$nvim_file" ]]; then
-          install -D -m 600 -o "$uid" -g "$gid" "$nvim_src/$nvim_file" "$nvim_dst/$nvim_file"
+          install_as_user "$user_name" 600 "$nvim_src/$nvim_file" "$nvim_dst/$nvim_file"
         fi
       done
       if [[ -d "$nvim_src/lua" ]]; then
         while IFS= read -r -d '' file; do
           local rel="${file#"$nvim_src"/}"
-          install -D -m 600 -o "$uid" -g "$gid" "$file" "$nvim_dst/$rel"
+          install_as_user "$user_name" 600 "$file" "$nvim_dst/$rel"
         done < <(find "$nvim_src/lua" -type f -print0 | sort -z)
       fi
-      # install -D creates intermediate dirs as root; fix ownership
-      chown -R "$uid:$gid" "$nvim_dst"
+      # No chown needed: install_as_user already writes as the user.
     fi
 
     # Sync autostart entries
     for entry in umaos-welcome.desktop umaos-login-sound.desktop umaos-conky.desktop; do
       if [[ -f "/etc/skel/.config/autostart/$entry" ]]; then
-        install -D -m 644 -o "$uid" -g "$gid" "/etc/skel/.config/autostart/$entry" \
+        install_as_user "$user_name" 644 "/etc/skel/.config/autostart/$entry" \
           "$user_home/.config/autostart/$entry"
       fi
     done
 
     # Sync Dolphin sidebar bookmarks (only if user hasn't customized theirs)
     if [[ -f "/etc/skel/.local/share/user-places.xbel" ]] && [[ ! -f "$user_home/.local/share/user-places.xbel" ]]; then
-      install -D -m 600 -o "$uid" -g "$gid" "/etc/skel/.local/share/user-places.xbel" \
+      install_as_user "$user_name" 600 "/etc/skel/.local/share/user-places.xbel" \
         "$user_home/.local/share/user-places.xbel"
+      # The skel copy carries a __UMAOS_HOME__ token because XBEL hrefs are
+      # absolute URLs with no $HOME expansion; resolve it for this user or every
+      # Dolphin sidebar entry points at the wrong place.
+      runuser -u "$user_name" -- sed -i "s#__UMAOS_HOME__#${user_home#/}#g" \
+        "$user_home/.local/share/user-places.xbel" 2>/dev/null || true
     fi
 
     log "Synced configs for user '$user_name'."
