@@ -59,6 +59,16 @@ jobs:
             python3 -m py_compile "${py[@]}"
           fi
 
+      # custom-pkgs/ is what build-iso.sh feeds to makepkg, but each app also
+      # keeps a canonical PKGBUILD in its own repo. They drifted once and the
+      # ISO shipped cursor themes as 0700/root-owned (switcher fully broken)
+      # while the app repo looked fine. This fails on drift, and on a
+      # sha256sums=('SKIP') regression against a network source.
+      - name: PKGBUILD sums pinned + in sync with app repos
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: scripts/check-pkgbuild-sync.sh
+
   verify:
     # Same fork-PR guard as `lint` — see the comment there.
     if: >-
